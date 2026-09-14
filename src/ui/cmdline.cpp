@@ -74,7 +74,11 @@ void Cmdline::handleEvent(const sf::Event &event) {
 
   if (mode_ == CmdlineMode::Cmd) {
     if (completions_.isVisible()) {
-      bool is_edit = event.is<sf::Event::TextEntered>();
+      bool is_edit = false;
+      if (const auto *te = event.getIf<sf::Event::TextEntered>()) {
+        // Ignore control characters (< 0x20) — Ctrl+J sends \n, Ctrl+K sends \v
+        is_edit = te->unicode >= 0x20 && te->unicode != 0x7F;
+      }
       if (!is_edit && key)
         is_edit = key->code == sf::Keyboard::Key::Backspace ||
                   key->code == sf::Keyboard::Key::Delete;
@@ -108,14 +112,18 @@ void Cmdline::handleEvent(const sf::Event &event) {
       } else if (key->code == sf::Keyboard::Key::N && key->control) {
         textbox_.setText(cmd_history_.getNext());
       } else if (key->code == sf::Keyboard::Key::Tab) {
-        if (!completions_.isVisible()) {
-          original_string_ = textbox_.getText();
-          refreshCompletions();
-        } else {
-          if (key->shift)
-            completions_.moveUp();
-          else
-            completions_.moveDown();
+        original_string_ = textbox_.getText();
+        refreshCompletions();
+        return;
+      } else if (key->code == sf::Keyboard::Key::J && key->control) {
+        if (completions_.isVisible()) {
+          completions_.moveDown();
+          textbox_.setText(completions_.getSelectedText());
+        }
+        return;
+      } else if (key->code == sf::Keyboard::Key::K && key->control) {
+        if (completions_.isVisible()) {
+          completions_.moveUp();
           textbox_.setText(completions_.getSelectedText());
         }
         return;

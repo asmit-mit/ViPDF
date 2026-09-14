@@ -39,7 +39,9 @@ PDFView::PDFView(
       return;
     }
 
-    document_.reloadDocument();
+    std::size_t curr_page = layout_manager_.getAnchorPage();
+    onOpenDocument(document_.getFilePath());
+    onSwitchPage(curr_page);
   });
 
   event_bus_.subscribe<bool>("cmd.close_document", [this](bool) { onCloseDocument(); });
@@ -53,6 +55,7 @@ PDFView::PDFView(
   });
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
+    prev_key_ = sf::Keyboard::Key::Unknown;
     should_take_input_ = focus == ui::UIElements::PDFView;
   });
 }
@@ -95,15 +98,7 @@ void PDFView::update() {
     pages_[i].syncPageShapePos();
 
   if (search_controller_.isSearchPosDirty() && pages_[anchor_page].hasTexture()) {
-    const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
-    const sf::Vector2f pos = pages_[anchor_page].getSearchResultPosition(
-        search_controller_.getLocalSearchResult()
-    );
-    sf::Vector2f delta = window_center - pos;
-    layout_manager_.panCurrentPage(delta);
-    layout_manager_.updatePagePositions(view_state);
-    for (std::size_t i = front_page; i <= back_page; i++)
-      pages_[i].syncPageShapePos();
+    centerOnSearchResult(anchor_page, front_page, back_page, view_state);
     search_controller_.clearSearchPosDirty();
   }
 
@@ -164,10 +159,10 @@ void PDFView::handleEvent(const sf::Event &event) {
         onSwitchPage(std::min(document_.pageCount() - 1, anchor_page + 1));
     } else if (key->code == sf::Keyboard::Key::Equal && key->control) {
       view_controller_.setZoom(view_state.zoom + settings::delta_zoom_);
-      event_bus_.emit("statusbar.page_zoom", view_state.zoom);
+      event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
     } else if (key->code == sf::Keyboard::Key::Hyphen && key->control) {
       view_controller_.setZoom(view_state.zoom - settings::delta_zoom_);
-      event_bus_.emit("statusbar.page_zoom", view_state.zoom);
+      event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
     } else if (key->code == sf::Keyboard::Key::H) {
       layout_manager_.panCurrentPage({scroll_dist_, 0.f});
     } else if (key->code == sf::Keyboard::Key::L) {
@@ -207,17 +202,19 @@ void PDFView::handleEvent(const sf::Event &event) {
       const auto page_dims = scheduler_.getPageSize(base_key);
       if (page_dims.x > 0 && page_dims.y > 0) {
         const float viewable_h = window_size_.y - utils::cmdline_height_;
-        const float zoom_x = window_size_.x / static_cast<float>(page_dims.x);
+        const float viewable_w = window_size_.x;
+        const float zoom_x = viewable_w / static_cast<float>(page_dims.x);
         const float zoom_y = viewable_h / static_cast<float>(page_dims.y);
         view_controller_.setZoom(std::min(zoom_x, zoom_y));
-        event_bus_.emit("statusbar.page_zoom", view_state.zoom);
+        event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
       }
     } else if (key->code == sf::Keyboard::Key::W) {
       pdf::PDFRenderKey base_key{anchor_page, 1.f, view_state.rotate};
       const auto page_dims = scheduler_.getPageSize(base_key);
       if (page_dims.x > 0) {
-        view_controller_.setZoom(window_size_.x / static_cast<float>(page_dims.x));
-        event_bus_.emit("statusbar.page_zoom", view_state.zoom);
+        const float viewable_w = window_size_.x;
+        view_controller_.setZoom(viewable_w / static_cast<float>(page_dims.x));
+        event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
       }
     } else if (key->code == sf::Keyboard::Key::Escape) {
       search_controller_.reset();
@@ -267,7 +264,8 @@ void PDFView::onCloseDocument() {
   resetView();
   document_.closeDocument();
   event_bus_.emit("statusbar.pdf_path", std::string("[No document open]"));
-  event_bus_.emit("statusbar.total_pages", static_cast<size_t>(0));
+  event_bus_
+      .emit("statusbar.page_state", std::make_pair(static_cast<std::size_t>(0), static_cast<std::size_t>(0)));
 }
 
 void PDFView::onSwitchPage(int page_idx) {
@@ -310,6 +308,23 @@ void PDFView::onSearchPage(const std::u32string &text) {
   event_bus_.emit("statusbar.search_state", std::make_pair(curr + 1, total));
 }
 
+void PDFView::centerOnSearchResult(
+    std::size_t anchor_page,
+    std::size_t front_page,
+    std::size_t back_page,
+    const ui::VisualInfo &view_state
+) {
+  const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
+  const sf::Vector2f pos = pages_[anchor_page].getSearchResultPosition(
+      search_controller_.getLocalSearchResult()
+  );
+  sf::Vector2f delta = window_center - pos;
+  layout_manager_.panCurrentPage(delta);
+  layout_manager_.updatePagePositions(view_state);
+  for (std::size_t i = front_page; i <= back_page; i++)
+    pages_[i].syncPageShapePos();
+}
+
 void PDFView::renderRequestedPages() {
   const VisualInfo view_state = view_controller_.getState();
   for (std::size_t i = layout_manager_.getFrontPage(); i <= layout_manager_.getBackPage(); i++) {
@@ -318,6 +333,7 @@ void PDFView::renderRequestedPages() {
       continue;
 
     if (pages_[i].hasTexture() && pages_[i].getKey() == target_key) {
+      pages_[i].setScale({1.f, 1.f});
       pages_[i].syncPageShape(view_state.rotate);
       continue;
     }

@@ -34,6 +34,12 @@ private:
   void onSwitchPage(int page_idx);
   void onSearchPage(const std::u32string &text);
 
+  void centerOnSearchResult(
+      std::size_t anchor_page,
+      std::size_t front_page,
+      std::size_t back_page,
+      const ui::VisualInfo &view_state
+  );
   void renderRequestedPages();
   void requestPage(std::size_t page_idx, float zoom, int rotate);
   void resetView();
@@ -57,7 +63,6 @@ private:
   sf::Vector2f window_size_;
   sf::Keyboard::Key prev_key_;
 
-  static constexpr float scrollwheel_width_ = 8.f;
   static constexpr float scroll_dist_ = 40.f;
 };
 

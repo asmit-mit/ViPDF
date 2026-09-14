@@ -1,3 +1,4 @@
+#include <print>
 #include <stdexcept>
 
 #include "pdf/pdf_document.h"
@@ -81,6 +82,7 @@ void PDFDocument::closeDocument() {
 void PDFDocument::reloadDocument() {
   if (filepath_.empty())
     return;
+  std::println("reload {}", filepath_);
   openDocument(filepath_);
 }
 
@@ -88,6 +90,10 @@ std::size_t PDFDocument::pageWithMaxWidth() const {
   if (!doc_)
     return 0;
   return page_with_max_width_;
+}
+
+std::string &PDFDocument::getFilePath() {
+  return filepath_; 
 }
 
 PDFPage &PDFDocument::getPage(std::size_t page_idx) {

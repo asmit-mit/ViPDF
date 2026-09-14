@@ -35,6 +35,7 @@ public:
   void closeDocument();
   void reloadDocument();
 
+  std::string &getFilePath();
   PDFPage &getPage(std::size_t page_idx);
   const std::vector<OutlineEntry> &getOutline() const;
 
