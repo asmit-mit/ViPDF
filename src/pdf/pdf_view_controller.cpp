@@ -70,9 +70,10 @@ void PDFViewController::syncWithTargetState(
     return;
 
   for (std::size_t i = front; i <= back; ++i) {
-    pdf::PDFRenderKey target_key{i, target_state_.zoom, target_state_.rotate};
+    pdf::PDFRenderKey target_key{i, target_state_.zoom, target_state_.rotate, 0};
     auto &page = pages_[i];
-    if (!page.hasTexture() || page.getKey() == target_key)
+    if (!page.hasTexture() ||
+        (page.getKey().rotate == target_key.rotate && page.getKey().zoom == target_key.zoom))
       continue;
 
     const int delta = (target_state_.rotate - page.getKey().rotate + 4) % 4;

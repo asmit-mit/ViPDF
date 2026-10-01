@@ -72,6 +72,10 @@ void RichText::setItalic() {
   default_font_type_ = FontType::Italic;
 }
 
+std::u32string RichText::getString() const {
+  return text_;
+}
+
 sf::Vector2f RichText::getSize() const {
   return size_;
 }

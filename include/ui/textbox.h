@@ -21,6 +21,7 @@ public:
 
   void setCursorSize(const sf::Vector2f &cursor_size);
   void setPosition(const sf::Vector2f &pos);
+  sf::Vector2f getPosition() const;
 
   void show();
   void hide();
@@ -36,6 +37,7 @@ public:
   const std::string &getText() const;
   const std::u32string &getTextU32() const;
 
+  float getCursorX(std::size_t idx);
   void setCursorPosition(int pos);
   std::size_t getCursorPosition() const;
 
@@ -52,7 +54,6 @@ private:
   void selectAll();
 
   std::size_t getCharacterIndex(const sf::Vector2i &pos);
-  float getCursorX(std::size_t idx);
   void createSelectionBox();
   void rebuildDisplayTexts();
 

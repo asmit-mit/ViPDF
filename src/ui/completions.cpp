@@ -86,15 +86,17 @@ void Completions::update() {
       {display_cmd_list_[selected_row].getSize().x + 6.f, utils::cmdline_height_}
   );
 
-  selected_desc_area_.setPosition(
-      {window_size_.x - display_desc_list_[selected_row].getGlobalBounds().size.x - utils::padding -
-           4.f,
-       display_desc_list_[selected_row].getPosition().y}
-  );
-  selected_desc_area_.setSize(
-      {display_desc_list_[selected_row].getGlobalBounds().size.x + utils::padding,
-       utils::cmdline_height_}
-  );
+  if (!display_desc_list_[selected_row].getString().isEmpty()) {
+    selected_desc_area_.setPosition(
+        {window_size_.x - display_desc_list_[selected_row].getGlobalBounds().size.x -
+             utils::padding - 4.f,
+         display_desc_list_[selected_row].getPosition().y}
+    );
+    selected_desc_area_.setSize(
+        {display_desc_list_[selected_row].getGlobalBounds().size.x + utils::padding,
+         utils::cmdline_height_}
+    );
+  }
 }
 
 void Completions::handleEvent(const sf::Event &event) {}

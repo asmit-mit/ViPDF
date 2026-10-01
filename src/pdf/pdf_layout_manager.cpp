@@ -1,4 +1,5 @@
 #include "pdf/pdf_layout_manager.h"
+
 #include "ui/page_view.h"
 #include "utils/utils.h"
 
@@ -205,11 +206,10 @@ void PDFLayoutManager::updateNeighbourPositions() {
 
 void PDFLayoutManager::clampAnchorHorizontally(const ui::VisualInfo &visual_state) {
   auto &page = pages_[anchor_page_];
+  const auto key = pdf::PDFRenderKey{page_with_max_width_, visual_state.zoom, visual_state.rotate, 0};
 
   const float window_w = window_size_.x;
-  const float page_w = static_cast<float>(
-      scheduler_.getPageSize({page_with_max_width_, visual_state.zoom, visual_state.rotate}).x
-  );
+  const float page_w = static_cast<float>(scheduler_.getPageSize(key).x);
   const float half_w = page_w * 0.5f;
 
   sf::Vector2f pos = page.getPosition();

@@ -60,7 +60,7 @@ public:
 
 private:
   PDFSearchResult search_result_;
-  sf::VertexArray search_boxes_{sf::PrimitiveType::Triangles};
+  sf::VertexArray context_boxes_{sf::PrimitiveType::Triangles};
 
   sf::RectangleShape original_shape_;
   sf::Sprite sprite_;

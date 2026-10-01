@@ -4,7 +4,7 @@
 
 namespace ui {
 
-PageView::PageView(const sf::Texture &dummy) : sprite_(dummy) {
+PageView::PageView(const sf::Texture &dummy) : sprite_(dummy), key_(0, 0, 0, 0) {
   active_ = false;
   show_search_boxes_ = false;
   update_search_boxes_ = false;
@@ -24,12 +24,12 @@ void PageView::draw(sf::RenderTarget &window) const {
   if (!show_search_boxes_)
     return;
 
-  window.draw(search_boxes_, sf::RenderStates(original_shape_.getTransform()));
+  window.draw(context_boxes_, sf::RenderStates(original_shape_.getTransform()));
 }
 
 void PageView::update() {
   if (show_search_boxes_ && update_search_boxes_) {
-    search_boxes_.clear();
+    context_boxes_.clear();
 
     for (std::size_t i = 0; i < search_result_.local_rects.size(); i++) {
       const auto &rect = search_result_.local_rects[i];
@@ -40,12 +40,12 @@ void PageView::update() {
       sf::Vector2f br = {rect.x1, rect.y1};
       sf::Vector2f bl = {rect.x0, rect.y1};
 
-      search_boxes_.append({tl, color});
-      search_boxes_.append({tr, color});
-      search_boxes_.append({br, color});
-      search_boxes_.append({tl, color});
-      search_boxes_.append({br, color});
-      search_boxes_.append({bl, color});
+      context_boxes_.append({tl, color});
+      context_boxes_.append({tr, color});
+      context_boxes_.append({br, color});
+      context_boxes_.append({tl, color});
+      context_boxes_.append({br, color});
+      context_boxes_.append({bl, color});
     }
 
     update_search_boxes_ = false;
@@ -120,12 +120,12 @@ void PageView::setSelectedSearchResult(std::size_t idx) {
 
 void PageView::setSearchResults(PDFSearchResult search_results) {
   search_result_ = std::move(search_results);
-  search_boxes_.resize(search_result_.local_rects.size());
+  context_boxes_.resize(search_result_.local_rects.size());
 }
 
 void PageView::clearSearchResults() {
   search_result_.local_rects.clear();
-  search_boxes_.clear();
+  context_boxes_.clear();
   selected_search_result_ = -1;
 }
 

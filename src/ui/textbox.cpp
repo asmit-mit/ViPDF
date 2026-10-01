@@ -222,6 +222,10 @@ void Textbox::setPosition(const sf::Vector2f &pos) {
   pos_ = pos;
 }
 
+sf::Vector2f Textbox::getPosition() const {
+  return pos_;
+}
+
 void Textbox::show() {
   if (visible_)
     return;

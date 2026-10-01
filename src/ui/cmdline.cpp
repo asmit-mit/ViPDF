@@ -99,6 +99,11 @@ void Cmdline::handleEvent(const sf::Event &event) {
         event_bus_.emit("ui.focus", ui::UIElements::PDFView);
         cmd_history_.reset();
       } else if (key->code == sf::Keyboard::Key::Enter) {
+        if (completions_.isVisible()) {
+          textbox_.setText(completions_.getSelectedText());
+          completions_.hide();
+          return;
+        }
         cmd_history_.add(textbox_.getText());
         try {
           cmd_processor_.runCommand(textbox_.getText());
@@ -112,8 +117,16 @@ void Cmdline::handleEvent(const sf::Event &event) {
       } else if (key->code == sf::Keyboard::Key::N && key->control) {
         textbox_.setText(cmd_history_.getNext());
       } else if (key->code == sf::Keyboard::Key::Tab) {
-        original_string_ = textbox_.getText();
-        refreshCompletions();
+        if (!completions_.isVisible()) {
+          original_string_ = textbox_.getText();
+          refreshCompletions();
+        } else {
+          if (key->shift)
+            completions_.moveUp();
+          else
+            completions_.moveDown();
+          textbox_.setText(completions_.getSelectedText());
+        }
         return;
       } else if (key->code == sf::Keyboard::Key::J && key->control) {
         if (completions_.isVisible()) {
@@ -141,7 +154,7 @@ void Cmdline::handleEvent(const sf::Event &event) {
         textbox_.setText(search_history_.getPrevious());
       } else if (key->code == sf::Keyboard::Key::N && key->control) {
         textbox_.setText(search_history_.getNext());
-      }    
+      }
     }
   }
 

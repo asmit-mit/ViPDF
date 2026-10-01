@@ -54,6 +54,9 @@ void PDFRenderer::render(
 ) {
   fz_display_list *list = getOrLoadDisplayList(key.page_idx, ctx, doc);
   fz_pixmap *pix = getPixmapFromDisplayList(ctx, list, key.zoom, key.rotate);
+
+  if (key.recolor)
+    fz_tint_pixmap(ctx, pix, settings::recolor_dark, settings::recolor_light);
   rastarizeToBitmap(ctx, pix, rgba, image);
 }
 

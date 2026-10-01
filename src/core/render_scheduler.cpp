@@ -120,7 +120,7 @@ void RenderScheduler::resume() {
 
 void RenderScheduler::workerLoop(std::size_t idx) {
   while (true) {
-    pdf::PDFRenderKey key;
+    pdf::PDFRenderKey key(0, 0, 0, 0);
 
     std::unique_lock lock(lock_);
     cv_work_.wait(lock, [&] { return stop_ || !job_queue_.empty(); });

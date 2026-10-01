@@ -30,6 +30,9 @@ private:
 
   core::EventBus &event_bus_;
 
+  std::u32string filepath_;
+  std::u32string last_truncated_;
+
   std::size_t search_num_;
   std::size_t total_search_results_;
 
@@ -40,6 +43,7 @@ private:
   bool search_details_changed_;
   bool move_up_;
   float curr_x_, curr_y_;
+  float last_available_width_;
 };
 
 } // namespace ui

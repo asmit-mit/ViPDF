@@ -13,9 +13,14 @@ struct PDFRenderKey {
   std::size_t page_idx;
   float zoom;
   int rotate;
+  bool recolor;
+
+  PDFRenderKey(std::size_t page_idx, float zoom, int rotate, bool recolor)
+      : page_idx(page_idx), zoom(zoom), rotate(rotate), recolor(recolor) {}
 
   bool operator==(const PDFRenderKey &other) const noexcept {
-    return page_idx == other.page_idx && zoom == other.zoom && rotate == other.rotate;
+    return page_idx == other.page_idx && zoom == other.zoom && rotate == other.rotate &&
+           recolor == other.recolor;
   }
 };
 
@@ -30,6 +35,7 @@ struct PDFRenderKeyHash {
     hashCombine(std::hash<std::size_t>{}(key.page_idx));
     hashCombine(std::hash<float>{}(key.zoom));
     hashCombine(std::hash<int>{}(key.rotate));
+    hashCombine(std::hash<bool>{}(key.recolor));
 
     return seed;
   }

@@ -41,7 +41,7 @@ private:
       const ui::VisualInfo &view_state
   );
   void renderRequestedPages();
-  void requestPage(std::size_t page_idx, float zoom, int rotate);
+  void requestPage(std::size_t page_idx, float zoom, int rotate, bool recolor);
   void resetView();
 
 private:
@@ -59,6 +59,8 @@ private:
   sf::Texture dummy_;
 
   bool should_take_input_;
+  bool update_recolor_;
+  bool recolor_;
 
   sf::Vector2f window_size_;
   sf::Keyboard::Key prev_key_;

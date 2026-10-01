@@ -21,6 +21,10 @@ constexpr uint32_t notification_hover_bg_ = 0x3c3836;
 constexpr uint32_t search_box_color_ = 0xFFD70050;
 constexpr uint32_t search_highlight_color_ = 0xADFF2F66;
 
+constexpr bool default_recolor = true;
+constexpr uint32_t recolor_light = 0x282828;
+constexpr uint32_t recolor_dark = 0xebdbb2;
+
 constexpr float delta_zoom_ = 0.1f;
 constexpr std::size_t display_list_cache_size_ = 200;
 constexpr std::size_t page_cache_size_ = 15;

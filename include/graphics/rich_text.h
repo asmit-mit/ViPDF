@@ -4,6 +4,7 @@
 
 #include <ft2build.h>
 #include <hb.h>
+#include <string>
 
 #include "graphics/font_library.h"
 #include "graphics/glyph_atlas.h"
@@ -39,6 +40,7 @@ public:
   void setBold();
   void setItalic();
 
+  std::u32string getString() const;
   sf::Vector2f getSize() const;
   const std::vector<ShapedGlyph> &getShapedGlyphs() const;
 
