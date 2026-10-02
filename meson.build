@@ -30,6 +30,7 @@ sources = files(
   'src/pdf/pdf_layout_manager.cpp',
   'src/pdf/pdf_view_controller.cpp',
   'src/pdf/pdf_search_controller.cpp',
+  'src/pdf/pdf_selection_controller.cpp',
   'src/ui/cmdline.cpp',
   'src/ui/completions.cpp',
   'src/ui/cursor.cpp',

@@ -8,6 +8,7 @@
 #include "pdf/pdf_document.h"
 #include "pdf/pdf_layout_manager.h"
 #include "pdf/pdf_search_controller.h"
+#include "pdf/pdf_selection_controller.h"
 #include "pdf/pdf_view_controller.h"
 #include "ui/page_view.h"
 
@@ -49,6 +50,7 @@ private:
   pdf::PDFLayoutManager layout_manager_;
   pdf::PDFViewController view_controller_;
   pdf::PDFSearchController search_controller_;
+  pdf::PDFSelectionController selection_controller_;
 
   std::vector<PageView> pages_;
 
@@ -61,6 +63,7 @@ private:
   bool should_take_input_;
   bool update_recolor_;
   bool recolor_;
+  bool selecting_;
 
   sf::Vector2f window_size_;
   sf::Keyboard::Key prev_key_;

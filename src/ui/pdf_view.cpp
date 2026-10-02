@@ -5,6 +5,7 @@
 #include <utf8.h>
 
 #include "pdf/pdf_renderer.h"
+#include "pdf/pdf_selection_controller.h"
 #include "ui/ui_elements.h"
 #include "utils/settings.h"
 #include "utils/utils.h"
@@ -18,11 +19,12 @@ PDFView::PDFView(
     core::EventBus &event_bus
 )
     : document_(document), layout_manager_(scheduler, pages_), view_controller_(scheduler, pages_),
-      search_controller_(pages_), event_bus_(event_bus), file_history_(file_history),
-      scheduler_(scheduler) {
+      search_controller_(pages_), selection_controller_(pages_), event_bus_(event_bus),
+      file_history_(file_history), scheduler_(scheduler) {
   should_take_input_ = false;
   recolor_ = settings::default_recolor;
   update_recolor_ = false;
+  selecting_ = false;
 
   layout_manager_.setAnchorPage(0);
   layout_manager_.setFrontPage(0);
@@ -136,7 +138,6 @@ void PDFView::handleEvent(const sf::Event &event) {
 
   const auto *key = event.getIf<sf::Event::KeyPressed>();
   const auto *scroll = event.getIf<sf::Event::MouseWheelScrolled>();
-
   std::size_t anchor_page = layout_manager_.getAnchorPage();
   const VisualInfo view_state = view_controller_.getState();
 
@@ -189,15 +190,11 @@ void PDFView::handleEvent(const sf::Event &event) {
       else
         prev_key_ = sf::Keyboard::Key::G;
     } else if (key->code == sf::Keyboard::Key::N) {
-      int page = -1;
+      auto page = key->shift ? search_controller_.goPrev(layout_manager_.getAnchorPage())
+                             : search_controller_.goNext(layout_manager_.getAnchorPage());
 
-      if (key->shift)
-        page = search_controller_.goPrev(layout_manager_.getAnchorPage());
-      else
-        page = search_controller_.goNext(layout_manager_.getAnchorPage());
-
-      if (page != -1)
-        onSwitchPage(page);
+      if (page)
+        onSwitchPage(*page);
 
       std::size_t curr = search_controller_.getCurrSearchResult();
       std::size_t total = search_controller_.getTotalSearchResult();
@@ -227,6 +224,7 @@ void PDFView::handleEvent(const sf::Event &event) {
         event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
       }
     } else if (key->code == sf::Keyboard::Key::Escape) {
+      selection_controller_.reset();
       search_controller_.reset();
       std::size_t curr = search_controller_.getCurrSearchResult();
       std::size_t total = search_controller_.getTotalSearchResult();
@@ -235,6 +233,25 @@ void PDFView::handleEvent(const sf::Event &event) {
 
     if (key->code != sf::Keyboard::Key::G)
       prev_key_ = sf::Keyboard::Key::Unknown;
+  }
+
+  if (const auto *mouse = event.getIf<sf::Event::MouseButtonPressed>()) {
+    if (mouse->button == sf::Mouse::Button::Left) {
+      selecting_ = true;
+      selection_controller_.setSelectionStart(layout_manager_.getAnchorPage(), mouse->position);
+      selection_controller_.showSelection();
+    }
+  }
+
+  if (const auto *move = event.getIf<sf::Event::MouseMoved>()) {
+    if (selecting_) {
+      // selection_controller_.setSelectionEnd(layout_manager_.getAnchorPage(), mouse->position);
+    }
+  }
+
+  if (const auto *mouse = event.getIf<sf::Event::MouseButtonReleased>()) {
+    if (mouse->button == sf::Mouse::Button::Left)
+      selecting_ = false;
   }
 }
 
@@ -302,18 +319,18 @@ void PDFView::onSearchPage(const std::u32string &text) {
     return;
   }
 
-  int closest_page = search_controller_.search(text, layout_manager_.getAnchorPage(), document_);
+  auto closest_page = search_controller_.search(text, layout_manager_.getAnchorPage(), document_);
   std::size_t curr = search_controller_.getCurrSearchResult();
   std::size_t total = search_controller_.getTotalSearchResult();
 
-  if (closest_page == -1) {
+  if (!closest_page) {
     event_bus_.emit("statusbar.search_state", std::make_pair(curr, total));
     event_bus_.emit("notification.msg", std::string("No match found for: ") + utf8::utf32to8(text));
     return;
   }
 
   if (closest_page != static_cast<int>(layout_manager_.getAnchorPage()))
-    onSwitchPage(closest_page);
+    onSwitchPage(closest_page.value());
 
   event_bus_.emit("statusbar.search_state", std::make_pair(curr + 1, total));
 }
@@ -438,6 +455,7 @@ void PDFView::resetView() {
   view_controller_.clearSyncDirty();
 
   search_controller_.reset();
+  selection_controller_.reset();
 }
 
 } // namespace ui

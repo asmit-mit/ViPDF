@@ -1,19 +1,28 @@
 #include "pdf/pdf_search_controller.h"
 
+#include <algorithm>
+#include <cstdlib>
+#include <limits>
+#include <optional>
+
 namespace pdf {
 
 PDFSearchController::PDFSearchController(std::vector<ui::PageView> &pages) : pages_(pages) {
   search_pos_dirty_ = false;
   show_search_result_boxes_ = false;
+  selected_page_ = -1;
 
   curr_search_result_ = 0;
   local_search_result_ = 0;
   total_search_results_ = 0;
 }
 
-std::size_t PDFSearchController::search(
+std::optional<std::size_t> PDFSearchController::search(
     const std::u32string &text, std::size_t anchor, pdf::PDFDocument &document
 ) {
+  if (!document.isOpen())
+    return std::nullopt;
+
   if (!document.isAllContentLoaded())
     document.loadAllContent();
 
@@ -45,17 +54,19 @@ std::size_t PDFSearchController::search(
     curr_search_result_ = 0;
     local_search_result_ = 0;
     total_search_results_ = 0;
+    selected_page_ = -1;
 
     search_pos_dirty_ = false;
     show_search_result_boxes_ = false;
 
-    return closest_page;
+    return std::nullopt;
   }
 
   curr_search_result_ = pages_[closest_page].getSearchResults().start;
   local_search_result_ = 0;
   total_search_results_ = global_start;
   pages_[closest_page].setSelectedSearchResult(local_search_result_);
+  selected_page_ = closest_page;
 
   search_pos_dirty_ = true;
   show_search_result_boxes_ = true;
@@ -92,73 +103,85 @@ void PDFSearchController::hideSearchResults() {
 }
 
 void PDFSearchController::reset() {
+  if (selected_page_ >= 0)
+    pages_[selected_page_].setSelectedSearchResult(-1);
+  selected_page_ = -1;
+
   curr_search_result_ = 0;
+  local_search_result_ = 0;
   total_search_results_ = 0;
   hideSearchResults();
 }
 
-int PDFSearchController::goNext(std::size_t anchor) {
+std::optional<int> PDFSearchController::goNext(std::size_t anchor) {
   if (total_search_results_ == 0)
-    return -1;
+    return std::nullopt;
 
-  pages_[anchor].setSelectedSearchResult(-1);
+  const std::size_t page = selected_page_ >= 0 ? static_cast<std::size_t>(selected_page_) : anchor;
+  pages_[page].setSelectedSearchResult(-1);
 
-  if (local_search_result_ + 1 < pages_[anchor].getSearchResults().local_rects.size()) {
+  if (local_search_result_ + 1 < pages_[page].getSearchResults().local_rects.size()) {
     curr_search_result_++;
     local_search_result_++;
-    pages_[anchor].setSelectedSearchResult(local_search_result_);
+    pages_[page].setSelectedSearchResult(local_search_result_);
+    selected_page_ = static_cast<int>(page);
 
     search_pos_dirty_ = true;
     show_search_result_boxes_ = true;
-    return -1;
+    return std::nullopt;
   }
 
-  auto it = std::
-      upper_bound(pages_with_search_results_.begin(), pages_with_search_results_.end(), static_cast<int>(anchor));
+  auto it =
+      std::upper_bound(pages_with_search_results_.begin(), pages_with_search_results_.end(), page);
   if (it == pages_with_search_results_.end())
     it = pages_with_search_results_.begin();
 
-  curr_search_result_ = pages_[*it].getSearchResults().start;
+  const std::size_t next = *it;
+  curr_search_result_ = pages_[next].getSearchResults().start;
   local_search_result_ = 0;
+  pages_[next].setSelectedSearchResult(local_search_result_);
+  selected_page_ = static_cast<int>(next);
 
-  pages_[anchor].setSelectedSearchResult(local_search_result_);
   search_pos_dirty_ = true;
   show_search_result_boxes_ = true;
 
-  return *it;
+  return static_cast<int>(next);
 }
 
-int PDFSearchController::goPrev(std::size_t anchor) {
+std::optional<int> PDFSearchController::goPrev(std::size_t anchor) {
   if (total_search_results_ == 0)
-    return -1;
+    return std::nullopt;
 
-  pages_[anchor].setSelectedSearchResult(-1);
+  const std::size_t page = selected_page_ >= 0 ? static_cast<std::size_t>(selected_page_) : anchor;
+  pages_[page].setSelectedSearchResult(-1);
 
   if (local_search_result_ > 0) {
     curr_search_result_--;
     local_search_result_--;
-    pages_[anchor].setSelectedSearchResult(local_search_result_);
+    pages_[page].setSelectedSearchResult(local_search_result_);
+    selected_page_ = static_cast<int>(page);
 
     search_pos_dirty_ = true;
     show_search_result_boxes_ = true;
-    return -1;
+    return std::nullopt;
   }
 
-  auto it = std::
-      lower_bound(pages_with_search_results_.begin(), pages_with_search_results_.end(), static_cast<int>(anchor));
+  auto it =
+      std::lower_bound(pages_with_search_results_.begin(), pages_with_search_results_.end(), page);
   if (it == pages_with_search_results_.begin())
     it = pages_with_search_results_.end();
   --it;
 
-  const std::size_t last_local = pages_[*it].getSearchResults().local_rects.size() - 1;
-  curr_search_result_ = pages_[*it].getSearchResults().start + last_local;
+  const std::size_t prev = *it;
+  const std::size_t last_local = pages_[prev].getSearchResults().local_rects.size() - 1;
+  curr_search_result_ = pages_[prev].getSearchResults().start + last_local;
   local_search_result_ = last_local;
-  pages_[anchor].setSelectedSearchResult(local_search_result_);
+  pages_[prev].setSelectedSearchResult(local_search_result_);
+  selected_page_ = static_cast<int>(prev);
 
   search_pos_dirty_ = true;
   show_search_result_boxes_ = true;
-
-  return *it;
+  return static_cast<int>(prev);
 }
 
 } // namespace pdf
