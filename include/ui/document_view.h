@@ -14,9 +14,9 @@
 
 namespace ui {
 
-class PDFView {
+class DocumentView {
 public:
-  explicit PDFView(
+  explicit DocumentView(
       core::HistoryManager &file_history,
       pdf::PDFDocument &document,
       core::RenderScheduler &scheduler,
@@ -46,13 +46,13 @@ private:
   void resetView();
 
 private:
+  std::vector<PageView> pages_;
   pdf::PDFDocument &document_;
   pdf::PDFLayoutManager layout_manager_;
   pdf::PDFViewController view_controller_;
   pdf::PDFSearchController search_controller_;
   pdf::PDFSelectionController selection_controller_;
 
-  std::vector<PageView> pages_;
 
   core::EventBus &event_bus_;
   core::HistoryManager &file_history_;

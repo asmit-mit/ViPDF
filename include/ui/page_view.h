@@ -25,6 +25,7 @@ public:
   void update() override;
 
   sf::Sprite &getSprite();
+  sf::RectangleShape &getReferenceShape();
 
   void move(const sf::Vector2f &delta);
   void setPosition(const sf::Vector2f &position);
@@ -48,8 +49,8 @@ public:
   void setSearchResults(PDFSearchResult search_results);
   void clearSearchResults();
 
-  void showSearchResults();
-  void hideSearchResults();
+  void setSelections(sf::VertexArray selection_boxes);
+  void clearSelections();
 
   void setPageShapeSize(sf::Vector2f size);
   void syncPageShapePos();
@@ -57,10 +58,12 @@ public:
 
   bool hasTexture() const;
   bool isInView(const sf::Vector2f &window_size) const;
+  bool containsMouse(const sf::Vector2i &mouse_pos) const;
 
 private:
   PDFSearchResult search_result_;
-  sf::VertexArray context_boxes_{sf::PrimitiveType::Triangles};
+  sf::VertexArray search_boxes_{sf::PrimitiveType::Triangles};
+  sf::VertexArray selection_boxes_{sf::PrimitiveType::Triangles};
 
   sf::RectangleShape original_shape_;
   sf::Sprite sprite_;
@@ -69,7 +72,6 @@ private:
   std::size_t selected_search_result_;
 
   bool active_;
-  bool show_search_boxes_;
   bool update_search_boxes_;
 
   sf::Color normal_color_;

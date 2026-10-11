@@ -29,14 +29,14 @@ void CmdProcessor::runCommand(const std::string &cmd) {
   if (!cmd_ptr)
     throw std::runtime_error("Not a valid command: " + arg);
 
-  if (cmd_ptr->args.has_value() && argv.size() != (size_t)cmd_ptr->args.value())
+  if (argv.size() < (size_t)cmd_ptr->args)
     throw std::runtime_error(
         "Provided " + std::to_string(argv.size() - 1) + " argument(s), but required " +
-        std::to_string(cmd_ptr->args.value() - 1)
+        std::to_string(cmd_ptr->args - 1)
     );
 
   if (cmd_ptr->event.has_value()) {
-    if (cmd_ptr->args.has_value() && cmd_ptr->args.value() == 1)
+    if (cmd_ptr->args == 1)
       event_bus_.emit(cmd_ptr->event.value(), true);
     else
       event_bus_.emit(cmd_ptr->event.value(), argv.size() > 1 ? argv[1] : "");
@@ -48,6 +48,12 @@ void CmdProcessor::runCommand(const std::string &cmd) {
     cmd_ptr = cmd_loader_.find(arg);
     if (!cmd_ptr)
       throw std::runtime_error("Not a valid subcommand: " + arg);
+
+    if (argv.size() < (size_t)cmd_ptr->args)
+      throw std::runtime_error(
+          "Provided " + std::to_string(argv.size() - 1) + " argument(s), but required " +
+          std::to_string(cmd_ptr->args - 1)
+      );
 
     if (cmd_ptr->event.has_value()) {
       if ((i + 1) < (size_t)argv.size())

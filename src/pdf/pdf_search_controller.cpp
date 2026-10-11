@@ -98,10 +98,6 @@ void PDFSearchController::clearSearchPosDirty() {
   search_pos_dirty_ = false;
 }
 
-void PDFSearchController::hideSearchResults() {
-  show_search_result_boxes_ = false;
-}
-
 void PDFSearchController::reset() {
   if (selected_page_ >= 0)
     pages_[selected_page_].setSelectedSearchResult(-1);
@@ -110,7 +106,9 @@ void PDFSearchController::reset() {
   curr_search_result_ = 0;
   local_search_result_ = 0;
   total_search_results_ = 0;
-  hideSearchResults();
+  show_search_result_boxes_ = false;
+  for (auto &page : pages_)
+    page.clearSearchResults();
 }
 
 std::optional<int> PDFSearchController::goNext(std::size_t anchor) {

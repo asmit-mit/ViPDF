@@ -11,7 +11,7 @@
 #include "graphics/glyph_atlas.h"
 #include "ui/cmdline.h"
 #include "ui/notifications.h"
-#include "ui/pdf_view.h"
+#include "ui/document_view.h"
 #include "ui/statusbar.h"
 #include "ui/ui_elements.h"
 
@@ -55,7 +55,7 @@ private:
   ui::Completions cmdline_completions_;
 
   ui::Cmdline cmdline_;
-  ui::PDFView pdf_view_;
+  ui::DocumentView pdf_view_;
   ui::Statusbar statusbar_;
   ui::Notifications notifications_;
   ui::UIElements focus_;

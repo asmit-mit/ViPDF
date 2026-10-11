@@ -70,7 +70,7 @@ const sf::Vector2u RenderScheduler::getPageSize(const pdf::PDFRenderKey &key) {
   if (key.page_idx >= document_.pageCount())
     throw std::out_of_range("Page index out of range");
 
-  return renderer_.getPageSize(document_.getPage(key.page_idx).page_bounds, key);
+  return renderer_.getPageSize(document_.getPage(key.page_idx).getPageBounds(), key);
 }
 
 bool RenderScheduler::isReady(const pdf::PDFRenderKey &key) {

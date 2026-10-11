@@ -1,4 +1,4 @@
-#include "ui/pdf_view.h"
+#include "ui/document_view.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -12,7 +12,7 @@
 
 namespace ui {
 
-PDFView::PDFView(
+DocumentView::DocumentView(
     core::HistoryManager &file_history,
     pdf::PDFDocument &document,
     core::RenderScheduler &scheduler,
@@ -64,7 +64,7 @@ PDFView::PDFView(
   });
 }
 
-void PDFView::draw(sf::RenderTarget &window) const {
+void DocumentView::draw(sf::RenderTarget &window) const {
   if (!document_.isOpen())
     return;
 
@@ -75,7 +75,7 @@ void PDFView::draw(sf::RenderTarget &window) const {
     pages_[i].draw(window);
 }
 
-void PDFView::update() {
+void DocumentView::update() {
   if (!document_.isOpen())
     return;
 
@@ -124,21 +124,19 @@ void PDFView::update() {
   back_page = layout_manager_.getBackPage();
 
   for (std::size_t i = front_page; i <= back_page; i++) {
-    if (search_controller_.isShowingSearchResult())
-      pages_[i].showSearchResults();
-    else
-      pages_[i].hideSearchResults();
     pages_[i].update();
   }
 }
 
-void PDFView::handleEvent(const sf::Event &event) {
+void DocumentView::handleEvent(const sf::Event &event) {
   if (!document_.isOpen())
     return;
 
   const auto *key = event.getIf<sf::Event::KeyPressed>();
   const auto *scroll = event.getIf<sf::Event::MouseWheelScrolled>();
+  std::size_t front_page = layout_manager_.getFrontPage();
   std::size_t anchor_page = layout_manager_.getAnchorPage();
+  std::size_t back_page = layout_manager_.getBackPage();
   const VisualInfo view_state = view_controller_.getState();
 
   if (scroll && should_take_input_) {
@@ -238,30 +236,47 @@ void PDFView::handleEvent(const sf::Event &event) {
   if (const auto *mouse = event.getIf<sf::Event::MouseButtonPressed>()) {
     if (mouse->button == sf::Mouse::Button::Left) {
       selecting_ = true;
-      selection_controller_.setSelectionStart(layout_manager_.getAnchorPage(), mouse->position);
+      for (std::size_t i = front_page; i <= back_page; i++) {
+        if (pages_[i].containsMouse(mouse->position)) {
+          selection_controller_.setSelectionStart(i, mouse->position, document_);
+          break;
+        }
+      }
       selection_controller_.showSelection();
     }
   }
 
   if (const auto *move = event.getIf<sf::Event::MouseMoved>()) {
     if (selecting_) {
-      // selection_controller_.setSelectionEnd(layout_manager_.getAnchorPage(), mouse->position);
+      for (std::size_t i = front_page; i <= back_page; i++) {
+        if (pages_[i].containsMouse(move->position)) {
+          selection_controller_.setSelectionEnd(i, move->position, document_);
+          break;
+        }
+      }
     }
   }
 
   if (const auto *mouse = event.getIf<sf::Event::MouseButtonReleased>()) {
-    if (mouse->button == sf::Mouse::Button::Left)
+    if (mouse->button == sf::Mouse::Button::Left) {
+      for (std::size_t i = front_page; i <= back_page; i++) {
+        if (pages_[i].containsMouse(mouse->position)) {
+          selection_controller_.setSelectionEnd(i, mouse->position, document_);
+          break;
+        }
+      }
       selecting_ = false;
+    }
   }
 }
 
-void PDFView::onResize(const sf::Vector2f &size) {
+void DocumentView::onResize(const sf::Vector2f &size) {
   window_size_ = size;
   view_controller_.setWindowSize(size);
   layout_manager_.setWindowSize(size);
 }
 
-void PDFView::onOpenDocument(const std::string &filepath) {
+void DocumentView::onOpenDocument(const std::string &filepath) {
   try {
     std::string absolute_path = utils::resolvePath(filepath);
     scheduler_.quiesce();
@@ -284,7 +299,7 @@ void PDFView::onOpenDocument(const std::string &filepath) {
   }
 }
 
-void PDFView::onCloseDocument() {
+void DocumentView::onCloseDocument() {
   if (!document_.isOpen())
     return;
 
@@ -295,7 +310,7 @@ void PDFView::onCloseDocument() {
       .emit("statusbar.page_state", std::make_pair(static_cast<std::size_t>(0), static_cast<std::size_t>(0)));
 }
 
-void PDFView::onSwitchPage(int page_idx) {
+void DocumentView::onSwitchPage(int page_idx) {
   if (!document_.isOpen()) {
     event_bus_.emit("notification.msg", std::string("No document currently open"));
     return;
@@ -313,7 +328,7 @@ void PDFView::onSwitchPage(int page_idx) {
   event_bus_.emit("statusbar.page_state", std::make_pair(anchor_page + 1, document_.pageCount()));
 }
 
-void PDFView::onSearchPage(const std::u32string &text) {
+void DocumentView::onSearchPage(const std::u32string &text) {
   if (!document_.isOpen()) {
     event_bus_.emit("notification.msg", std::string("No document open to search"));
     return;
@@ -335,7 +350,7 @@ void PDFView::onSearchPage(const std::u32string &text) {
   event_bus_.emit("statusbar.search_state", std::make_pair(curr + 1, total));
 }
 
-void PDFView::centerOnSearchResult(
+void DocumentView::centerOnSearchResult(
     std::size_t anchor_page,
     std::size_t front_page,
     std::size_t back_page,
@@ -352,7 +367,7 @@ void PDFView::centerOnSearchResult(
     pages_[i].syncPageShapePos();
 }
 
-void PDFView::renderRequestedPages() {
+void DocumentView::renderRequestedPages() {
   const VisualInfo view_state = view_controller_.getState();
   for (std::size_t i = layout_manager_.getFrontPage(); i <= layout_manager_.getBackPage(); i++) {
     pdf::PDFRenderKey target_key = {i, view_state.zoom, view_state.rotate, recolor_};
@@ -376,7 +391,7 @@ void PDFView::renderRequestedPages() {
   }
 }
 
-void PDFView::requestPage(std::size_t page_idx, float zoom, int rotate, bool recolor) {
+void DocumentView::requestPage(std::size_t page_idx, float zoom, int rotate, bool recolor) {
   if (!document_.isOpen())
     return;
 
@@ -427,19 +442,17 @@ void PDFView::requestPage(std::size_t page_idx, float zoom, int rotate, bool rec
       continue;
 
     scheduler_.request(key);
-    if (search_controller_.isShowingSearchResult())
-      pages_[i].showSearchResults();
   }
 
   layout_manager_.setFrontPage(static_cast<std::size_t>(front));
   layout_manager_.setBackPage(static_cast<std::size_t>(back));
 }
 
-void PDFView::resetView() {
+void DocumentView::resetView() {
   pages_.clear();
   pages_.resize(document_.pageCount(), dummy_);
   for (std::size_t i = 0; i < document_.pageCount(); i++) {
-    const auto &bounds = document_.getPage(i).page_bounds;
+    const auto &bounds = document_.getPage(i).getPageBounds();
     float width = bounds.x1 - bounds.x0;
     float height = bounds.y1 - bounds.y0;
     pages_[i].setPageShapeSize({width, height});

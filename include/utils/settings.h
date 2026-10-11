@@ -18,6 +18,7 @@ constexpr uint32_t textbox_highlight_fg_ = 0x7daea3;
 constexpr uint32_t notification_outline_bg_ = 0x5b554d;
 constexpr uint32_t notification_hover_bg_ = 0x3c3836;
 
+constexpr uint32_t selection_box_color_ = 0xADFF2F50;
 constexpr uint32_t search_box_color_ = 0xFFD70050;
 constexpr uint32_t search_highlight_color_ = 0xADFF2F66;
 

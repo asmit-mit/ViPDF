@@ -1,4 +1,9 @@
-project('vim-pdf-reader', 'cpp', default_options: ['cpp_std=c++23'])
+project('vim-pdf-reader', 'cpp',
+    default_options: [
+        'cpp_std=c++23',
+        'buildtype=debugoptimized',
+    ]
+)
 project_name = meson.project_name()
 
 subdir('thirdparty/simdjson')
@@ -36,7 +41,7 @@ sources = files(
   'src/ui/cursor.cpp',
   'src/ui/notifications.cpp',
   'src/ui/page_view.cpp',
-  'src/ui/pdf_view.cpp',
+  'src/ui/document_view.cpp',
   'src/ui/scrollwheel.cpp',
   'src/ui/statusbar.cpp',
   'src/ui/textbox.cpp',

@@ -8,7 +8,7 @@
 namespace core {
 
 enum class CmdAutocompleteType : int {
-  Subcommand,
+  Subcommand = 0,
   Files,
 };
 

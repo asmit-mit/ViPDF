@@ -28,18 +28,21 @@
     "children": [
       {
         "name": "files",
+        "args": 1,
         "event": "cmd.clear_files",
         "description": "Clear file history",
         "children": []
       },
       {
         "name": "search",
+        "args": 1,
         "event": "cmd.clear_search",
         "description": "Clear search history",
         "children": []
       },
       {
         "name": "history",
+        "args": 1,
         "event": "cmd.clear_history",
         "description": "Clear command history",
         "children": []
@@ -54,27 +57,31 @@
     "children": []
   },
   {
-    "name": "bdelete",
-    "args": 2,
-    "description": "Delete bookmark",
-    "children": []
-  },
-  {
     "name": "bmark",
-    "args": 1,
-    "description": "Set bookmark",
-    "children": []
-  },
-  {
-    "name": "blist",
-    "args": 1,
-    "description": "List bookmarks",
-    "children": []
-  },
-  {
-    "name": "bjump",
-    "args": 2,
-    "description": "Jump to bookmark",
-    "children": []
+    "args": 3,
+    "description": "Work with bookmarks",
+    "children": [
+      {
+        "name": "add",
+        "args": 1,
+        "event": "bmark.add",
+        "description": "Save current page as bookmark",
+        "children": []
+      },
+      {
+        "name": "delete",
+        "args": 1,
+        "event": "bmark.del",
+        "description": "Delete specified bookmark",
+        "children": []
+      },
+      {
+        "name": "jump",
+        "args": 2,
+        "event": "bmark.jump",
+        "description": "Jump to specified bookmark",
+        "children": []
+      }
+    ]
   }
 ]

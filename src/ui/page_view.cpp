@@ -6,7 +6,6 @@ namespace ui {
 
 PageView::PageView(const sf::Texture &dummy) : sprite_(dummy), key_(0, 0, 0, 0) {
   active_ = false;
-  show_search_boxes_ = false;
   update_search_boxes_ = false;
   selected_search_result_ = -1;
 
@@ -18,18 +17,19 @@ void PageView::draw(sf::RenderTarget &window) const {
   if (!active_)
     return;
 
-  window.draw(sprite_);
   // window.draw(original_shape_);
+  window.draw(sprite_);
 
-  if (!show_search_boxes_)
-    return;
+  if (!search_result_.local_rects.empty())
+    window.draw(search_boxes_, sf::RenderStates(original_shape_.getTransform()));
 
-  window.draw(context_boxes_, sf::RenderStates(original_shape_.getTransform()));
+  if (selection_boxes_.getVertexCount() != 0)
+    window.draw(selection_boxes_, sf::RenderStates(original_shape_.getTransform()));
 }
 
 void PageView::update() {
-  if (show_search_boxes_ && update_search_boxes_) {
-    context_boxes_.clear();
+  if (update_search_boxes_) {
+    search_boxes_.clear();
 
     for (std::size_t i = 0; i < search_result_.local_rects.size(); i++) {
       const auto &rect = search_result_.local_rects[i];
@@ -40,12 +40,12 @@ void PageView::update() {
       sf::Vector2f br = {rect.x1, rect.y1};
       sf::Vector2f bl = {rect.x0, rect.y1};
 
-      context_boxes_.append({tl, color});
-      context_boxes_.append({tr, color});
-      context_boxes_.append({br, color});
-      context_boxes_.append({tl, color});
-      context_boxes_.append({br, color});
-      context_boxes_.append({bl, color});
+      search_boxes_.append({tl, color});
+      search_boxes_.append({tr, color});
+      search_boxes_.append({br, color});
+      search_boxes_.append({tl, color});
+      search_boxes_.append({br, color});
+      search_boxes_.append({bl, color});
     }
 
     update_search_boxes_ = false;
@@ -54,6 +54,10 @@ void PageView::update() {
 
 sf::Sprite &PageView::getSprite() {
   return sprite_;
+}
+
+sf::RectangleShape &PageView::getReferenceShape() {
+  return original_shape_;
 }
 
 void PageView::move(const sf::Vector2f &delta) {
@@ -120,21 +124,21 @@ void PageView::setSelectedSearchResult(std::size_t idx) {
 
 void PageView::setSearchResults(PDFSearchResult search_results) {
   search_result_ = std::move(search_results);
-  context_boxes_.resize(search_result_.local_rects.size());
+  update_search_boxes_ = true;
 }
 
 void PageView::clearSearchResults() {
   search_result_.local_rects.clear();
-  context_boxes_.clear();
+  update_search_boxes_ = true;
   selected_search_result_ = -1;
 }
 
-void PageView::showSearchResults() {
-  show_search_boxes_ = true;
+void PageView::setSelections(sf::VertexArray selection_boxes) {
+  selection_boxes_ = std::move(selection_boxes);
 }
 
-void PageView::hideSearchResults() {
-  show_search_boxes_ = false;
+void PageView::clearSelections() {
+  selection_boxes_.clear();
 }
 
 void PageView::setPageShapeSize(sf::Vector2f size) {
@@ -177,6 +181,10 @@ bool PageView::isInView(const sf::Vector2f &window_size) const {
   float bottom = bounds.position.y + bounds.size.y;
 
   return !(top > window_size.y || bottom < 0.f);
+}
+
+bool PageView::containsMouse(const sf::Vector2i &mouse_pos) const {
+  return sprite_.getGlobalBounds().contains(sf::Vector2f(mouse_pos));
 }
 
 } // namespace ui

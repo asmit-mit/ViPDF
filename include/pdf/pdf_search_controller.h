@@ -22,7 +22,6 @@ public:
   bool isSearchPosDirty() const;
 
   void clearSearchPosDirty();
-  void hideSearchResults();
 
   void reset();
 

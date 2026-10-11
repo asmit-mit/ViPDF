@@ -12,10 +12,10 @@ namespace core {
 
 struct Cmd {
   std::string name;
-  std::optional<int> args;
-  std::optional<std::string> event;
   std::string description;
+  std::optional<std::string> event;
   std::vector<size_t> children;
+  int args;
   int cmp_type = 0;
 };
 
