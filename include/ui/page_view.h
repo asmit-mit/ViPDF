@@ -13,7 +13,7 @@ struct VisualInfo {
 };
 
 struct PDFSearchResult {
-  std::vector<fz_rect> local_rects;
+  std::vector<std::vector<fz_rect>> local_rects;
   std::size_t start;
 };
 

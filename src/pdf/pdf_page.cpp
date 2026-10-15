@@ -4,11 +4,14 @@
 
 #include <SFML/Graphics/VertexArray.hpp>
 #include <algorithm>
-#include <functional>
+#include <cmath>
+#include <mupdf/fitz/geometry.h>
 
 namespace pdf {
 
-static char32_t normalizeChar(char32_t cp) {
+using std::stable_sort;
+
+char32_t PDFPage::normalizeChar(char32_t cp) const {
   if (cp >= U'A' && cp <= U'Z')
     return cp + (U'a' - U'A');
   if (cp == U'\n' || cp == U'\r' || cp == U'\t' || cp == 0x00A0)
@@ -16,24 +19,24 @@ static char32_t normalizeChar(char32_t cp) {
   return cp;
 }
 
-static void appendSTextPage(
-    std::u32string &text,
-    std::u32string &text_normalized,
-    std::vector<fz_rect> &rects,
-    fz_stext_page *page_text
-) {
-  auto pushBreak = [&]() {
-    if (text_normalized.empty())
-      return;
-    if (text_normalized.back() == U' ') {
-      rects.back() = fz_empty_rect;
-      return;
-    }
-    text.push_back(U'\n');
-    text_normalized.push_back(U' ');
-    rects.push_back(fz_empty_rect);
-  };
+bool PDFPage::endsWithSpace(const std::u32string &text) {
+  return !text.empty() && normalizeChar(text.back()) == U' ';
+}
 
+void PDFPage::pushBreak(std::u32string &text, std::vector<fz_rect> &rects) {
+  if (text.empty())
+    return;
+  if (endsWithSpace(text)) {
+    rects.back() = fz_empty_rect;
+    return;
+  }
+  text.push_back(U'\n');
+  rects.push_back(fz_empty_rect);
+}
+
+void PDFPage::appendSTextPage(
+    std::u32string &text, std::vector<fz_rect> &rects, fz_stext_page *page_text
+) {
   for (fz_stext_block *block = page_text->first_block; block; block = block->next) {
     if (block->type != FZ_STEXT_BLOCK_TEXT)
       continue;
@@ -41,27 +44,27 @@ static void appendSTextPage(
     for (fz_stext_line *line = block->u.t.first_line; line; line = line->next) {
       for (fz_stext_char *ch = line->first_char; ch; ch = ch->next) {
         const auto cp = static_cast<char32_t>(ch->c);
-        const char32_t n = normalizeChar(cp);
 
-        if (n == U' ' && (text_normalized.empty() || text_normalized.back() == U' '))
+        if (normalizeChar(cp) == U' ' && (text.empty() || endsWithSpace(text)))
           continue;
 
         text.push_back(cp);
-        text_normalized.push_back(n);
         rects.push_back(fz_rect_from_quad(ch->quad));
       }
-      pushBreak();
+      pushBreak(text, rects);
     }
-    pushBreak();
+    pushBreak(text, rects);
   }
+
+  text.shrink_to_fit();
+  rects.shrink_to_fit();
 }
 
 PDFPage::PDFPage(std::size_t idx, fz_rect bounds) : page_idx_(idx), page_bounds_(bounds) {}
 
 PDFPage::PDFPage(PDFPage &&other) noexcept
     : page_idx_(other.page_idx_), page_bounds_(other.page_bounds_), text_(std::move(other.text_)),
-      text_normalized_(std::move(other.text_normalized_)), glyphs_(std::move(other.glyphs_)),
-      content_loaded_(other.content_loaded_) {}
+      glyphs_(std::move(other.glyphs_)), content_loaded_(other.content_loaded_) {}
 
 PDFPage &PDFPage::operator=(PDFPage &&other) noexcept {
   if (this == &other)
@@ -70,7 +73,6 @@ PDFPage &PDFPage::operator=(PDFPage &&other) noexcept {
   page_idx_ = other.page_idx_;
   page_bounds_ = other.page_bounds_;
   text_ = std::move(other.text_);
-  text_normalized_ = std::move(other.text_normalized_);
   glyphs_ = std::move(other.glyphs_);
   content_loaded_ = other.content_loaded_;
   return *this;
@@ -84,11 +86,21 @@ void PDFPage::loadContent(fz_stext_page *page_text) {
   if (!page_text)
     return;
 
+  {
+    std::lock_guard lock(mutex_);
+    if (content_loaded_)
+      return;
+  }
+
+  std::u32string text;
+  std::vector<fz_rect> glyphs;
+  appendSTextPage(text, glyphs, page_text);
+
   std::lock_guard lock(mutex_);
   if (content_loaded_)
     return;
-
-  appendSTextPage(text_, text_normalized_, glyphs_, page_text);
+  text_ = std::move(text);
+  glyphs_ = std::move(glyphs);
   content_loaded_ = true;
 }
 
@@ -97,79 +109,129 @@ bool PDFPage::isContentLoaded() const {
   return content_loaded_;
 }
 
-std::vector<fz_rect> PDFPage::searchText(const std::u32string &pattern) const {
-  std::vector<fz_rect> results;
-
-  std::u32string normalized_pattern;
-  normalized_pattern.reserve(pattern.size());
+std::u32string PDFPage::normalizePattern(const std::u32string &pattern) const {
+  std::u32string pat;
+  pat.reserve(pattern.size());
   for (char32_t cp : pattern) {
     const char32_t n = normalizeChar(cp);
-    if (n == U' ' && (normalized_pattern.empty() || normalized_pattern.back() == U' '))
+    if (n == U' ' && (pat.empty() || pat.back() == U' '))
       continue;
-    normalized_pattern.push_back(n);
+    pat.push_back(n);
   }
+  while (!pat.empty() && pat.back() == U' ')
+    pat.pop_back();
+  return pat;
+}
 
-  while (!normalized_pattern.empty() && normalized_pattern.back() == U' ')
-    normalized_pattern.pop_back();
+std::vector<fz_rect> PDFPage::collectSegments(std::size_t pos, std::size_t len) const {
+  std::vector<fz_rect> segments;
+  fz_rect curr = fz_empty_rect;
+  for (std::size_t i = pos; i < pos + len; ++i) {
+    if (fz_is_empty_rect(glyphs_[i])) {
+      if (!fz_is_empty_rect(curr))
+        segments.push_back(curr);
+      curr = fz_empty_rect;
+      continue;
+    }
+    curr = fz_union_rect(curr, glyphs_[i]);
+  }
+  if (!fz_is_empty_rect(curr))
+    segments.push_back(curr);
+  return segments;
+}
 
-  if (normalized_pattern.empty())
-    return results;
+std::vector<std::size_t> PDFPage::buildFailure(const std::u32string &pat) const {
+  std::vector<std::size_t> fail(pat.size(), 0);
+  for (std::size_t i = 1, k = 0; i < pat.size(); ++i) {
+    while (k > 0 && pat[i] != pat[k])
+      k = fail[k - 1];
+    if (pat[i] == pat[k])
+      ++k;
+    fail[i] = k;
+  }
+  return fail;
+}
+
+std::vector<std::vector<fz_rect>> PDFPage::searchText(const std::u32string &pattern) const {
+  const std::u32string pat = normalizePattern(pattern);
+  if (pat.empty())
+    return {};
 
   std::lock_guard lock(mutex_);
 
-  if (!content_loaded_ || normalized_pattern.size() > text_normalized_.size())
-    return results;
-
-  const std::boyer_moore_horspool_searcher
-      searcher(normalized_pattern.begin(), normalized_pattern.end());
+  if (!content_loaded_ || pat.size() > text_.size())
+    return {};
 
   std::vector<std::vector<fz_rect>> matches;
 
-  auto it = text_normalized_.begin();
-  while (true) {
-    it = std::search(it, text_normalized_.end(), searcher);
-    if (it == text_normalized_.end())
-      break;
+  const std::size_t m = pat.size();
+  const std::vector<std::size_t> fail = buildFailure(pat);
+  std::size_t k = 0;
 
-    const std::size_t pos = static_cast<std::size_t>(it - text_normalized_.begin());
-    const std::size_t end = pos + normalized_pattern.size();
+  for (std::size_t i = 0; i < text_.size(); ++i) {
+    const char32_t c = normalizeChar(text_[i]);
+    while (k > 0 && c != pat[k])
+      k = fail[k - 1];
+    if (c == pat[k])
+      ++k;
 
-    std::vector<fz_rect> segments;
-    fz_rect curr = fz_empty_rect;
-    for (std::size_t i = pos; i < end; ++i) {
-      if (fz_is_empty_rect(glyphs_[i])) {
-        if (!fz_is_empty_rect(curr))
-          segments.push_back(curr);
-        curr = fz_empty_rect;
-        continue;
-      }
-      curr = fz_union_rect(curr, glyphs_[i]);
+    if (k == m) {
+      std::vector<fz_rect> segments = collectSegments(i + 1 - m, m);
+      if (!segments.empty())
+        matches.push_back(std::move(segments));
+      k = 0;
     }
-    if (!fz_is_empty_rect(curr))
-      segments.push_back(curr);
-
-    if (!segments.empty())
-      matches.push_back(std::move(segments));
-
-    it += normalized_pattern.size();
   }
 
-  auto rowOf = [](const fz_rect &r) {
-    return static_cast<long>(std::lround((r.y0 + r.y1) * 0.5f / 4.0f));
-  };
-
-  std::stable_sort(matches.begin(), matches.end(), [&](const auto &a, const auto &b) {
-    const long ra = rowOf(a.front());
-    const long rb = rowOf(b.front());
+  stable_sort(matches.begin(), matches.end(), [](const std::vector<fz_rect> &a, const std::vector<fz_rect> &b) {
+    const long ra = static_cast<long>(std::lround((a.front().y0 + a.front().y1) * 0.5f / 4.0f));
+    const long rb = static_cast<long>(std::lround((b.front().y0 + b.front().y1) * 0.5f / 4.0f));
     if (ra != rb)
       return ra < rb;
     return a.front().x0 < b.front().x0;
   });
 
-  for (auto &m : matches)
-    results.insert(results.end(), m.begin(), m.end());
+  return matches;
+}
 
-  return results;
+bool PDFPage::isBefore(const fz_rect &r, sf::Vector2f p) const {
+  if (r.y1 < p.y)
+    return true;
+  if (r.y0 > p.y)
+    return false;
+  return (r.x0 + r.x1) * 0.5f < p.x;
+}
+
+bool PDFPage::isSelected(
+    PDFSelectionDirection direction, const fz_rect &r, sf::Vector2f p1, sf::Vector2f p2
+) const {
+  switch (direction) {
+  case PDFSelectionDirection::ALL:
+    return true;
+  case PDFSelectionDirection::UP:
+    return isBefore(r, p1);
+  case PDFSelectionDirection::DOWN:
+    return !isBefore(r, p1);
+  case PDFSelectionDirection::INSIDE:
+    return !isBefore(r, p1) && isBefore(r, p2);
+  }
+  return false;
+}
+
+void PDFPage::flushRun(
+    sf::VertexArray &boxes, const fz_rect &run, bool &have, sf::Color color
+) const {
+  if (have) {
+    const sf::Vector2f tl{run.x0, run.y0}, tr{run.x1, run.y0};
+    const sf::Vector2f br{run.x1, run.y1}, bl{run.x0, run.y1};
+    boxes.append({tl, color});
+    boxes.append({tr, color});
+    boxes.append({br, color});
+    boxes.append({tl, color});
+    boxes.append({br, color});
+    boxes.append({bl, color});
+  }
+  have = false;
 }
 
 sf::VertexArray PDFPage::getSelectionBoxes(
@@ -184,25 +246,6 @@ sf::VertexArray PDFPage::getSelectionBoxes(
     return boxes;
 
   const sf::Color color = utils::hexToRGBA(settings::selection_box_color_);
-
-  auto isBefore = [](const fz_rect &r, sf::Vector2f p) {
-    if (r.y1 < p.y)
-      return true;
-    if (r.y0 > p.y)
-      return false;
-    return (r.x0 + r.x1) * 0.5f < p.x;
-  };
-
-  auto addRect = [&](const fz_rect &r) {
-    const sf::Vector2f tl{r.x0, r.y0}, tr{r.x1, r.y0};
-    const sf::Vector2f br{r.x1, r.y1}, bl{r.x0, r.y1};
-    boxes.append({tl, color});
-    boxes.append({tr, color});
-    boxes.append({br, color});
-    boxes.append({tl, color});
-    boxes.append({br, color});
-    boxes.append({bl, color});
-  };
 
   sf::Vector2f p1{}, p2{};
   if (direction != PDFSelectionDirection::ALL) {
@@ -220,28 +263,27 @@ sf::VertexArray PDFPage::getSelectionBoxes(
       std::swap(p1, p2);
   }
 
-  for (const fz_rect &r : glyphs_) {
-    if (fz_is_empty_rect(r))
-      continue;
+  fz_rect run{};
+  bool have = false;
 
-    switch (direction) {
-    case PDFSelectionDirection::ALL:
-      addRect(r);
-      break;
-    case PDFSelectionDirection::UP:
-      if (isBefore(r, p1))
-        addRect(r);
-      break;
-    case PDFSelectionDirection::DOWN:
-      if (!isBefore(r, p1))
-        addRect(r);
-      break;
-    case PDFSelectionDirection::INSIDE:
-      if (!isBefore(r, p1) && isBefore(r, p2))
-        addRect(r);
-      break;
+  for (const fz_rect &rect : glyphs_) {
+    if (fz_is_empty_rect(rect) || !isSelected(direction, rect, p1, p2)) {
+      flushRun(boxes, run, have, color);
+      continue;
+    }
+
+    const float mid = (rect.y0 + rect.y1) * 0.5f;
+    bool continue_run = mid > run.y0 && mid < run.y1 && rect.x0 >= run.x0;
+
+    if (have && continue_run) {
+      run = fz_union_rect(run, rect);
+    } else {
+      flushRun(boxes, run, have, color);
+      run = rect;
+      have = true;
     }
   }
+  flushRun(boxes, run, have, color);
 
   return boxes;
 }
