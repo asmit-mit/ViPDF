@@ -2,7 +2,6 @@
 
 #include "pdf/pdf_document.h"
 #include <mupdf/pdf.h>
-#include <print>
 
 namespace pdf {
 

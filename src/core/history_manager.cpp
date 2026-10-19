@@ -76,7 +76,8 @@ void HistoryManager::add(const std::string &cmd) {
     if (!inserted)
       return;
   } else {
-    history_.push_back(cmd);
+    if (history_.back() != cmd)
+      history_.push_back(cmd);
 
     if (history_.size() > max_size_)
       history_.pop_front();

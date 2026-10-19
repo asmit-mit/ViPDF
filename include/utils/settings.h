@@ -22,6 +22,12 @@ constexpr uint32_t selection_box_color_ = 0xADFF2F50;
 constexpr uint32_t search_box_color_ = 0xFFD70050;
 constexpr uint32_t search_highlight_color_ = 0xADFF2F66;
 
+constexpr uint32_t highlight_color_yellow_ = 0xFFFF0080;
+constexpr uint32_t highlight_color_green_ = 0x00FF0080;
+constexpr uint32_t highlight_color_magenta_ = 0xFF00FF80;
+constexpr uint32_t highlight_color_orange_ = 0xFFA50080;
+constexpr uint32_t highlight_color_red_ = 0xFF000080;
+
 constexpr bool default_recolor = true;
 constexpr uint32_t recolor_light = 0x282828;
 constexpr uint32_t recolor_dark = 0xebdbb2;

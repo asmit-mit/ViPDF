@@ -4,6 +4,7 @@
 #include <stdexcept>
 #include <utf8.h>
 
+#include "core/input_handler.h"
 #include "pdf/pdf_renderer.h"
 #include "pdf/pdf_selection_controller.h"
 #include "ui/ui_elements.h"
@@ -31,8 +32,6 @@ DocumentView::DocumentView(
   layout_manager_.setBackPage(0);
   layout_manager_.setPageWithMaxWidth(0);
 
-  prev_key_ = sf::Keyboard::Key::Unknown;
-
   event_bus_.subscribe<std::string>("cmd.open_document", [this](const std::string &filepath) {
     onOpenDocument(filepath);
   });
@@ -59,7 +58,6 @@ DocumentView::DocumentView(
   });
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
-    prev_key_ = sf::Keyboard::Key::Unknown;
     should_take_input_ = focus == ui::UIElements::PDFView;
   });
 }
@@ -131,108 +129,18 @@ void DocumentView::handleEvent(const sf::Event &event) {
   if (!document_.isOpen())
     return;
 
-  const auto *key = event.getIf<sf::Event::KeyPressed>();
-  const auto *scroll = event.getIf<sf::Event::MouseWheelScrolled>();
-  std::size_t front_page = layout_manager_.getFrontPage();
-  std::size_t anchor_page = layout_manager_.getAnchorPage();
-  std::size_t back_page = layout_manager_.getBackPage();
-  const VisualInfo view_state = view_controller_.getState();
+  const std::size_t front_page = layout_manager_.getFrontPage();
+  const std::size_t back_page = layout_manager_.getBackPage();
 
-  if (scroll && should_take_input_) {
-    if (scroll->wheel == sf::Mouse::Wheel::Vertical) {
-      if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) ||
-          sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RControl)) {
-        view_controller_.setZoom(view_state.zoom + scroll->delta * settings::delta_zoom_);
-        event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
-      } else {
-        layout_manager_.panCurrentPage({0.f, scroll->delta * scroll_dist_});
-      }
-    } else if (scroll->wheel == sf::Mouse::Wheel::Horizontal) {
-      layout_manager_.panCurrentPage({scroll->delta * scroll_dist_, 0.f});
-    }
-  }
+  if (should_take_input_) {
+    if (const auto cmd = input_handler_.handleEvent(event))
+      execute(*cmd);
 
-  if (key && should_take_input_) {
-    if (key->code == sf::Keyboard::Key::U) {
-      if (key->control)
-        layout_manager_.panCurrentPage({0.f, window_size_.y * 0.5f});
-      else
-        onSwitchPage(std::max(0, (int)anchor_page - 1));
-    } else if (key->code == sf::Keyboard::Key::D) {
-      if (key->control)
-        layout_manager_.panCurrentPage({0.f, -window_size_.y * 0.5f});
-      else
-        onSwitchPage(std::min(document_.pageCount() - 1, anchor_page + 1));
-    } else if (key->code == sf::Keyboard::Key::Equal && key->control) {
-      view_controller_.setZoom(view_state.zoom + settings::delta_zoom_);
-      event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
-    } else if (key->code == sf::Keyboard::Key::Hyphen && key->control) {
-      view_controller_.setZoom(view_state.zoom - settings::delta_zoom_);
-      event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
-    } else if (key->code == sf::Keyboard::Key::H) {
-      if (key->shift)
-        onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::completion_highlight_bg_)));
-      else
-        layout_manager_.panCurrentPage({scroll_dist_, 0.f});
-    } else if (key->code == sf::Keyboard::Key::L) {
-      layout_manager_.panCurrentPage({-scroll_dist_, 0.f});
-    } else if (key->code == sf::Keyboard::Key::K) {
-      layout_manager_.panCurrentPage({0.f, scroll_dist_});
-    } else if (key->code == sf::Keyboard::Key::J) {
-      layout_manager_.panCurrentPage({0.f, -scroll_dist_});
-    } else if (key->code == sf::Keyboard::Key::I) {
-      update_recolor_ = true;
-    } else if (key->code == sf::Keyboard::Key::G) {
-      if (key->shift)
-        onSwitchPage(document_.pageCount() - 1);
-      else if (prev_key_ == sf::Keyboard::Key::G)
-        onSwitchPage(0);
-      else
-        prev_key_ = sf::Keyboard::Key::G;
-    } else if (key->code == sf::Keyboard::Key::N) {
-      auto page = key->shift ? search_controller_.goPrev(layout_manager_.getAnchorPage())
-                             : search_controller_.goNext(layout_manager_.getAnchorPage());
+    if (event.is<sf::Event::KeyPressed>() && input_handler_.hasPending())
+      event_bus_.emit("statusbar.pending_keys", input_handler_.pendingText());
 
-      if (page)
-        onSwitchPage(*page);
-
-      std::size_t curr = search_controller_.getCurrSearchResult();
-      std::size_t total = search_controller_.getTotalSearchResult();
-      event_bus_.emit("statusbar.search_state", std::make_pair(curr + 1, total));
-    } else if (key->code == sf::Keyboard::Key::R) {
-      if (key->shift)
-        view_controller_.setRotate((view_state.rotate - 1) % 4);
-      else
-        view_controller_.setRotate((view_state.rotate + 1) % 4);
-    } else if (key->code == sf::Keyboard::Key::F) {
-      pdf::PDFRenderKey base_key{anchor_page, 1.f, view_state.rotate, recolor_};
-      const auto page_dims = scheduler_.getPageSize(base_key);
-      if (page_dims.x > 0 && page_dims.y > 0) {
-        const float viewable_h = window_size_.y - utils::cmdline_height_;
-        const float viewable_w = window_size_.x;
-        const float zoom_x = viewable_w / static_cast<float>(page_dims.x);
-        const float zoom_y = viewable_h / static_cast<float>(page_dims.y);
-        view_controller_.setZoom(std::min(zoom_x, zoom_y));
-        event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
-      }
-    } else if (key->code == sf::Keyboard::Key::W) {
-      pdf::PDFRenderKey base_key{anchor_page, 1.f, view_state.rotate, recolor_};
-      const auto page_dims = scheduler_.getPageSize(base_key);
-      if (page_dims.x > 0) {
-        const float viewable_w = window_size_.x;
-        view_controller_.setZoom(viewable_w / static_cast<float>(page_dims.x));
-        event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
-      }
-    } else if (key->code == sf::Keyboard::Key::Escape) {
-      selection_controller_.reset();
-      search_controller_.reset();
-      std::size_t curr = search_controller_.getCurrSearchResult();
-      std::size_t total = search_controller_.getTotalSearchResult();
-      event_bus_.emit("statusbar.search_state", std::make_pair(curr, total));
-    }
-
-    if (key->code != sf::Keyboard::Key::G)
-      prev_key_ = sf::Keyboard::Key::Unknown;
+    if (const auto *scroll = event.getIf<sf::Event::MouseWheelScrolled>())
+      handleScroll(*scroll);
   }
 
   if (const auto *mouse = event.getIf<sf::Event::MouseButtonPressed>()) {
@@ -277,9 +185,181 @@ void DocumentView::handleEvent(const sf::Event &event) {
   }
 
   if (const auto *mouse = event.getIf<sf::Event::MouseButtonReleased>()) {
-    if (mouse->button == sf::Mouse::Button::Left) {
+    if (mouse->button == sf::Mouse::Button::Left)
       selecting_ = false;
-    }
+  }
+}
+
+void DocumentView::handleScroll(const sf::Event::MouseWheelScrolled &scroll) {
+  if (scroll.wheel == sf::Mouse::Wheel::Vertical) {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) ||
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RControl))
+      zoomBy(scroll.delta * settings::delta_zoom_);
+    else
+      panBy({0.f, scroll.delta * scroll_dist_});
+  } else if (scroll.wheel == sf::Mouse::Wheel::Horizontal) {
+    panBy({scroll.delta * scroll_dist_, 0.f});
+  }
+}
+
+void DocumentView::execute(const core::DocumentCmd &cmd) {
+  const std::size_t times = cmd.countOr(1);
+  const float n = static_cast<float>(times);
+  const std::size_t anchor_page = layout_manager_.getAnchorPage();
+  const std::size_t last_page = document_.pageCount() - 1;
+  const auto rotate = view_controller_.getState().rotate;
+
+  switch (cmd.action) {
+  case core::Action::PanLeft:
+    panBy({scroll_dist_ * n, 0.f});
+    break;
+  case core::Action::PanRight:
+    panBy({-scroll_dist_ * n, 0.f});
+    break;
+  case core::Action::PanUp:
+    panBy({0.f, scroll_dist_ * n});
+    break;
+  case core::Action::PanDown:
+    panBy({0.f, -scroll_dist_ * n});
+    break;
+  case core::Action::HalfPageUp:
+    panBy({0.f, window_size_.y * 0.5f * n});
+    break;
+  case core::Action::HalfPageDown:
+    panBy({0.f, -window_size_.y * 0.5f * n});
+    break;
+
+  case core::Action::PrevPage:
+    onSwitchPage(anchor_page > times ? anchor_page - times : 0);
+    break;
+  case core::Action::NextPage:
+    onSwitchPage(std::min(last_page, anchor_page + times));
+    break;
+  case core::Action::FirstPage:
+    gotoPage(cmd.count, 0);
+    break;
+  case core::Action::LastPage:
+    gotoPage(cmd.count, last_page);
+    break;
+
+  case core::Action::ZoomIn:
+    zoomBy(settings::delta_zoom_);
+    break;
+  case core::Action::ZoomOut:
+    zoomBy(-settings::delta_zoom_);
+    break;
+  case core::Action::FitPage:
+    fitPage();
+    break;
+  case core::Action::FitWidth:
+    fitWidth();
+    break;
+
+  case core::Action::RotateCW:
+    view_controller_.setRotate((rotate + 1) % 4);
+    break;
+  case core::Action::RotateCCW:
+    view_controller_.setRotate((rotate + 3) % 4);
+    break;
+  case core::Action::Recolor:
+    update_recolor_ = true;
+    break;
+
+  case core::Action::SearchNext:
+    stepSearch(true);
+    break;
+  case core::Action::SearchPrev:
+    stepSearch(false);
+    break;
+
+  case core::Action::Highlight:
+    if (cmd.arg)
+      highlight(*cmd.arg);
+    break;
+
+  case core::Action::Cancel:
+    selection_controller_.reset();
+    search_controller_.reset();
+    emitSearchState(0);
+    break;
+  }
+}
+
+void DocumentView::panBy(sf::Vector2f delta) {
+  layout_manager_.panCurrentPage(delta);
+}
+
+void DocumentView::zoomBy(float delta) {
+  view_controller_.setZoom(view_controller_.getState().zoom + delta);
+  event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
+}
+
+void DocumentView::fitPage() {
+  const pdf::PDFRenderKey
+      base_key{layout_manager_.getAnchorPage(), 1.f, view_controller_.getState().rotate, recolor_};
+  const auto page_dims = scheduler_.getPageSize(base_key);
+  if (page_dims.x <= 0 || page_dims.y <= 0)
+    return;
+
+  const float viewable_h = window_size_.y - utils::cmdline_height_;
+  const float viewable_w = window_size_.x;
+  const float zoom_x = viewable_w / static_cast<float>(page_dims.x);
+  const float zoom_y = viewable_h / static_cast<float>(page_dims.y);
+  view_controller_.setZoom(std::min(zoom_x, zoom_y));
+  event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
+}
+
+void DocumentView::fitWidth() {
+  const pdf::PDFRenderKey
+      base_key{layout_manager_.getAnchorPage(), 1.f, view_controller_.getState().rotate, recolor_};
+  const auto page_dims = scheduler_.getPageSize(base_key);
+  if (page_dims.x <= 0)
+    return;
+
+  view_controller_.setZoom(window_size_.x / static_cast<float>(page_dims.x));
+  event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
+}
+
+void DocumentView::gotoPage(std::optional<std::size_t> one_based, std::size_t fallback) {
+  if (!one_based) {
+    onSwitchPage(fallback);
+    return;
+  }
+  const std::size_t index = *one_based > 0 ? *one_based - 1 : 0;
+  onSwitchPage(std::min(index, document_.pageCount() - 1));
+}
+
+void DocumentView::stepSearch(bool forward) {
+  const std::size_t anchor_page = layout_manager_.getAnchorPage();
+  const auto page = forward ? search_controller_.goNext(anchor_page)
+                            : search_controller_.goPrev(anchor_page);
+  if (page)
+    onSwitchPage(*page);
+  emitSearchState(1);
+}
+
+void DocumentView::emitSearchState(std::size_t display_offset) {
+  const std::size_t curr = search_controller_.getCurrSearchResult();
+  const std::size_t total = search_controller_.getTotalSearchResult();
+  event_bus_.emit("statusbar.search_state", std::make_pair(curr + display_offset, total));
+}
+
+void DocumentView::highlight(int color_index) {
+  switch (color_index) {
+  case 0:
+    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_yellow_)));
+    break;
+  case 1:
+    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_red_)));
+    break;
+  case 2:
+    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_orange_)));
+    break;
+  case 3:
+    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_magenta_)));
+    break;
+  default:
+    break;
   }
 }
 
