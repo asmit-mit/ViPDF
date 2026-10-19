@@ -19,6 +19,7 @@ public:
   ~RenderScheduler();
 
   void request(const pdf::PDFRenderKey &key);
+  void refreshPages(const std::vector<size_t> &pages);
   bool isReady(const pdf::PDFRenderKey &key);
   sf::Texture *getTexture(const pdf::PDFRenderKey &key);
   const sf::Vector2u getPageSize(const pdf::PDFRenderKey &key);
@@ -35,6 +36,7 @@ private:
     sf::Image image;
   };
 
+  void requestLocked(const pdf::PDFRenderKey &key);
   void workerLoop(std::size_t idx);
   void clearCacheLocked();
 

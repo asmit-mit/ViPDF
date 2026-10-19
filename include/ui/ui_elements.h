@@ -9,4 +9,9 @@ enum class UIElements {
   None,
 };
 
-}
+enum class CursorType {
+  Arrow,
+  Text,
+};
+
+} // namespace ui

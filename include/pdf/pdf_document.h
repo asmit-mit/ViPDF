@@ -44,6 +44,9 @@ public:
   void loadAllContent();
   void loadPageContent(std::size_t idx);
 
+  std::vector<std::size_t> createAnnotations(const sf::Color &color);
+  void clearSelections();
+
   std::size_t pageWithMaxWidth() const;
   std::size_t pageCount() const;
 
@@ -55,6 +58,8 @@ private:
   static void unlockMutex(void *user, int lock);
 
   void loadOutline();
+  bool
+  addHighlight(std::size_t page_idx, const std::vector<fz_quad> &quads, const sf::Color &color);
 
 private:
   std::array<std::mutex, FZ_LOCK_MAX> mutexes_;

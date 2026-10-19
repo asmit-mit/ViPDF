@@ -19,7 +19,7 @@ DocumentView::DocumentView(
     core::EventBus &event_bus
 )
     : document_(document), layout_manager_(scheduler, pages_), view_controller_(scheduler, pages_),
-      search_controller_(pages_), selection_controller_(pages_), event_bus_(event_bus),
+      search_controller_(pages_), selection_controller_(document_, pages_), event_bus_(event_bus),
       file_history_(file_history), scheduler_(scheduler) {
   should_take_input_ = false;
   recolor_ = settings::default_recolor;
@@ -123,9 +123,8 @@ void DocumentView::update() {
   front_page = layout_manager_.getFrontPage();
   back_page = layout_manager_.getBackPage();
 
-  for (std::size_t i = front_page; i <= back_page; i++) {
+  for (std::size_t i = front_page; i <= back_page; i++)
     pages_[i].update();
-  }
 }
 
 void DocumentView::handleEvent(const sf::Event &event) {
@@ -171,7 +170,10 @@ void DocumentView::handleEvent(const sf::Event &event) {
       view_controller_.setZoom(view_state.zoom - settings::delta_zoom_);
       event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
     } else if (key->code == sf::Keyboard::Key::H) {
-      layout_manager_.panCurrentPage({scroll_dist_, 0.f});
+      if (key->shift)
+        onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::completion_highlight_bg_)));
+      else
+        layout_manager_.panCurrentPage({scroll_dist_, 0.f});
     } else if (key->code == sf::Keyboard::Key::L) {
       layout_manager_.panCurrentPage({-scroll_dist_, 0.f});
     } else if (key->code == sf::Keyboard::Key::K) {
@@ -235,10 +237,12 @@ void DocumentView::handleEvent(const sf::Event &event) {
 
   if (const auto *mouse = event.getIf<sf::Event::MouseButtonPressed>()) {
     if (mouse->button == sf::Mouse::Button::Left) {
+      if (selection_controller_.isShowingSelection())
+        selection_controller_.reset();
       selecting_ = true;
       for (std::size_t i = front_page; i <= back_page; i++) {
         if (pages_[i].containsMouse(mouse->position)) {
-          selection_controller_.setSelectionStart(i, mouse->position, document_);
+          selection_controller_.setSelectionStart(i, mouse->position);
           break;
         }
       }
@@ -247,10 +251,25 @@ void DocumentView::handleEvent(const sf::Event &event) {
   }
 
   if (const auto *move = event.getIf<sf::Event::MouseMoved>()) {
+    auto cursor = ui::CursorType::Arrow;
+    for (std::size_t i = front_page; i <= back_page; i++) {
+      if (!document_.getPage(i).isContentLoaded())
+        document_.loadPageContent(i);
+      const sf::Vector2f point = pages_[i].getReferenceShape().getInverseTransform().transformPoint(
+          sf::Vector2f(move->position)
+      );
+
+      if (pages_[i].containsMouse(move->position) && document_.getPage(i).mouseInGlyph(point)) {
+        cursor = ui::CursorType::Text;
+        break;
+      }
+    }
+    event_bus_.emit("ui.cursor_type", cursor);
+
     if (selecting_) {
       for (std::size_t i = front_page; i <= back_page; i++) {
         if (pages_[i].containsMouse(move->position)) {
-          selection_controller_.setSelectionEnd(i, move->position, document_);
+          selection_controller_.setSelectionEnd(i, move->position);
           break;
         }
       }
@@ -259,12 +278,6 @@ void DocumentView::handleEvent(const sf::Event &event) {
 
   if (const auto *mouse = event.getIf<sf::Event::MouseButtonReleased>()) {
     if (mouse->button == sf::Mouse::Button::Left) {
-      for (std::size_t i = front_page; i <= back_page; i++) {
-        if (pages_[i].containsMouse(mouse->position)) {
-          selection_controller_.setSelectionEnd(i, mouse->position, document_);
-          break;
-        }
-      }
       selecting_ = false;
     }
   }
@@ -348,6 +361,16 @@ void DocumentView::onSearchPage(const std::u32string &text) {
     onSwitchPage(closest_page.value());
 
   event_bus_.emit("statusbar.search_state", std::make_pair(curr + 1, total));
+}
+
+void DocumentView::onAnnotate(std::vector<std::size_t> pages) {
+  if (!document_.isOpen())
+    return;
+
+  for (auto page : pages)
+    pages_[page].reset();
+  scheduler_.refreshPages(pages);
+  selection_controller_.reset();
 }
 
 void DocumentView::centerOnSearchResult(

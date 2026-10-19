@@ -34,31 +34,39 @@ RenderScheduler::~RenderScheduler() {
 void RenderScheduler::request(const pdf::PDFRenderKey &key) {
   {
     std::lock_guard lock(lock_);
+    requestLocked(key);
+  }
+  cv_work_.notify_one();
+}
+
+void RenderScheduler::refreshPages(const std::vector<size_t> &pages) {
+  {
+    std::lock_guard lock(lock_);
 
     if (quiescing_)
       return;
 
-    if (key.page_idx >= document_.pageCount())
-      throw std::out_of_range("Page index out of range");
+    const std::unordered_set<size_t> targets(pages.begin(), pages.end());
 
-    if (texture_cache_.contains(key))
-      return;
+    for (auto page : pages)
+      renderer_.invalidatePage(page);
 
-    if (image_cache_.contains(key))
-      return;
+    std::vector<pdf::PDFRenderKey> stale;
+    for (const auto &entry : texture_cache_)
+      if (targets.contains(entry.key.page_idx))
+        stale.push_back(entry.key);
+    for (const auto &entry : image_cache_)
+      if (targets.contains(entry.key.page_idx))
+        stale.push_back(entry.key);
 
-    if (!pending_.insert(key).second)
-      return;
-
-    if (job_queue_.size() >= settings::page_cache_size_) {
-      pending_.erase(job_queue_.front());
-      job_queue_.pop_front();
+    for (const auto &key : stale) {
+      texture_cache_.erase(key);
+      image_cache_.erase(key);
+      requestLocked(key);
     }
-
-    job_queue_.push_back(key);
   }
 
-  cv_work_.notify_one();
+  cv_work_.notify_all();
 }
 
 const sf::Vector2u RenderScheduler::getPageSize(const pdf::PDFRenderKey &key) {
@@ -116,6 +124,27 @@ void RenderScheduler::quiesce() {
 void RenderScheduler::resume() {
   std::lock_guard lock(lock_);
   quiescing_ = false;
+}
+
+void RenderScheduler::requestLocked(const pdf::PDFRenderKey &key) {
+  if (quiescing_)
+    return;
+
+  if (key.page_idx >= document_.pageCount())
+    throw std::out_of_range("Page index out of range");
+
+  if (texture_cache_.contains(key) || image_cache_.contains(key))
+    return;
+
+  if (!pending_.insert(key).second)
+    return;
+
+  if (job_queue_.size() >= settings::page_cache_size_) {
+    pending_.erase(job_queue_.front());
+    job_queue_.pop_front();
+  }
+
+  job_queue_.push_back(key);
 }
 
 void RenderScheduler::workerLoop(std::size_t idx) {

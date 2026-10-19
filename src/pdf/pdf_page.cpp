@@ -64,7 +64,8 @@ PDFPage::PDFPage(std::size_t idx, fz_rect bounds) : page_idx_(idx), page_bounds_
 
 PDFPage::PDFPage(PDFPage &&other) noexcept
     : page_idx_(other.page_idx_), page_bounds_(other.page_bounds_), text_(std::move(other.text_)),
-      glyphs_(std::move(other.glyphs_)), content_loaded_(other.content_loaded_) {}
+      glyphs_(std::move(other.glyphs_)), selection_quads_(std::move(other.selection_quads_)),
+      content_loaded_(other.content_loaded_) {}
 
 PDFPage &PDFPage::operator=(PDFPage &&other) noexcept {
   if (this == &other)
@@ -74,6 +75,7 @@ PDFPage &PDFPage::operator=(PDFPage &&other) noexcept {
   page_bounds_ = other.page_bounds_;
   text_ = std::move(other.text_);
   glyphs_ = std::move(other.glyphs_);
+  selection_quads_ = std::move(other.selection_quads_);
   content_loaded_ = other.content_loaded_;
   return *this;
 }
@@ -222,6 +224,7 @@ void PDFPage::flushRun(
     sf::VertexArray &boxes, const fz_rect &run, bool &have, sf::Color color
 ) const {
   if (have) {
+    selection_quads_.push_back(fz_quad_from_rect(run));
     const sf::Vector2f tl{run.x0, run.y0}, tr{run.x1, run.y0};
     const sf::Vector2f br{run.x1, run.y1}, bl{run.x0, run.y1};
     boxes.append({tl, color});
@@ -242,6 +245,8 @@ sf::VertexArray PDFPage::getSelectionBoxes(
   sf::VertexArray boxes{sf::PrimitiveType::Triangles};
 
   std::lock_guard lock(mutex_);
+
+  selection_quads_.clear();
   if (!content_loaded_ || glyphs_.empty())
     return boxes;
 
@@ -286,6 +291,33 @@ sf::VertexArray PDFPage::getSelectionBoxes(
   flushRun(boxes, run, have, color);
 
   return boxes;
+}
+
+bool PDFPage::hasSelections() const {
+  std::lock_guard lock(mutex_);
+  return !selection_quads_.empty();
+}
+
+void PDFPage::clearSelections() {
+  std::lock_guard lock(mutex_);
+  selection_quads_.clear();
+}
+
+const std::vector<fz_quad> &PDFPage::getSelectionFzQuads() const {
+  return selection_quads_;
+}
+
+bool PDFPage::mouseInGlyph(sf::Vector2f pos) const {
+  std::lock_guard lock(mutex_);
+  if (!content_loaded_ || glyphs_.empty())
+    return false;
+
+  for (auto &rect : glyphs_) {
+    if (pos.x >= rect.x0 && pos.y >= rect.y0 && pos.x <= rect.x1 && pos.y <= rect.y1)
+      return true;
+  }
+
+  return false;
 }
 
 } // namespace pdf

@@ -1,7 +1,8 @@
-#include <print>
 #include <stdexcept>
 
 #include "pdf/pdf_document.h"
+#include <mupdf/pdf.h>
+#include <print>
 
 namespace pdf {
 
@@ -82,7 +83,6 @@ void PDFDocument::closeDocument() {
 void PDFDocument::reloadDocument() {
   if (filepath_.empty())
     return;
-  std::println("reload {}", filepath_);
   openDocument(filepath_);
 }
 
@@ -93,7 +93,7 @@ std::size_t PDFDocument::pageWithMaxWidth() const {
 }
 
 std::string &PDFDocument::getFilePath() {
-  return filepath_; 
+  return filepath_;
 }
 
 PDFPage &PDFDocument::getPage(std::size_t page_idx) {
@@ -129,6 +129,32 @@ void PDFDocument::loadPageContent(std::size_t idx) {
   }
   fz_always(ctx_) fz_drop_stext_page(ctx_, text);
   fz_catch(ctx_) throw std::runtime_error("Failed to load text from page");
+}
+
+std::vector<std::size_t> PDFDocument::createAnnotations(const sf::Color &color) {
+  std::vector<std::size_t> changed;
+  if (!doc_)
+    return changed;
+
+  for (std::size_t i = 0; i < pages_.size(); ++i) {
+    PDFPage &page = pages_[i];
+    if (!page.hasSelections())
+      continue;
+
+    const std::vector<fz_quad> &quads = page.getSelectionFzQuads();
+    if (!quads.empty() && addHighlight(i, quads, color)) {
+      page.clearSelections();
+      changed.push_back(i);
+    }
+  }
+  return changed;
+}
+
+void PDFDocument::clearSelections() {
+  for (auto &page : pages_) {
+    if (page.hasSelections())
+      page.clearSelections();
+  }
 }
 
 std::size_t PDFDocument::pageCount() const {
@@ -199,6 +225,48 @@ void PDFDocument::loadOutline() {
 
   walk(root, 0);
   fz_drop_outline(ctx_, root);
+}
+
+bool PDFDocument::addHighlight(
+    std::size_t page_idx, const std::vector<fz_quad> &quads, const sf::Color &color
+) {
+  pdf_document *pdf = pdf_specifics(ctx_, doc_);
+  if (!pdf)
+    return false;
+
+  const float rgb[3] = {color.r / 255.f, color.g / 255.f, color.b / 255.f};
+  const float opacity = color.a / 255.f;
+  const fz_quad *quad_data = quads.data();
+  const int n = static_cast<int>(quads.size());
+  const int page_no = static_cast<int>(page_idx);
+
+  pdf_page *page = nullptr;
+  pdf_annot *annot = nullptr;
+  bool ok = false;
+  fz_var(page);
+  fz_var(annot);
+  fz_var(ok);
+
+  fz_try(ctx_) {
+    page = pdf_load_page(ctx_, pdf, page_no);
+    annot = pdf_create_annot(ctx_, page, PDF_ANNOT_HIGHLIGHT);
+    pdf_set_annot_quad_points(ctx_, annot, n, quad_data);
+    pdf_set_annot_color(ctx_, annot, 3, rgb);
+    pdf_set_annot_opacity(ctx_, annot, opacity);
+    pdf_update_annot(ctx_, annot);
+    ok = true;
+  }
+  fz_always(ctx_) {
+    if (annot)
+      pdf_drop_annot(ctx_, annot);
+    if (page)
+      fz_drop_page(ctx_, &page->super);
+  }
+  fz_catch(ctx_) {
+    ok = false;
+  }
+
+  return ok;
 }
 
 } // namespace pdf

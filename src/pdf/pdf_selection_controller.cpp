@@ -8,7 +8,10 @@
 
 namespace pdf {
 
-PDFSelectionController::PDFSelectionController(std::vector<ui::PageView> &pages) : pages_(pages) {
+PDFSelectionController::PDFSelectionController(
+    PDFDocument &document_, std::vector<ui::PageView> &pages
+)
+    : pages_(pages), document_(document_) {
   reset();
 }
 
@@ -17,45 +20,46 @@ bool PDFSelectionController::isSelecting() const {
 }
 
 void PDFSelectionController::setSelectionStart(
-    std::size_t page_idx, const sf::Vector2i &screen_pos, PDFDocument &document
+    std::size_t page_idx, const sf::Vector2i &screen_pos
 ) {
   if (page_idx >= pages_.size())
     return;
-  if (!document.getPage(page_idx).isContentLoaded())
-    document.loadPageContent(page_idx);
+  if (!document_.getPage(page_idx).isContentLoaded())
+    document_.loadPageContent(page_idx);
+
+  const sf::Vector2f point =
+      pages_[page_idx].getReferenceShape().getInverseTransform().transformPoint(
+          sf::Vector2f(screen_pos)
+      );
+
   start_page_ = page_idx;
-  start_pos_ = screen_pos;
+  start_point_ = point;
   end_page_ = page_idx;
-  end_pos_ = screen_pos;
+  end_point_ = point;
 }
 
-void PDFSelectionController::setSelectionEnd(
-    std::size_t page_idx, const sf::Vector2i &screen_pos, PDFDocument &document
-) {
+void PDFSelectionController::setSelectionEnd(std::size_t page_idx, const sf::Vector2i &screen_pos) {
   if (start_page_ == kNone || page_idx >= pages_.size())
     return;
-  if (!document.getPage(page_idx).isContentLoaded())
-    document.loadPageContent(page_idx);
+  if (!document_.getPage(page_idx).isContentLoaded())
+    document_.loadPageContent(page_idx);
+
   end_page_ = page_idx;
-  end_pos_ = screen_pos;
+  end_point_ = pages_[page_idx].getReferenceShape().getInverseTransform().transformPoint(
+      sf::Vector2f(screen_pos)
+  );
 
   std::size_t first_page = start_page_;
   std::size_t last_page = end_page_;
-  sf::Vector2i first_pos = start_pos_;
-  sf::Vector2i last_pos = end_pos_;
+  sf::Vector2f first_point = start_point_;
+  sf::Vector2f last_point = end_point_;
   if (first_page > last_page) {
     std::swap(first_page, last_page);
-    std::swap(first_pos, last_pos);
+    std::swap(first_point, last_point);
   }
 
-  const std::optional<sf::Vector2f> p1 =
-      pages_[first_page].getReferenceShape().getInverseTransform().transformPoint(
-          sf::Vector2f(first_pos)
-      );
-  const std::optional<sf::Vector2f> p2 =
-      pages_[last_page].getReferenceShape().getInverseTransform().transformPoint(
-          sf::Vector2f(last_pos)
-      );
+  const std::optional<sf::Vector2f> p1 = first_point;
+  const std::optional<sf::Vector2f> p2 = last_point;
 
   for (std::size_t i = 0; i < pages_.size(); ++i) {
     if (i < first_page || i > last_page) {
@@ -63,9 +67,9 @@ void PDFSelectionController::setSelectionEnd(
       continue;
     }
 
-    if (!document.getPage(i).isContentLoaded())
-      document.loadPageContent(i);
-    const PDFPage &page = document.getPage(i);
+    if (!document_.getPage(i).isContentLoaded())
+      document_.loadPageContent(i);
+    const PDFPage &page = document_.getPage(i);
 
     if (first_page == last_page)
       pages_[i].setSelections(page.getSelectionBoxes(PDFSelectionDirection::INSIDE, p1, p2));
@@ -87,17 +91,18 @@ void PDFSelectionController::showSelection() {
 bool PDFSelectionController::isShowingSelection() const {
   if (!selection_visible_ || start_page_ == kNone)
     return false;
-  return start_pos_ != end_pos_ || start_page_ != end_page_;
+  return start_point_ != end_point_ || start_page_ != end_page_;
 }
 
 void PDFSelectionController::reset() {
   selection_visible_ = false;
   start_page_ = kNone;
   end_page_ = kNone;
-  start_pos_ = {0, 0};
-  end_pos_ = {0, 0};
+  start_point_ = {0.f, 0.f};
+  end_point_ = {0.f, 0.f};
   for (auto &page : pages_)
     page.setSelections(sf::VertexArray{sf::PrimitiveType::Triangles});
+  document_.clearSelections();
 }
 
 } // namespace pdf

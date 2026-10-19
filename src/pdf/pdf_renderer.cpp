@@ -78,6 +78,11 @@ sf::Vector2u PDFRenderer::getPageSize(const fz_rect &bounds, const PDFRenderKey 
   return size;
 }
 
+void PDFRenderer::invalidatePage(std::size_t page_idx) {
+  std::lock_guard lock(display_mutex_);
+  display_list_cache_.erase(page_idx);
+}
+
 void PDFRenderer::clearCache() {
   std::lock_guard lock(display_mutex_);
   display_list_cache_.clear();

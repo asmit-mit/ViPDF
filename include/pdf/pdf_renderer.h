@@ -101,6 +101,7 @@ public:
       sf::Image &image
   );
   sf::Vector2u getPageSize(const fz_rect &bounds, const PDFRenderKey &key);
+  void invalidatePage(std::size_t page_idx);
   void clearCache();
 
 private:

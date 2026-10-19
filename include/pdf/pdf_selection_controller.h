@@ -9,12 +9,11 @@ namespace pdf {
 
 class PDFSelectionController {
 public:
-  PDFSelectionController(std::vector<ui::PageView> &pages);
+  PDFSelectionController(PDFDocument &document, std::vector<ui::PageView> &pages);
 
   bool isSelecting() const;
-  void
-  setSelectionStart(std::size_t page_idx, const sf::Vector2i &screen_pos, PDFDocument &document);
-  void setSelectionEnd(std::size_t page_idx, const sf::Vector2i &screen_pos, PDFDocument &document);
+  void setSelectionStart(std::size_t page_idx, const sf::Vector2i &screen_pos);
+  void setSelectionEnd(std::size_t page_idx, const sf::Vector2i &screen_pos);
 
   void showSelection();
   bool isShowingSelection() const;
@@ -24,12 +23,13 @@ public:
 private:
   static constexpr std::size_t kNone = static_cast<std::size_t>(-1);
   std::vector<ui::PageView> &pages_;
+  PDFDocument &document_;
 
   bool selection_visible_;
   std::size_t start_page_;
   std::size_t end_page_;
-  sf::Vector2i start_pos_;
-  sf::Vector2i end_pos_;
+  sf::Vector2f start_point_;
+  sf::Vector2f end_point_;
 };
 
 } // namespace pdf

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <functional>
 #include <list>
 #include <stdexcept>
 #include <unordered_map>
@@ -9,6 +11,14 @@ namespace utils {
 
 template <typename K, typename V, typename Hash = std::hash<K>> class LRUCache {
 public:
+  struct Entry {
+    const K key;
+    V value;
+  };
+
+  using iterator = typename std::list<Entry>::iterator;
+  using const_iterator = typename std::list<Entry>::const_iterator;
+
   explicit LRUCache(std::size_t capacity) : capacity_(capacity) {
     if (capacity_ == 0)
       throw std::invalid_argument("LRU cache capacity must be greater than 0.");
@@ -69,14 +79,26 @@ public:
     return cache_.empty();
   }
 
+  iterator begin() {
+    return cache_.begin();
+  }
+  iterator end() {
+    return cache_.end();
+  }
+  const_iterator begin() const {
+    return cache_.begin();
+  }
+  const_iterator end() const {
+    return cache_.end();
+  }
+  const_iterator cbegin() const {
+    return cache_.cbegin();
+  }
+  const_iterator cend() const {
+    return cache_.cend();
+  }
+
 private:
-  struct Entry {
-    K key;
-    V value;
-  };
-
-  using ListIt = typename std::list<Entry>::iterator;
-
   void evictLRU() {
     map_.erase(cache_.back().key);
     cache_.pop_back();
@@ -84,7 +106,7 @@ private:
 
   std::size_t capacity_;
   std::list<Entry> cache_;
-  std::unordered_map<K, ListIt, Hash> map_;
+  std::unordered_map<K, iterator, Hash> map_;
 };
 
 } // namespace utils

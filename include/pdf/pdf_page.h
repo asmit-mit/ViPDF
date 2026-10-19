@@ -38,6 +38,10 @@ public:
       std::optional<sf::Vector2f> mouse_pos1,
       std::optional<sf::Vector2f> mouse_pos2
   ) const;
+  bool hasSelections() const;
+  void clearSelections();
+  const std::vector<fz_quad> &getSelectionFzQuads() const;
+  bool mouseInGlyph(sf::Vector2f pos) const;
 
 private:
   char32_t normalizeChar(char32_t cp) const;
@@ -55,12 +59,15 @@ private:
   ) const;
   void flushRun(sf::VertexArray &boxes, const fz_rect &run, bool &have, sf::Color color) const;
 
+private:
   mutable std::mutex mutex_;
   std::size_t page_idx_{};
   fz_rect page_bounds_{};
 
-  std::u32string text_;
-  std::vector<fz_rect> glyphs_;
+  std::u32string text_{};
+  std::vector<fz_rect> glyphs_{};
+  std::vector<fz_rect> sorted_glyphs_{};
+  mutable std::vector<fz_quad> selection_quads_{};
 
   bool content_loaded_{false};
 };

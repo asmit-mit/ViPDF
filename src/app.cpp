@@ -1,4 +1,5 @@
 #include "app.h"
+#include "ui/ui_elements.h"
 #include "utils/settings.h"
 #include "utils/utils.h"
 
@@ -22,7 +23,8 @@ App::App()
       cmdline_(font_regular_, event_bus_, cmd_processor_, cmd_autocomplete_, cmd_history_, search_history_, cmdline_textbox_, cmdline_completions_),
       pdf_view_(file_history_, document_, render_scheduler_, event_bus_),
       statusbar_(font_library_, glyph_atlas_, font_regular_, event_bus_),
-      notifications_(font_library_, glyph_atlas_, font_regular_, font_bold_, notification_history_, event_bus_) {
+      notifications_(font_library_, glyph_atlas_, font_regular_, font_bold_, notification_history_, event_bus_),
+      arrow_cursor_(sf::Cursor::Type::Arrow), text_cursor_(sf::Cursor::Type::Text) {
   initHistory();
   initWindow();
   initUI();
@@ -34,6 +36,13 @@ App::App()
     renderer_.clearCache();
     document_.closeDocument();
     window_.close();
+  });
+
+  event_bus_.subscribe<ui::CursorType>("ui.cursor_type", [this](ui::CursorType type) {
+    if (type == ui::CursorType::Arrow)
+      window_.setMouseCursor(arrow_cursor_);
+    else if (type == ui::CursorType::Text)
+      window_.setMouseCursor(text_cursor_);
   });
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
@@ -100,6 +109,7 @@ void App::initUI() {
   cmdline_.onResize(view_.getSize());
   statusbar_.onResize(view_.getSize());
   pdf_view_.onResize(view_.getSize());
+  window_.setMouseCursor(arrow_cursor_);
 }
 
 void App::initFonts() {

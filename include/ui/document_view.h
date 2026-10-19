@@ -34,6 +34,7 @@ private:
   void onCloseDocument();
   void onSwitchPage(int page_idx);
   void onSearchPage(const std::u32string &text);
+  void onAnnotate(std::vector<std::size_t> pages);
 
   void centerOnSearchResult(
       std::size_t anchor_page,
@@ -52,7 +53,6 @@ private:
   pdf::PDFViewController view_controller_;
   pdf::PDFSearchController search_controller_;
   pdf::PDFSelectionController selection_controller_;
-
 
   core::EventBus &event_bus_;
   core::HistoryManager &file_history_;

@@ -10,8 +10,8 @@
 #include "graphics/font_library.h"
 #include "graphics/glyph_atlas.h"
 #include "ui/cmdline.h"
-#include "ui/notifications.h"
 #include "ui/document_view.h"
+#include "ui/notifications.h"
 #include "ui/statusbar.h"
 #include "ui/ui_elements.h"
 
@@ -59,6 +59,9 @@ private:
   ui::Statusbar statusbar_;
   ui::Notifications notifications_;
   ui::UIElements focus_;
+
+  sf::Cursor arrow_cursor_;
+  sf::Cursor text_cursor_;
 
   const unsigned int res_x_ = 640;
   const unsigned int res_y_ = 480;
