@@ -15,6 +15,30 @@
 
 namespace ui {
 
+enum class DocumentAction {
+  PanLeft,
+  PanRight,
+  PanUp,
+  PanDown,
+  HalfPageUp,
+  HalfPageDown,
+  PrevPage,
+  NextPage,
+  FirstPage,
+  LastPage,
+  ZoomIn,
+  ZoomOut,
+  FitPage,
+  FitWidth,
+  RotateCW,
+  RotateCCW,
+  Recolor,
+  SearchNext,
+  SearchPrev,
+  Highlight,
+  Cancel
+};
+
 class DocumentView {
 public:
   explicit DocumentView(
@@ -37,6 +61,8 @@ private:
   void onSearchPage(const std::u32string &text);
   void onAnnotate(std::vector<std::size_t> pages);
 
+  void registerKeybindings();
+
   void centerOnSearchResult(
       std::size_t anchor_page,
       std::size_t front_page,
@@ -47,7 +73,7 @@ private:
   void requestPage(std::size_t page_idx, float zoom, int rotate, bool recolor);
   void resetView();
 
-  void execute(const core::DocumentCmd &cmd);
+  void execute(const core::InputCmd<DocumentAction> &cmd);
   void handleScroll(const sf::Event::MouseWheelScrolled &scroll);
   void panBy(sf::Vector2f delta);
   void zoomBy(float delta);
@@ -69,10 +95,11 @@ private:
   core::EventBus &event_bus_;
   core::HistoryManager &file_history_;
   core::RenderScheduler &scheduler_;
-  core::InputHandler input_handler_;
+  core::InputHandler<DocumentAction> input_handler_;
 
   sf::Texture dummy_;
 
+  bool focus_update_;
   bool should_take_input_;
   bool update_recolor_;
   bool recolor_;

@@ -26,6 +26,7 @@ DocumentView::DocumentView(
   recolor_ = settings::default_recolor;
   update_recolor_ = false;
   selecting_ = false;
+  focus_update_ = false;
 
   layout_manager_.setAnchorPage(0);
   layout_manager_.setFrontPage(0);
@@ -58,8 +59,12 @@ DocumentView::DocumentView(
   });
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
+    bool prev = should_take_input_;
     should_take_input_ = focus == ui::UIElements::PDFView;
+    focus_update_ = prev != should_take_input_;
   });
+
+  registerKeybindings();
 }
 
 void DocumentView::draw(sf::RenderTarget &window) const {
@@ -123,6 +128,12 @@ void DocumentView::update() {
 
   for (std::size_t i = front_page; i <= back_page; i++)
     pages_[i].update();
+
+  if (focus_update_ && !should_take_input_) {
+    input_handler_.reset();
+    event_bus_.emit("statusbar.pending_keys", std::string(""));
+    focus_update_ = false;
+  }
 }
 
 void DocumentView::handleEvent(const sf::Event &event) {
@@ -133,8 +144,10 @@ void DocumentView::handleEvent(const sf::Event &event) {
   const std::size_t back_page = layout_manager_.getBackPage();
 
   if (should_take_input_) {
-    if (const auto cmd = input_handler_.handleEvent(event))
+    if (const auto cmd = input_handler_.handleEvent(event)) {
       execute(*cmd);
+      event_bus_.emit("statusbar.pending_keys", std::string(""));
+    }
 
     if (event.is<sf::Event::KeyPressed>() && input_handler_.hasPending())
       event_bus_.emit("statusbar.pending_keys", input_handler_.pendingText());
@@ -202,7 +215,7 @@ void DocumentView::handleScroll(const sf::Event::MouseWheelScrolled &scroll) {
   }
 }
 
-void DocumentView::execute(const core::DocumentCmd &cmd) {
+void DocumentView::execute(const core::InputCmd<DocumentAction> &cmd) {
   const std::size_t times = cmd.countOr(1);
   const float n = static_cast<float>(times);
   const std::size_t anchor_page = layout_manager_.getAnchorPage();
@@ -210,77 +223,78 @@ void DocumentView::execute(const core::DocumentCmd &cmd) {
   const auto rotate = view_controller_.getState().rotate;
 
   switch (cmd.action) {
-  case core::Action::PanLeft:
+  case DocumentAction::PanLeft:
     panBy({scroll_dist_ * n, 0.f});
     break;
-  case core::Action::PanRight:
+  case DocumentAction::PanRight:
     panBy({-scroll_dist_ * n, 0.f});
     break;
-  case core::Action::PanUp:
+  case DocumentAction::PanUp:
     panBy({0.f, scroll_dist_ * n});
     break;
-  case core::Action::PanDown:
+  case DocumentAction::PanDown:
     panBy({0.f, -scroll_dist_ * n});
     break;
-  case core::Action::HalfPageUp:
+  case DocumentAction::HalfPageUp:
     panBy({0.f, window_size_.y * 0.5f * n});
     break;
-  case core::Action::HalfPageDown:
+  case DocumentAction::HalfPageDown:
     panBy({0.f, -window_size_.y * 0.5f * n});
     break;
 
-  case core::Action::PrevPage:
+  case DocumentAction::PrevPage:
     onSwitchPage(anchor_page > times ? anchor_page - times : 0);
     break;
-  case core::Action::NextPage:
+  case DocumentAction::NextPage:
     onSwitchPage(std::min(last_page, anchor_page + times));
     break;
-  case core::Action::FirstPage:
+  case DocumentAction::FirstPage:
     gotoPage(cmd.count, 0);
     break;
-  case core::Action::LastPage:
+  case DocumentAction::LastPage:
     gotoPage(cmd.count, last_page);
     break;
 
-  case core::Action::ZoomIn:
+  case DocumentAction::ZoomIn:
     zoomBy(settings::delta_zoom_);
     break;
-  case core::Action::ZoomOut:
+  case DocumentAction::ZoomOut:
     zoomBy(-settings::delta_zoom_);
     break;
-  case core::Action::FitPage:
+  case DocumentAction::FitPage:
     fitPage();
     break;
-  case core::Action::FitWidth:
+  case DocumentAction::FitWidth:
     fitWidth();
     break;
 
-  case core::Action::RotateCW:
+  case DocumentAction::RotateCW:
     view_controller_.setRotate((rotate + 1) % 4);
     break;
-  case core::Action::RotateCCW:
+  case DocumentAction::RotateCCW:
     view_controller_.setRotate((rotate + 3) % 4);
     break;
-  case core::Action::Recolor:
+  case DocumentAction::Recolor:
     update_recolor_ = true;
     break;
 
-  case core::Action::SearchNext:
+  case DocumentAction::SearchNext:
     stepSearch(true);
     break;
-  case core::Action::SearchPrev:
+  case DocumentAction::SearchPrev:
     stepSearch(false);
     break;
 
-  case core::Action::Highlight:
+  case DocumentAction::Highlight:
     if (cmd.arg)
       highlight(*cmd.arg);
     break;
 
-  case core::Action::Cancel:
+  case DocumentAction::Cancel:
     selection_controller_.reset();
     search_controller_.reset();
     emitSearchState(0);
+    event_bus_.emit("statusbar.pending_keys", std::string(""));
     break;
   }
 }
@@ -350,13 +364,16 @@ void DocumentView::highlight(int color_index) {
     onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_yellow_)));
     break;
   case 1:
-    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_red_)));
-    break;
-  case 2:
     onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_orange_)));
     break;
+  case 2:
+    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_red_)));
+    break;
   case 3:
-    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_magenta_)));
+    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_blue_)));
+    break;
+  case 4:
+    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_green_)));
     break;
   default:
     break;
@@ -451,6 +468,41 @@ void DocumentView::onAnnotate(std::vector<std::size_t> pages) {
     pages_[page].reset();
   scheduler_.refreshPages(pages);
   selection_controller_.reset();
+}
+
+void DocumentView::registerKeybindings() {
+  using Key = sf::Keyboard::Key;
+
+  input_handler_.bind({{Key::H}}, DocumentAction::PanLeft);
+  input_handler_.bind({{Key::L}}, DocumentAction::PanRight);
+  input_handler_.bind({{Key::K}}, DocumentAction::PanUp);
+  input_handler_.bind({{Key::J}}, DocumentAction::PanDown);
+
+  input_handler_.bind({{Key::U}}, DocumentAction::PrevPage);
+  input_handler_.bind({{Key::D}}, DocumentAction::NextPage);
+  input_handler_.bind({{Key::U, true}}, DocumentAction::HalfPageUp);
+  input_handler_.bind({{Key::D, true}}, DocumentAction::HalfPageDown);
+  input_handler_.bind({{Key::G}, {Key::G}}, DocumentAction::FirstPage);
+  input_handler_.bind({{Key::G, false, true}}, DocumentAction::LastPage);
+
+  input_handler_.bind({{Key::Equal, true}}, DocumentAction::ZoomIn);
+  input_handler_.bind({{Key::Hyphen, true}}, DocumentAction::ZoomOut);
+  input_handler_.bind({{Key::F}}, DocumentAction::FitPage);
+  input_handler_.bind({{Key::W}}, DocumentAction::FitWidth);
+
+  input_handler_.bind({{Key::R}}, DocumentAction::RotateCW);
+  input_handler_.bind({{Key::R, false, true}}, DocumentAction::RotateCCW);
+  input_handler_.bind({{Key::I}}, DocumentAction::Recolor);
+
+  input_handler_.bind({{Key::N}}, DocumentAction::SearchNext);
+  input_handler_.bind({{Key::N, false, true}}, DocumentAction::SearchPrev);
+
+  for (int i = 0; i < 4; ++i) {
+    const auto digit = static_cast<Key>(static_cast<int>(Key::Num1) + i);
+    input_handler_.bind({{Key::H, false, true}, {digit}}, DocumentAction::Highlight, i);
+  }
+
+  input_handler_.bind({{Key::Escape}}, DocumentAction::Cancel);
 }
 
 void DocumentView::centerOnSearchResult(

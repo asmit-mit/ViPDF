@@ -25,7 +25,6 @@ sources = files(
   'src/core/cmd_autocomplete.cpp',
   'src/core/history_manager.cpp',
   'src/core/render_scheduler.cpp',
-  'src/core/input_handler.cpp',
   'src/graphics/font_library.cpp',
   'src/graphics/glyph_atlas.cpp',
   'src/graphics/rich_text.cpp',
