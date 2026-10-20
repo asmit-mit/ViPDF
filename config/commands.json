@@ -4,22 +4,19 @@
     "args": 2,
     "event": "cmd.open_document",
     "description": "Open document with absolute path",
-    "children": [],
     "cmp_type": 1
   },
   {
     "name": "reload",
     "args": 1,
     "event": "cmd.reload_document",
-    "description": "Reload current document",
-    "children": []
+    "description": "Reload current document"
   },
   {
     "name": "close",
     "args": 1,
     "event": "cmd.close_document",
-    "description": "Close current document",
-    "children": []
+    "description": "Close current document"
   },
   {
     "name": "clear",
@@ -30,22 +27,19 @@
         "name": "files",
         "args": 1,
         "event": "cmd.clear_files",
-        "description": "Clear file history",
-        "children": []
+        "description": "Clear file history"
       },
       {
         "name": "search",
         "args": 1,
         "event": "cmd.clear_search",
-        "description": "Clear search history",
-        "children": []
+        "description": "Clear search history"
       },
       {
         "name": "history",
         "args": 1,
         "event": "cmd.clear_history",
-        "description": "Clear command history",
-        "children": []
+        "description": "Clear command history"
       }
     ]
   },
@@ -53,8 +47,7 @@
     "name": "quit",
     "event": "cmd.quit",
     "args": 1,
-    "description": "Quit app",
-    "children": []
+    "description": "Quit app"
   },
   {
     "name": "bmark",
@@ -65,22 +58,19 @@
         "name": "add",
         "args": 1,
         "event": "bmark.add",
-        "description": "Save current page as bookmark",
-        "children": []
+        "description": "Save current page as bookmark"
       },
       {
         "name": "delete",
         "args": 1,
         "event": "bmark.del",
-        "description": "Delete specified bookmark",
-        "children": []
+        "description": "Delete specified bookmark"
       },
       {
         "name": "jump",
         "args": 2,
         "event": "bmark.jump",
-        "description": "Jump to specified bookmark",
-        "children": []
+        "description": "Jump to specified bookmark"
       }
     ]
   }

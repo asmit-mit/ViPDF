@@ -68,9 +68,12 @@ CmdLoader::parseCmd(simdjson::dom::element obj, const std::string &parent_key, i
     roots_.push_back(idx);
   commands_.push_back({});
 
-  for (simdjson::dom::element child : obj["children"].get_array()) {
-    size_t child_idx = parseCmd(child, scoped_key, depth + 1);
-    commands_[idx].children.push_back(child_idx);
+  simdjson::dom::array children;
+  if (obj["children"].get_array().get(children) == simdjson::SUCCESS) {
+    for (simdjson::dom::element child : children) {
+      size_t child_idx = parseCmd(child, scoped_key, depth + 1);
+      commands_[idx].children.push_back(child_idx);
+    }
   }
 
   cmd.children = std::move(commands_[idx].children);
