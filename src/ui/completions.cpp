@@ -19,6 +19,7 @@ Completions::Completions(
   visible_ = false;
   first_visible_ = 0;
   selected_ = 0;
+  selected_has_desc_ = false;
 
   display_area_.setFillColor(utils::hexToRGB(settings::status_bg_));
   selected_cmd_area_.setFillColor(utils::hexToRGB(settings::completion_highlight_bg_));
@@ -36,7 +37,8 @@ void Completions::draw(sf::RenderTarget &window) const {
     return;
   window.draw(display_area_);
   window.draw(selected_cmd_area_);
-  window.draw(selected_desc_area_);
+  if (selected_has_desc_)
+    window.draw(selected_desc_area_);
 
   const std::size_t visible = std::min(max_list_items_, completions_.size() - first_visible_);
   for (std::size_t row = 0; row < visible; ++row) {
@@ -96,7 +98,9 @@ void Completions::update() {
         {display_desc_list_[selected_row].getGlobalBounds().size.x + utils::padding,
          utils::cmdline_height_}
     );
-  }
+    selected_has_desc_ = true;
+  } else
+    selected_has_desc_ = false;
 }
 
 void Completions::handleEvent(const sf::Event &event) {}

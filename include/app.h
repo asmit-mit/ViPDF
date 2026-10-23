@@ -22,10 +22,10 @@ public:
   void run();
 
 private:
-  void initHistory();
+  void initHistory(const std::filesystem::path &state_dir);
+  void initFonts(const std::filesystem::path &state_dir);
   void initWindow();
   void initUI();
-  void initFonts();
   void processEvents();
 
 private:

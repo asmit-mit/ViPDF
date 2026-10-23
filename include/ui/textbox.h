@@ -54,6 +54,7 @@ private:
   void selectAll();
 
   std::size_t getCharacterIndex(const sf::Vector2i &pos);
+  std::size_t snapToCluster(std::size_t idx) const; // new
   void createSelectionBox();
   void rebuildDisplayTexts();
 

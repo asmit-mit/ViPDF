@@ -144,12 +144,10 @@ void DocumentView::handleEvent(const sf::Event &event) {
   const std::size_t back_page = layout_manager_.getBackPage();
 
   if (should_take_input_) {
-    if (const auto cmd = input_handler_.handleEvent(event)) {
+    if (const auto cmd = input_handler_.handleEvent(event))
       execute(*cmd);
-      event_bus_.emit("statusbar.pending_keys", std::string(""));
-    }
 
-    if (event.is<sf::Event::KeyPressed>() && input_handler_.hasPending())
+    if (event.is<sf::Event::KeyPressed>())
       event_bus_.emit("statusbar.pending_keys", input_handler_.pendingText());
 
     if (const auto *scroll = event.getIf<sf::Event::MouseWheelScrolled>())

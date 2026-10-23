@@ -75,10 +75,8 @@ void Cmdline::handleEvent(const sf::Event &event) {
   if (mode_ == CmdlineMode::Cmd) {
     if (completions_.isVisible()) {
       bool is_edit = false;
-      if (const auto *te = event.getIf<sf::Event::TextEntered>()) {
-        // Ignore control characters (< 0x20) — Ctrl+J sends \n, Ctrl+K sends \v
+      if (const auto *te = event.getIf<sf::Event::TextEntered>())
         is_edit = te->unicode >= 0x20 && te->unicode != 0x7F;
-      }
       if (!is_edit && key)
         is_edit = key->code == sf::Keyboard::Key::Backspace ||
                   key->code == sf::Keyboard::Key::Delete;
@@ -101,6 +99,7 @@ void Cmdline::handleEvent(const sf::Event &event) {
       } else if (key->code == sf::Keyboard::Key::Enter) {
         if (completions_.isVisible()) {
           textbox_.setText(completions_.getSelectedText());
+          completions_.clear();
           completions_.hide();
           return;
         }

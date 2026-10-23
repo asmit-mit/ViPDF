@@ -95,15 +95,8 @@ private:
 
   std::optional<CommandType> handleKey(const sf::Event::KeyPressed &key) {
     if (key.code == Key::Escape && hasPending()) {
-      const KeyStroke escStroke{key.code, key.control, key.shift};
-      const Node *bound = findChild(*root_, escStroke);
-
-      std::optional<CommandType> cmd;
-      if (bound && bound->action)
-        cmd = makeCommand(*bound);
-
       reset();
-      return cmd;
+      return std::nullopt;
     }
 
     const auto digit = digitFromKey(key.code);

@@ -7,6 +7,69 @@
 
 namespace ui {
 
+namespace {
+
+bool isExtender(char32_t c) {
+  return c == 0x200D                        // zero-width joiner
+         || (c >= 0xFE00 && c <= 0xFE0F)    // variation selectors
+         || (c >= 0x1F3FB && c <= 0x1F3FF)  // skin tone modifiers
+         || (c >= 0x0300 && c <= 0x036F)    // combining marks
+         || (c >= 0x20D0 && c <= 0x20FF)    // combining marks for symbols
+         || (c >= 0xE0020 && c <= 0xE007F); // tag characters
+}
+
+bool isRegionalIndicator(char32_t c) {
+  return c >= 0x1F1E6 && c <= 0x1F1FF;
+}
+
+bool isEmojiLike(char32_t c) {
+  return (c >= 0x2190 && c <= 0x2BFF) || c >= 0x1F000;
+}
+
+bool isWordChar(char32_t c) {
+  return c < 128 && (std::isalnum(static_cast<unsigned char>(c)) || c == '_');
+}
+
+bool isSpaceChar(char32_t c) {
+  return c < 128 && std::isspace(static_cast<unsigned char>(c));
+}
+
+std::size_t clusterEnd(const std::u32string &s, std::size_t pos) {
+  if (pos >= s.size())
+    return s.size();
+
+  std::size_t i = pos + 1;
+
+  if (isRegionalIndicator(s[pos]) && i < s.size() && isRegionalIndicator(s[i]))
+    ++i;
+
+  while (i < s.size() && isExtender(s[i])) {
+    if (s[i] == 0x200D && i + 1 < s.size() && isEmojiLike(s[i + 1]))
+      i += 2;
+    else
+      ++i;
+  }
+  return i;
+}
+
+std::size_t clusterStart(const std::u32string &s, std::size_t pos) {
+  if (pos == 0)
+    return 0;
+  if (pos > s.size())
+    pos = s.size();
+
+  std::size_t i = 0;
+  while (i < pos) {
+    std::size_t e = clusterEnd(s, i);
+    if (e >= pos)
+      return i;
+    i = e;
+  }
+  return pos;
+}
+
+} // namespace
+
 Textbox::Textbox(
     const graphics::FontLibrary &font_lib,
     graphics::GlyphAtlas &glyph_atlas,
@@ -135,7 +198,7 @@ void Textbox::handleEvent(const sf::Event &event) {
         if (key->control)
           ctrlArrowLeft();
         else
-          setCursorPosition(selection_.caret - 1);
+          setCursorPosition(clusterStart(u32_text_, selection_.caret));
 
         selection_dirty_ = true;
       } else if (selection_.active()) {
@@ -144,7 +207,7 @@ void Textbox::handleEvent(const sf::Event &event) {
       } else if (key->control) {
         ctrlArrowLeft();
       } else {
-        setCursorPosition(selection_.caret - 1);
+        setCursorPosition(clusterStart(u32_text_, selection_.caret));
         clearSelection();
       }
       break;
@@ -154,7 +217,7 @@ void Textbox::handleEvent(const sf::Event &event) {
         if (key->control)
           ctrlArrowRight();
         else
-          setCursorPosition(selection_.caret + 1);
+          setCursorPosition(clusterEnd(u32_text_, selection_.caret));
 
         selection_dirty_ = true;
       } else if (selection_.active()) {
@@ -163,7 +226,7 @@ void Textbox::handleEvent(const sf::Event &event) {
       } else if (key->control) {
         ctrlArrowRight();
       } else {
-        setCursorPosition(selection_.caret + 1);
+        setCursorPosition(clusterEnd(u32_text_, selection_.caret));
         clearSelection();
       }
       break;
@@ -191,7 +254,7 @@ void Textbox::handleEvent(const sf::Event &event) {
 
   if (const auto *mouse = event.getIf<sf::Event::MouseButtonPressed>()) {
     if (mouse->button == sf::Mouse::Button::Left) {
-      auto pos = getCharacterIndex(mouse->position);
+      auto pos = snapToCluster(getCharacterIndex(mouse->position));
 
       selection_.anchor = pos;
       setCursorPosition(pos);
@@ -203,7 +266,7 @@ void Textbox::handleEvent(const sf::Event &event) {
 
   if (const auto *move = event.getIf<sf::Event::MouseMoved>()) {
     if (selecting_) {
-      setCursorPosition(getCharacterIndex(move->position));
+      setCursorPosition(snapToCluster(getCharacterIndex(move->position)));
       selection_dirty_ = true;
     }
   }
@@ -296,30 +359,26 @@ std::size_t Textbox::getCursorPosition() const {
 }
 
 std::size_t Textbox::findWordStart(std::size_t pos) const {
-  while (pos > 0 && std::isspace(static_cast<unsigned char>(u32_text_[pos - 1])))
+  while (pos > 0 && isSpaceChar(u32_text_[pos - 1]))
     --pos;
 
-  while (pos > 0 && !std::isalnum(static_cast<unsigned char>(u32_text_[pos - 1])) &&
-         u32_text_[pos - 1] != '_' && !std::isspace(static_cast<unsigned char>(u32_text_[pos - 1])))
+  while (pos > 0 && !isWordChar(u32_text_[pos - 1]) && !isSpaceChar(u32_text_[pos - 1]))
     --pos;
 
-  while (pos > 0 && (std::isalnum(static_cast<unsigned char>(u32_text_[pos - 1])) ||
-                     u32_text_[pos - 1] == '_'))
+  while (pos > 0 && isWordChar(u32_text_[pos - 1]))
     --pos;
 
   return pos;
 }
 
 std::size_t Textbox::findWordEnd(std::size_t pos) const {
-  while (pos < u32_text_.size() && std::isspace(static_cast<unsigned char>(u32_text_[pos])))
+  while (pos < u32_text_.size() && isSpaceChar(u32_text_[pos]))
     ++pos;
 
-  while (pos < u32_text_.size() && !std::isalnum(static_cast<unsigned char>(u32_text_[pos])) &&
-         u32_text_[pos] != '_' && !std::isspace(static_cast<unsigned char>(u32_text_[pos])))
+  while (pos < u32_text_.size() && !isWordChar(u32_text_[pos]) && !isSpaceChar(u32_text_[pos]))
     ++pos;
 
-  while (pos < u32_text_.size() &&
-         (std::isalnum(static_cast<unsigned char>(u32_text_[pos])) || u32_text_[pos] == '_'))
+  while (pos < u32_text_.size() && isWordChar(u32_text_[pos]))
     ++pos;
 
   return pos;
@@ -329,8 +388,9 @@ void Textbox::backspace() {
   if (selection_.caret == 0)
     return;
 
-  u32_text_.erase(u32_text_.begin() + selection_.caret - 1);
-  setCursorPosition(selection_.caret - 1);
+  std::size_t start = clusterStart(u32_text_, selection_.caret);
+  u32_text_.erase(start, selection_.caret - start);
+  setCursorPosition(start);
   clearSelection();
   text_dirty_ = true;
 }
@@ -341,9 +401,17 @@ void Textbox::del() {
     return;
   }
 
-  u32_text_.erase(u32_text_.begin() + selection_.caret);
+  std::size_t end = clusterEnd(u32_text_, selection_.caret);
+  u32_text_.erase(selection_.caret, end - selection_.caret);
   clearSelection();
   text_dirty_ = true;
+}
+
+// If idx is inside a cluster, move it to that cluster's left edge.
+std::size_t Textbox::snapToCluster(std::size_t idx) const {
+  idx = std::min(idx, u32_text_.size());
+  std::size_t s = clusterStart(u32_text_, idx);
+  return clusterEnd(u32_text_, s) == idx ? idx : s;
 }
 
 void Textbox::ctrlBackspace() {

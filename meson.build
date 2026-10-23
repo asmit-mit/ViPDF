@@ -1,4 +1,4 @@
-project('vim-pdf-reader', 'cpp',
+project('ViPDF', 'cpp',
     default_options: [
         'cpp_std=c++23',
         'buildtype=debugoptimized',

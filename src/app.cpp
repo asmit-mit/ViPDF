@@ -1,20 +1,17 @@
 #include "app.h"
+#include "graphics/font_library.h"
 #include "ui/ui_elements.h"
 #include "utils/settings.h"
 #include "utils/utils.h"
 
 #include <filesystem>
+#include <stdexcept>
+
+namespace fs = std::filesystem;
 
 App::App()
-    : font_regular_(settings::font_regular), font_bold_(settings::font_bold),
-      font_italic_(settings::font_italic), font_library_(
-                                               {settings::font_regular,
-                                                settings::font_bold,
-                                                settings::font_italic,
-                                                settings::font_emoji,
-                                                settings::font_cjk}
-                                           ),
-      document_(), renderer_(), cmd_loader_(settings::commands_json),
+    : document_(), renderer_(),
+      cmd_loader_(fs::path(std::getenv("HOME")) / settings::state_dir / settings::commands_json),
       cmd_processor_(event_bus_, cmd_loader_, cmd_history_),
       cmd_autocomplete_(cmd_loader_, file_history_),
       render_scheduler_(document_, renderer_, settings::thread_count_),
@@ -25,10 +22,19 @@ App::App()
       statusbar_(font_library_, glyph_atlas_, font_regular_, event_bus_),
       notifications_(font_library_, glyph_atlas_, font_regular_, font_bold_, notification_history_, event_bus_),
       arrow_cursor_(sf::Cursor::Type::Arrow), text_cursor_(sf::Cursor::Type::Text) {
-  initHistory();
+  const char *home = std::getenv("HOME");
+  fs::path base = home ? fs::path(home) : fs::current_path();
+  fs::path state_dir = base / settings::state_dir;
+
+  std::error_code ec;
+  fs::create_directories(state_dir, ec);
+  if (ec)
+    std::cerr << "Cannot create " << state_dir << ": " << ec.message() << '\n';
+
+  initFonts(state_dir);
+  initHistory(state_dir);
   initWindow();
   initUI();
-  initFonts();
 
   event_bus_.subscribe<bool>("cmd.quit", [this](bool close) {
     render_scheduler_.quiesce();
@@ -72,17 +78,17 @@ void App::run() {
   }
 }
 
-void App::initHistory() {
-  const char *home = std::getenv("HOME");
-  if (!home)
-    home = ".";
+void App::initHistory(const std::filesystem::path &state_dir) {
+  fs::path history_dir = state_dir / "history";
 
-  std::string state_dir_ = std::string(home) + "/.local/state/vim-pdf-reader";
-  std::filesystem::create_directory(state_dir_);
+  std::error_code ec;
+  fs::create_directories(history_dir, ec);
+  if (ec)
+    std::cerr << "Cannot create " << history_dir << ": " << ec.message() << '\n';
 
-  cmd_history_.setPath(state_dir_ + "/cmd_history");
-  file_history_.setPath(state_dir_ + "/recent_files");
-  search_history_.setPath(state_dir_ + "/search_history");
+  cmd_history_.setPath((state_dir / settings::cmd_history).string());
+  file_history_.setPath((state_dir / settings::recent_files).string());
+  search_history_.setPath((state_dir / settings::search_history).string());
 
   file_history_.setSaveUnique(true);
 
@@ -112,7 +118,26 @@ void App::initUI() {
   window_.setMouseCursor(arrow_cursor_);
 }
 
-void App::initFonts() {
+void App::initFonts(const std::filesystem::path &state_dir) {
+  fs::path font_path_regular = state_dir / settings::font_regular;
+  fs::path font_path_bold = state_dir / settings::font_bold;
+  fs::path font_path_italic = state_dir / settings::font_italic;
+  fs::path font_path_emoji = state_dir / settings::font_emoji;
+  fs::path font_path_cjk = state_dir / settings::font_cjk;
+
+  font_library_.tryLoadFont(graphics::FontType::Regular, font_path_regular.string().data());
+  font_library_.tryLoadFont(graphics::FontType::Bold, font_path_bold.string().data());
+  font_library_.tryLoadFont(graphics::FontType::Italic, font_path_italic.string().data());
+  font_library_.tryLoadFont(graphics::FontType::Emoji, font_path_emoji.string().data());
+  font_library_.tryLoadFont(graphics::FontType::CJK, font_path_cjk.string().data());
+
+  if (!font_regular_.openFromFile(font_path_regular))
+    throw std::runtime_error("Can't load font: " + font_path_regular.string());
+  if (!font_bold_.openFromFile(font_path_bold))
+    throw std::runtime_error("Can't load font: " + font_path_bold.string());
+  if (!font_italic_.openFromFile(font_path_italic))
+    throw std::runtime_error("Can't load font: " + font_path_italic.string());
+
   font_regular_.setSmooth(false);
   font_bold_.setSmooth(false);
   font_italic_.setSmooth(false);

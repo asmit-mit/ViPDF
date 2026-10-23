@@ -1,6 +1,7 @@
 #include "core/history_manager.h"
 
 #include <fstream>
+#include <iostream>
 #include <utf8.h>
 
 namespace core {
@@ -76,7 +77,7 @@ void HistoryManager::add(const std::string &cmd) {
     if (!inserted)
       return;
   } else {
-    if (history_.back() != cmd)
+    if (history_.empty() || history_.back() != cmd)
       history_.push_back(cmd);
 
     if (history_.size() > max_size_)
@@ -141,8 +142,10 @@ void HistoryManager::save() {
 
   std::ofstream file(history_file_, std::ios::trunc);
 
-  if (!file.is_open())
+  if (!file.is_open()) {
+    std::cerr << "Cannot write " << history_file_ << '\n';
     return;
+  }
 
   if (save_unique_) {
     for (const auto &cmd : history_set_) {

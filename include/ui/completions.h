@@ -59,6 +59,7 @@ private:
   int font_size_;
   bool visible_;
   bool list_dirty_;
+  bool selected_has_desc_;
 
   static constexpr std::size_t max_list_items_ = 6;
 };
