@@ -140,13 +140,16 @@ void PDFDocument::loadPageContent(std::size_t idx) {
   fz_catch(ctx_) throw std::runtime_error("Failed to load text from page");
 }
 
-void PDFDocument::saveChanges() {
+void PDFDocument::saveChanges(const std::filesystem::path &path) {
   fz_try(ctx_) {
     pdf_write_options opts = pdf_default_write_options;
     pdf_document *pdf = pdf_specifics(ctx_, doc_);
     if (!pdf)
       return;
-    pdf_save_document(ctx_, pdf, filepath_.data(), &opts);
+    if (path == "")
+      pdf_save_document(ctx_, pdf, filepath_.c_str(), &opts);
+    else
+      pdf_save_document(ctx_, pdf, path.c_str(), &opts);
   }
   fz_catch(ctx_) throw std::runtime_error("Failed to save changes in document");
 }

@@ -55,7 +55,7 @@ void CmdProcessor::runCommand(const std::string &cmd) {
           std::to_string(cmd_ptr->args - 1)
       );
 
-    if (cmd_ptr->event.has_value()) {
+    if (cmd_ptr->event) {
       if ((i + 1) < (size_t)argv.size())
         event_bus_.emit(cmd_ptr->event.value(), argv[i + 1]);
       else

@@ -52,8 +52,9 @@
   {
     "name": "write",
     "event": "cmd.write",
-    "args": 1,
-    "description": "Save changes"
+    "args": 2,
+    "description": "Save changes",
+    "cmp_type": 1
   },
   {
     "name": "bmark",

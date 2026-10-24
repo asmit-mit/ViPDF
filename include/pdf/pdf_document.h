@@ -45,7 +45,7 @@ public:
   bool hasChanges() const;
   void loadAllContent();
   void loadPageContent(std::size_t idx);
-  void saveChanges();
+  void saveChanges(const std::filesystem::path &path = "");
 
   std::vector<std::size_t> createAnnotations(enum pdf_annot_type type, const sf::Color &color);
   std::vector<std::size_t> removeAnnotations();

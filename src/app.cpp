@@ -44,18 +44,27 @@ App::App()
     window_.close();
   });
 
-  event_bus_.subscribe<bool>("cmd.write", [this](bool save) {
+  event_bus_.subscribe<const std::string &>("cmd.write", [this](const std::string &filepath) {
     if (!document_.isOpen()) {
-      event_bus_
-          .emit("notification.msg", std::string("No document currently open") + document_.getFilePath());
+      event_bus_.emit("notification.msg", std::string("No document currently open"));
       return;
     }
     if (!document_.hasChanges())
       return;
     event_bus_.emit("statusbar.document_edited", false);
-    event_bus_
-        .emit("notification.msg", std::string("Document saved in path: ") + document_.getFilePath());
-    document_.saveChanges();
+
+    try {
+      if (filepath == "%") {
+        document_.saveChanges();
+        event_bus_
+            .emit("notification.msg", std::string("Document saved in path: ") + document_.getFilePath());
+      } else {
+        document_.saveChanges(filepath);
+        event_bus_.emit("notification.msg", std::string("Document saved in path: ") + filepath);
+      }
+    } catch (const std::runtime_error &e) {
+      event_bus_.emit("notification.msg", std::string(e.what()));
+    }
   });
 
   event_bus_.subscribe<ui::CursorType>("ui.cursor_type", [this](ui::CursorType type) {
