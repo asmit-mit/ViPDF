@@ -19,7 +19,8 @@ Statusbar::Statusbar(
       display_search_state_(font_, "[]", settings::status_font_size_),
       display_page_state_(font_, "[]", settings::status_font_size_),
       display_zoom_(font_, "[]", settings::status_font_size_),
-      display_pending_keys_(font_, "", settings::status_font_size_) {
+      display_pending_keys_(font_, "", settings::status_font_size_),
+      display_modified_(font_, "[+]", settings::status_font_size_) {
   display_area_.setSize({200.0, utils::cmdline_height_});
 
   const auto fg = utils::hexToRGB(settings::fg_);
@@ -36,6 +37,8 @@ Statusbar::Statusbar(
   total_pages_ = 0;
   page_details_changed_ = false;
 
+  document_edited_ = false;
+
   move_up_ = false;
   curr_x_ = 0.f;
   curr_y_ = 0.f;
@@ -46,6 +49,7 @@ Statusbar::Statusbar(
   display_page_state_.setFillColor(fg);
   display_zoom_.setFillColor(fg);
   display_pending_keys_.setFillColor(fg);
+  display_modified_.setFillColor(fg);
 
   setFilepath(filepath_);
   subscribeToEvents();
@@ -81,6 +85,10 @@ void Statusbar::subscribeToEvents() {
   event_bus_.subscribe<std::string>("statusbar.pending_keys", [this](std::string pending_keys) {
     display_pending_keys_.setString(pending_keys);
   });
+
+  event_bus_.subscribe<bool>("statusbar.document_edited", [this](bool edited) {
+    document_edited_ = edited;
+  });
 }
 
 void Statusbar::draw(sf::RenderTarget &window) const {
@@ -97,6 +105,9 @@ void Statusbar::draw(sf::RenderTarget &window) const {
 
   if (shouldShowSearch())
     window.draw(display_search_state_);
+
+  if (shouldShowModified())
+    window.draw(display_modified_);
 }
 
 void Statusbar::update() {
@@ -114,6 +125,11 @@ void Statusbar::update() {
 
   fitFilepath(max_filepath_width_);
   display_filepath_.setPosition({utils::padding, text_y});
+
+  if (shouldShowModified()) {
+    const float x = utils::padding + display_filepath_.getSize().x + utils::padding;
+    display_modified_.setPosition({std::round(x), text_y + 1.f});
+  }
 }
 
 bool Statusbar::shouldShowPageInfo() const {
@@ -126,6 +142,10 @@ bool Statusbar::shouldShowSearch() const {
 
 bool Statusbar::shouldShowPendingKeys() const {
   return !display_pending_keys_.getString().isEmpty();
+}
+
+bool Statusbar::shouldShowModified() const {
+  return document_edited_;
 }
 
 void Statusbar::refreshTexts() {
@@ -166,6 +186,8 @@ void Statusbar::layoutRightWidgets(float y) {
     edge = placeLeftOf(display_pending_keys_, edge, widget_y);
 
   max_filepath_width_ = edge - utils::padding * 2.f;
+  if (shouldShowModified())
+    max_filepath_width_ -= display_modified_.getLocalBounds().size.x + utils::padding;
 }
 
 void Statusbar::setFilepath(std::u32string filepath) {

@@ -44,6 +44,20 @@ App::App()
     window_.close();
   });
 
+  event_bus_.subscribe<bool>("cmd.write", [this](bool save) {
+    if (!document_.isOpen()) {
+      event_bus_
+          .emit("notification.msg", std::string("No document currently open") + document_.getFilePath());
+      return;
+    }
+    if (!document_.hasChanges())
+      return;
+    event_bus_.emit("statusbar.document_edited", false);
+    event_bus_
+        .emit("notification.msg", std::string("Document saved in path: ") + document_.getFilePath());
+    document_.saveChanges();
+  });
+
   event_bus_.subscribe<ui::CursorType>("ui.cursor_type", [this](ui::CursorType type) {
     if (type == ui::CursorType::Arrow)
       window_.setMouseCursor(arrow_cursor_);
@@ -94,7 +108,7 @@ void App::initHistory(const std::filesystem::path &state_dir) {
 
   event_bus_.subscribe<bool>("cmd.clear_files", [this](bool) { file_history_.clear(); });
   event_bus_.subscribe<bool>("cmd.clear_search", [this](bool) { search_history_.clear(); });
-  event_bus_.subscribe<bool>("cmd.clear_history", [this](bool) { cmd_history_.clear(); });
+  event_bus_.subscribe<bool>("cmd.clear_commands", [this](bool) { cmd_history_.clear(); });
 }
 
 void App::initWindow() {

@@ -1,9 +1,14 @@
 #include <stdexcept>
 
 #include "pdf/pdf_document.h"
-#include <mupdf/pdf.h>
 
 namespace pdf {
+
+namespace {
+static bool rectsOverlap(const fz_rect &a, const fz_rect &b) {
+  return !fz_is_empty_rect(fz_intersect_rect(a, b));
+}
+} // namespace
 
 PDFDocument::PDFDocument() {
   locks_.user = this;
@@ -11,6 +16,7 @@ PDFDocument::PDFDocument() {
   locks_.unlock = &PDFDocument::unlockMutex;
 
   all_content_loaded_ = false;
+  is_edited_ = false;
 
   ctx_ = fz_new_context(nullptr, &locks_, FZ_STORE_DEFAULT);
   if (!ctx_)
@@ -111,6 +117,10 @@ bool PDFDocument::isAllContentLoaded() const {
   return all_content_loaded_;
 }
 
+bool PDFDocument::hasChanges() const {
+  return is_edited_;
+}
+
 void PDFDocument::loadAllContent() {
   if (!doc_)
     return;
@@ -130,7 +140,19 @@ void PDFDocument::loadPageContent(std::size_t idx) {
   fz_catch(ctx_) throw std::runtime_error("Failed to load text from page");
 }
 
-std::vector<std::size_t> PDFDocument::createAnnotations(const sf::Color &color) {
+void PDFDocument::saveChanges() {
+  fz_try(ctx_) {
+    pdf_write_options opts = pdf_default_write_options;
+    pdf_document *pdf = pdf_specifics(ctx_, doc_);
+    if (!pdf)
+      return;
+    pdf_save_document(ctx_, pdf, filepath_.data(), &opts);
+  }
+  fz_catch(ctx_) throw std::runtime_error("Failed to save changes in document");
+}
+
+std::vector<std::size_t>
+PDFDocument::createAnnotations(enum pdf_annot_type type, const sf::Color &color) {
   std::vector<std::size_t> changed;
   if (!doc_)
     return changed;
@@ -141,11 +163,36 @@ std::vector<std::size_t> PDFDocument::createAnnotations(const sf::Color &color) 
       continue;
 
     const std::vector<fz_quad> &quads = page.getSelectionFzQuads();
-    if (!quads.empty() && addHighlight(i, quads, color)) {
+    if (!quads.empty() && addAnnotationInPage(i, quads, type, color)) {
       page.clearSelections();
       changed.push_back(i);
     }
   }
+
+  is_edited_ = is_edited_ ? true : !changed.empty();
+
+  return changed;
+}
+
+std::vector<std::size_t> PDFDocument::removeAnnotations() {
+  std::vector<std::size_t> changed;
+  if (!doc_)
+    return changed;
+
+  for (std::size_t i = 0; i < pages_.size(); ++i) {
+    PDFPage &page = pages_[i];
+    if (!page.hasSelections())
+      continue;
+
+    const std::vector<fz_quad> &quads = page.getSelectionFzQuads();
+    if (!quads.empty() && removeAnnotationsInPage(i, quads))
+      changed.push_back(i);
+
+    page.clearSelections();
+  }
+
+  is_edited_ = is_edited_ ? true : !changed.empty();
+
   return changed;
 }
 
@@ -226,8 +273,11 @@ void PDFDocument::loadOutline() {
   fz_drop_outline(ctx_, root);
 }
 
-bool PDFDocument::addHighlight(
-    std::size_t page_idx, const std::vector<fz_quad> &quads, const sf::Color &color
+bool PDFDocument::addAnnotationInPage(
+    std::size_t page_idx,
+    const std::vector<fz_quad> &quads,
+    enum pdf_annot_type type,
+    const sf::Color &color
 ) {
   pdf_document *pdf = pdf_specifics(ctx_, doc_);
   if (!pdf)
@@ -248,7 +298,7 @@ bool PDFDocument::addHighlight(
 
   fz_try(ctx_) {
     page = pdf_load_page(ctx_, pdf, page_no);
-    annot = pdf_create_annot(ctx_, page, PDF_ANNOT_HIGHLIGHT);
+    annot = pdf_create_annot(ctx_, page, type);
     pdf_set_annot_quad_points(ctx_, annot, n, quad_data);
     pdf_set_annot_color(ctx_, annot, 3, rgb);
     pdf_set_annot_opacity(ctx_, annot, opacity);
@@ -266,6 +316,60 @@ bool PDFDocument::addHighlight(
   }
 
   return ok;
+}
+
+bool PDFDocument::removeAnnotationsInPage(std::size_t page_idx, const std::vector<fz_quad> &quads) {
+  pdf_document *pdf = pdf_specifics(ctx_, doc_);
+  if (!pdf)
+    return false;
+
+  std::vector<fz_rect> sel_rects;
+  sel_rects.reserve(quads.size());
+  for (const fz_quad &q : quads)
+    sel_rects.push_back(fz_rect_from_quad(q));
+
+  pdf_page *page = nullptr;
+  bool removed = false;
+  fz_var(page);
+  fz_var(removed);
+
+  fz_try(ctx_) {
+    page = pdf_load_page(ctx_, pdf, static_cast<int>(page_idx));
+
+    std::vector<pdf_annot *> hits;
+    for (pdf_annot *a = pdf_first_annot(ctx_, page); a; a = pdf_next_annot(ctx_, a)) {
+      bool hit = false;
+      const int qn = pdf_annot_quad_point_count(ctx_, a);
+
+      if (qn < 0)
+        continue;
+
+      for (int k = 0; k < qn && !hit; ++k) {
+        const fz_rect ar = fz_rect_from_quad(pdf_annot_quad_point(ctx_, a, k));
+        for (const fz_rect &s : sel_rects) {
+          if (rectsOverlap(ar, s)) {
+            hit = true;
+            break;
+          }
+        }
+      }
+
+      if (hit)
+        hits.push_back(a);
+    }
+
+    for (pdf_annot *a : hits)
+      pdf_delete_annot(ctx_, page, a);
+
+    removed = !hits.empty();
+  }
+  fz_always(ctx_) {
+    if (page)
+      fz_drop_page(ctx_, &page->super);
+  }
+  fz_catch(ctx_) removed = false;
+
+  return removed;
 }
 
 } // namespace pdf

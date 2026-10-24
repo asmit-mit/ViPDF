@@ -283,9 +283,20 @@ void DocumentView::execute(const core::InputCmd<DocumentAction> &cmd) {
     stepSearch(false);
     break;
 
-  case DocumentAction::Highlight:
+  case DocumentAction::AnnotateHighlight:
     if (cmd.arg)
-      highlight(*cmd.arg);
+      addAnnotation(PDF_ANNOT_HIGHLIGHT, *cmd.arg);
+    break;
+  case DocumentAction::AnnotateStrikethrough:
+    if (cmd.arg)
+      addAnnotation(PDF_ANNOT_STRIKE_OUT, *cmd.arg);
+    break;
+  case DocumentAction::AnnotateUnderline:
+    if (cmd.arg)
+      addAnnotation(PDF_ANNOT_UNDERLINE, *cmd.arg);
+    break;
+  case DocumentAction::AnnotateRemove:
+    removeAnnotation();
     break;
 
   case DocumentAction::Cancel:
@@ -356,26 +367,34 @@ void DocumentView::emitSearchState(std::size_t display_offset) {
   event_bus_.emit("statusbar.search_state", std::make_pair(curr + display_offset, total));
 }
 
-void DocumentView::highlight(int color_index) {
+void DocumentView::addAnnotation(enum pdf_annot_type type, int color_index) {
   switch (color_index) {
   case 0:
-    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_yellow_)));
+    onAnnotate(
+        document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_yellow_))
+    );
     break;
   case 1:
-    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_orange_)));
+    onAnnotate(
+        document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_orange_))
+    );
     break;
   case 2:
-    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_red_)));
+    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_red_)));
     break;
   case 3:
-    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_blue_)));
+    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_blue_)));
     break;
   case 4:
-    onAnnotate(document_.createAnnotations(utils::hexToRGB(settings::highlight_color_green_)));
+    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_green_)));
     break;
   default:
     break;
   }
+}
+
+void DocumentView::removeAnnotation() {
+  onAnnotate(document_.removeAnnotations());
 }
 
 void DocumentView::onResize(const sf::Vector2f &size) {
@@ -466,6 +485,7 @@ void DocumentView::onAnnotate(std::vector<std::size_t> pages) {
     pages_[page].reset();
   scheduler_.refreshPages(pages);
   selection_controller_.reset();
+  event_bus_.emit("statusbar.document_edited", document_.hasChanges());
 }
 
 void DocumentView::registerKeybindings() {
@@ -495,10 +515,13 @@ void DocumentView::registerKeybindings() {
   input_handler_.bind({{Key::N}}, DocumentAction::SearchNext);
   input_handler_.bind({{Key::N, false, true}}, DocumentAction::SearchPrev);
 
-  for (int i = 0; i < 4; ++i) {
+  for (int i = 0; i <= 4; ++i) {
     const auto digit = static_cast<Key>(static_cast<int>(Key::Num1) + i);
-    input_handler_.bind({{Key::H, false, true}, {digit}}, DocumentAction::Highlight, i);
+    input_handler_.bind({{Key::A}, {Key::H}, {digit}}, DocumentAction::AnnotateHighlight, i);
+    input_handler_.bind({{Key::A}, {Key::S}, {digit}}, DocumentAction::AnnotateStrikethrough, i);
+    input_handler_.bind({{Key::A}, {Key::U}, {digit}}, DocumentAction::AnnotateUnderline, i);
   }
+  input_handler_.bind({{Key::A}, {Key::D}}, DocumentAction::AnnotateRemove);
 
   input_handler_.bind({{Key::Escape}}, DocumentAction::Cancel);
 }

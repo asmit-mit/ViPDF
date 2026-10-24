@@ -36,9 +36,9 @@
         "description": "Clear search history"
       },
       {
-        "name": "history",
+        "name": "commands",
         "args": 1,
-        "event": "cmd.clear_history",
+        "event": "cmd.clear_commands",
         "description": "Clear command history"
       }
     ]
@@ -48,6 +48,12 @@
     "event": "cmd.quit",
     "args": 1,
     "description": "Quit app"
+  },
+  {
+    "name": "write",
+    "event": "cmd.write",
+    "args": 1,
+    "description": "Save changes"
   },
   {
     "name": "bmark",

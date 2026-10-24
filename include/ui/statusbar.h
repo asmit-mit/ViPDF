@@ -26,6 +26,7 @@ private:
   bool shouldShowPageInfo() const;
   bool shouldShowSearch() const;
   bool shouldShowPendingKeys() const;
+  bool shouldShowModified() const;
 
   void refreshTexts();
   void layoutRightWidgets(float y);
@@ -44,6 +45,7 @@ private:
   sf::Text display_page_state_;
   sf::Text display_zoom_;
   sf::Text display_pending_keys_;
+  sf::Text display_modified_;
 
   std::u32string filepath_;
   std::u32string last_truncated_;
@@ -53,6 +55,8 @@ private:
   std::size_t search_num_;
   std::size_t total_search_results_;
   bool search_details_changed_;
+
+  bool document_edited_;
 
   std::size_t page_num_;
   std::size_t total_pages_;

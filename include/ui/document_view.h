@@ -6,6 +6,7 @@
 #include "core/history_manager.h"
 #include "core/input_handler.h"
 #include "core/render_scheduler.h"
+#include "mupdf/pdf/annot.h"
 #include "pdf/pdf_document.h"
 #include "pdf/pdf_layout_manager.h"
 #include "pdf/pdf_search_controller.h"
@@ -35,7 +36,10 @@ enum class DocumentAction {
   Recolor,
   SearchNext,
   SearchPrev,
-  Highlight,
+  AnnotateHighlight,
+  AnnotateStrikethrough,
+  AnnotateUnderline,
+  AnnotateRemove,
   Cancel
 };
 
@@ -81,8 +85,9 @@ private:
   void fitWidth();
   void gotoPage(std::optional<std::size_t> one_based, std::size_t fallback);
   void stepSearch(bool forward);
+  void addAnnotation(enum pdf_annot_type type, int color_index);
+  void removeAnnotation();
   void emitSearchState(std::size_t display_offset);
-  void highlight(int color_index);
 
 private:
   std::vector<PageView> pages_;

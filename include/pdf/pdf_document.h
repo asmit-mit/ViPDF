@@ -4,6 +4,7 @@
 
 #include <array>
 #include <memory>
+#include <mupdf/pdf.h>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -41,10 +42,13 @@ public:
 
   bool isOpen() const;
   bool isAllContentLoaded() const;
+  bool hasChanges() const;
   void loadAllContent();
   void loadPageContent(std::size_t idx);
+  void saveChanges();
 
-  std::vector<std::size_t> createAnnotations(const sf::Color &color);
+  std::vector<std::size_t> createAnnotations(enum pdf_annot_type type, const sf::Color &color);
+  std::vector<std::size_t> removeAnnotations();
   void clearSelections();
 
   std::size_t pageWithMaxWidth() const;
@@ -58,8 +62,14 @@ private:
   static void unlockMutex(void *user, int lock);
 
   void loadOutline();
-  bool
-  addHighlight(std::size_t page_idx, const std::vector<fz_quad> &quads, const sf::Color &color);
+  bool addAnnotationInPage(
+      std::size_t page_idx,
+      const std::vector<fz_quad> &quads,
+      enum pdf_annot_type type,
+      const sf::Color &color
+  );
+
+  bool removeAnnotationsInPage(std::size_t page_idx, const std::vector<fz_quad> &quads);
 
 private:
   std::array<std::mutex, FZ_LOCK_MAX> mutexes_;
@@ -75,6 +85,7 @@ private:
   fz_document *doc_;
 
   bool all_content_loaded_;
+  bool is_edited_;
 };
 
 } // namespace pdf

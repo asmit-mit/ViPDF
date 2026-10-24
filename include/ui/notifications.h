@@ -49,7 +49,7 @@ private:
   bool visible_;
   bool hovered_;
 
-  static constexpr float max_width_ = 320.f;
+  static constexpr float max_width_ = 400.f;
   static constexpr float padding_ = 10.f;
   static constexpr float timeout_ = 5.f;
 };
