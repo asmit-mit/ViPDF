@@ -8,10 +8,10 @@ project_name = meson.project_name()
 
 sfml_dep = dependency('sfml-graphics', required: true)
 mupdf_dep = dependency('mupdf', required: true)
-gtk_dep = dependency('gtk4', required: true)
 harfbuzz_dep = dependency('harfbuzz', version: '>= 14.3.0', required: true)
 harfbuzz_raster_dep = dependency('harfbuzz-raster', version: '>= 14.3.0', required: true)
 freetype_dep = dependency('freetype2', required: true)
+sqlitecpp_dep = dependency('sqlitecpp', required: true)
 
 utf8cpp_includes = include_directories('thirdparty/utfcpp')
 json_includes = include_directories('thirdparty/json')
@@ -23,6 +23,7 @@ sources = files(
   'src/core/cmd_loader.cpp',
   'src/core/cmd_autocomplete.cpp',
   'src/core/history_manager.cpp',
+  'src/core/bookmark_manager.cpp',
   'src/core/render_scheduler.cpp',
   'src/graphics/font_library.cpp',
   'src/graphics/glyph_atlas.cpp',
@@ -51,5 +52,5 @@ executable(
   project_name,
   sources,
   include_directories: [includes, utf8cpp_includes, json_includes],
-  dependencies: [sfml_dep, mupdf_dep, gtk_dep, harfbuzz_dep, harfbuzz_raster_dep, freetype_dep],
+  dependencies: [sfml_dep, mupdf_dep, harfbuzz_dep, harfbuzz_raster_dep, freetype_dep, sqlitecpp_dep],
 )

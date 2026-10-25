@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/event_bus.h"
-#include "core/history_manager.h"
 #include "graphics/rich_text.h"
 #include "ui/widget.h"
 
@@ -14,7 +13,6 @@ public:
       graphics::GlyphAtlas &glyph_atlas,
       const sf::Font &font_normal,
       const sf::Font &font_bold,
-      core::HistoryManager &notification_history,
       core::EventBus &event_bus
   );
 
@@ -32,7 +30,6 @@ private:
 
 private:
   core::EventBus &event_bus_;
-  core::HistoryManager &history_;
   const graphics::FontLibrary &font_library_;
   const sf::Font &font_normal_;
   const sf::Font &font_bold_;

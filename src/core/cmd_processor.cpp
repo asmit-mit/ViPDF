@@ -57,7 +57,10 @@ void CmdProcessor::runCommand(const std::string &cmd) {
 
     if (cmd_ptr->event) {
       if ((i + 1) < (size_t)argv.size())
-        event_bus_.emit(cmd_ptr->event.value(), argv[i + 1]);
+        if (utils::isNumber(argv[i + 1]))
+          event_bus_.emit(cmd_ptr->event.value(), std::stoi(argv[i + 1]));
+        else
+          event_bus_.emit(cmd_ptr->event.value(), argv[i + 1]);
       else
         event_bus_.emit(cmd_ptr->event.value(), true);
       return;
@@ -67,27 +70,40 @@ void CmdProcessor::runCommand(const std::string &cmd) {
   throw std::runtime_error("Incomplete command: " + arg);
 }
 
-void CmdProcessor::tokenize(const std::string &cmd, std::vector<std::string> &argv) {
+void CmdProcessor::tokenize(const std::string &input, std::vector<std::string> &argv) {
   std::string token;
   bool escaping = false;
+  char quote = 0;
+  bool hasToken = false;
 
-  for (char ch : cmd) {
+  for (char ch : input) {
     if (escaping) {
       token += ch;
       escaping = false;
-    } else if (ch == '\\') {
+    } else if (ch == '\\' && quote != '\'') {
       escaping = true;
-    } else if (std::isspace(ch)) {
-      if (!token.empty()) {
+      hasToken = true;
+    } else if (quote) {
+      if (ch == quote)
+        quote = 0;
+      else
+        token += ch;
+    } else if (ch == '"' || ch == '\'') {
+      quote = ch;
+      hasToken = true;
+    } else if (std::isspace(static_cast<unsigned char>(ch))) {
+      if (hasToken) {
         argv.push_back(token);
         token.clear();
+        hasToken = false;
       }
     } else {
       token += ch;
+      hasToken = true;
     }
   }
 
-  if (!token.empty())
+  if (hasToken)
     argv.push_back(token);
 }
 

@@ -62,8 +62,8 @@ std::size_t CmdLoader::parseCmd(const json &obj, const std::string &parent_key, 
   if (auto it = obj.find("event"); it != obj.end() && it->is_string())
     cmd.event = it->get<std::string>();
 
-  if (auto it = obj.find("cmp_type"); it != obj.end() && it->is_number_integer())
-    cmd.cmp_type = it->get<int>();
+  if (auto it = obj.find("cmp_type"); it != obj.end() && it->is_string())
+    cmd.cmp_type = it->get<CmdCmpType>();
 
   std::string scoped_key = parent_key.empty() ? cmd.name : parent_key + "." + cmd.name;
   size_t idx = commands_.size();

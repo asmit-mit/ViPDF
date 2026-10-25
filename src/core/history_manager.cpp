@@ -6,12 +6,8 @@
 
 namespace core {
 
-HistoryManager::HistoryManager() {}
-
-void HistoryManager::setPath(const std::string &path) {
-  history_file_ = path;
-
-  std::ifstream file(history_file_);
+HistoryManager::HistoryManager(const std::filesystem::path path) {
+  std::ifstream file(path);
 
   std::string line;
   while (std::getline(file, line)) {
@@ -27,7 +23,8 @@ void HistoryManager::setPath(const std::string &path) {
   }
 
   reset();
-  path_set_ = true;
+
+  history_file_ = std::move(path);
 }
 
 void HistoryManager::setSaveUnique(bool unique) {
@@ -137,9 +134,6 @@ std::vector<std::string> HistoryManager::getAllUnique() const {
 }
 
 void HistoryManager::save() {
-  if (!path_set_)
-    return;
-
   std::ofstream file(history_file_, std::ios::trunc);
 
   if (!file.is_open()) {

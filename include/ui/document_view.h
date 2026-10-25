@@ -4,6 +4,7 @@
 
 #include "core/event_bus.h"
 #include "core/history_manager.h"
+#include "core/bookmark_manager.h"
 #include "core/input_handler.h"
 #include "core/render_scheduler.h"
 #include "mupdf/pdf/annot.h"
@@ -47,6 +48,7 @@ class DocumentView {
 public:
   explicit DocumentView(
       core::HistoryManager &file_history,
+      core::BookmarkManager &bookmark_manager,
       pdf::PDFDocument &document,
       core::RenderScheduler &scheduler,
       core::EventBus &event_bus
@@ -65,6 +67,7 @@ private:
   void onSearchPage(const std::u32string &text);
   void onAnnotate(std::vector<std::size_t> pages);
 
+  void registerEvents();
   void registerKeybindings();
 
   void centerOnSearchResult(
@@ -99,6 +102,7 @@ private:
 
   core::EventBus &event_bus_;
   core::HistoryManager &file_history_;
+  core::BookmarkManager &bookmark_manager_;
   core::RenderScheduler &scheduler_;
   core::InputHandler<DocumentAction> input_handler_;
 

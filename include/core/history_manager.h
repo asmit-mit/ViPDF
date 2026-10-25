@@ -1,6 +1,7 @@
 #pragma once
 
 #include <deque>
+#include <filesystem>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -9,10 +10,9 @@ namespace core {
 
 class HistoryManager {
 public:
-  HistoryManager();
+  HistoryManager(const std::filesystem::path path);
 
   void setSaveUnique(bool unique);
-  void setPath(const std::string &path);
   void reset();
   void clear();
 
@@ -34,9 +34,8 @@ private:
   static constexpr std::size_t max_size_ = 100;
   std::size_t curr_idx_ = 0;
 
-  std::string history_file_;
+  std::filesystem::path history_file_;
   bool save_unique_ = false;
-  bool path_set_ = false;
 };
 
 } // namespace core

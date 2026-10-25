@@ -20,6 +20,7 @@ void PDFLayoutManager::setAnchorPage(std::size_t idx) {
   anchor_page_ = idx;
   need_initial_pos_ = true;
   page_positions_dirty_ = true;
+  scrolled_ = false;
 }
 
 void PDFLayoutManager::setFrontPage(std::size_t idx) {
@@ -137,6 +138,9 @@ bool PDFLayoutManager::anchorPageChanged() const {
 void PDFLayoutManager::updateAnchorPage() {
   anchor_page_changed_ = false;
 
+  if (need_initial_pos_ || !pages_[anchor_page_].hasTexture())
+    return;
+
   const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
 
   std::size_t closest = anchor_page_;
@@ -157,6 +161,7 @@ void PDFLayoutManager::updateAnchorPage() {
     anchor_page_ = closest;
     anchor_page_changed_ = true;
   }
+  scrolled_ = false;
 }
 
 void PDFLayoutManager::setInitialPagePos() {
@@ -206,7 +211,8 @@ void PDFLayoutManager::updateNeighbourPositions() {
 
 void PDFLayoutManager::clampAnchorHorizontally(const ui::VisualInfo &visual_state) {
   auto &page = pages_[anchor_page_];
-  const auto key = pdf::PDFRenderKey{page_with_max_width_, visual_state.zoom, visual_state.rotate, 0};
+  const auto key =
+      pdf::PDFRenderKey{page_with_max_width_, visual_state.zoom, visual_state.rotate, 0};
 
   const float window_w = window_size_.x;
   const float page_w = static_cast<float>(scheduler_.getPageSize(key).x);

@@ -2,6 +2,9 @@
 
 #include <SFML/Graphics.hpp>
 
+#include <filesystem>
+
+#include "core/bookmark_manager.h"
 #include "core/cmd_autocomplete.h"
 #include "core/cmd_processor.h"
 #include "core/event_bus.h"
@@ -22,13 +25,14 @@ public:
   void run();
 
 private:
-  void initHistory(const std::filesystem::path &state_dir);
-  void initFonts(const std::filesystem::path &state_dir);
-  void initWindow();
+  void registerEvents();
   void initUI();
   void processEvents();
 
 private:
+  std::filesystem::path state_dir_;
+  core::EventBus event_bus_;
+
   sf::RenderWindow window_;
   sf::View view_;
   sf::Font font_regular_;
@@ -38,24 +42,24 @@ private:
   graphics::FontLibrary font_library_;
   graphics::GlyphAtlas glyph_atlas_;
 
-  pdf::PDFDocument document_;
-  pdf::PDFRenderer renderer_;
-
-  core::EventBus event_bus_;
-  core::CmdLoader cmd_loader_;
-  core::CmdProcessor cmd_processor_;
-  core::CmdAutocomplete cmd_autocomplete_;
   core::HistoryManager cmd_history_;
   core::HistoryManager search_history_;
   core::HistoryManager file_history_;
-  core::HistoryManager notification_history_;
+  core::BookmarkManager bookmark_manager_;
+
+  core::CmdLoader cmd_loader_;
+  core::CmdProcessor cmd_processor_;
+  core::CmdAutocomplete cmd_autocomplete_;
+
+  pdf::PDFDocument document_;
+  pdf::PDFRenderer renderer_;
   core::RenderScheduler render_scheduler_;
 
   ui::Textbox cmdline_textbox_;
   ui::Completions cmdline_completions_;
 
   ui::Cmdline cmdline_;
-  ui::DocumentView pdf_view_;
+  ui::DocumentView document_view_;
   ui::Statusbar statusbar_;
   ui::Notifications notifications_;
   ui::UIElements focus_;

@@ -4,7 +4,7 @@
     "args": 2,
     "event": "cmd.open_document",
     "description": "Open document with absolute path",
-    "cmp_type": 1
+    "cmp_type": "file"
   },
   {
     "name": "reload",
@@ -54,7 +54,7 @@
     "event": "cmd.write",
     "args": 2,
     "description": "Save changes",
-    "cmp_type": 1
+    "cmp_type": "file"
   },
   {
     "name": "bmark",
@@ -68,16 +68,18 @@
         "description": "Save current page as bookmark"
       },
       {
-        "name": "delete",
+        "name": "del",
         "args": 2,
         "event": "bmark.del",
-        "description": "Delete specified bookmark"
+        "description": "Delete specified bookmark",
+        "cmp_type": "bookmark"
       },
       {
         "name": "jump",
         "args": 2,
         "event": "bmark.jump",
-        "description": "Jump to specified bookmark"
+        "description": "Jump to specified bookmark",
+        "cmp_type": "bookmark"
       }
     ]
   }

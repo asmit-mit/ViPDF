@@ -33,4 +33,19 @@ inline bool isNumber(const std::string &s) {
          std::all_of(s.begin(), s.end(), [](unsigned char c) { return std::isdigit(c); });
 }
 
+inline std::filesystem::path ensureParent(const std::filesystem::path path) {
+  namespace fs = std::filesystem;
+
+  const fs::path parent = path.parent_path();
+  if (parent.empty())
+    return path;
+
+  std::error_code ec;
+  fs::create_directories(parent, ec);
+  if (ec)
+    throw std::runtime_error("Cannot create " + parent.string() + ": " + ec.message());
+
+  return path;
+}
+
 } // namespace utils

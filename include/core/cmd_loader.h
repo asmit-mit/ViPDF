@@ -12,13 +12,28 @@ namespace core {
 
 using json = nlohmann::json;
 
+enum class CmdCmpType : int {
+  Subcommand = 0,
+  File,
+  Bookmark,
+};
+
+NLOHMANN_JSON_SERIALIZE_ENUM(
+    CmdCmpType,
+    {
+        {CmdCmpType::Subcommand, "subcommand"},
+        {CmdCmpType::File, "file"},
+        {CmdCmpType::Bookmark, "bookmark"},
+    }
+)
+
 struct Cmd {
   std::string name;
   std::string description;
   std::optional<std::string> event;
   std::vector<size_t> children;
+  CmdCmpType cmp_type = CmdCmpType::Subcommand;
   int args;
-  int cmp_type = 0;
 };
 
 class CmdLoader {

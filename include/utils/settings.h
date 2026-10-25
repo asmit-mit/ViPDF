@@ -48,6 +48,7 @@ constexpr char commands_json[] = "assets/commands.json";
 constexpr char cmd_history[] = "history/cmd_history";
 constexpr char recent_files[] = "history/recent_files";
 constexpr char search_history[] = "history/search_history";
+constexpr char bookmarks_db[] = "bookmarks/bookmarks.db3";
 constexpr char state_dir[] = ".local/state/ViPDF";
 
 } // namespace settings

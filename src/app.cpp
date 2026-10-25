@@ -1,41 +1,81 @@
 #include "app.h"
-#include "graphics/font_library.h"
-#include "ui/ui_elements.h"
+
 #include "utils/settings.h"
 #include "utils/utils.h"
-
-#include <filesystem>
-#include <stdexcept>
-#include <iostream>
 
 namespace fs = std::filesystem;
 
 App::App()
-    : document_(), renderer_(),
-      cmd_loader_(fs::path(std::getenv("HOME")) / settings::state_dir / settings::commands_json),
+    : state_dir_(
+          utils::ensureParent(
+              (std::getenv("HOME") ? fs::path(std::getenv("HOME")) : fs::current_path()) /
+              settings::state_dir
+          )
+      ),
+      font_regular_(utils::ensureParent(state_dir_ / settings::font_regular)),
+      font_bold_(utils::ensureParent(state_dir_ / settings::font_bold)),
+      font_italic_(utils::ensureParent(state_dir_ / settings::font_italic)),
+      font_library_({
+          {graphics::FontType::Regular,
+           utils::ensureParent(state_dir_ / settings::font_regular).c_str()},
+          {graphics::FontType::Bold, utils::ensureParent(state_dir_ / settings::font_bold).c_str()},
+          {graphics::FontType::Italic,
+           utils::ensureParent(state_dir_ / settings::font_italic).c_str()},
+          {graphics::FontType::CJK, utils::ensureParent(state_dir_ / settings::font_cjk).c_str()},
+          {graphics::FontType::Emoji,
+           utils::ensureParent(state_dir_ / settings::font_emoji).c_str()},
+      }),
+      cmd_history_(utils::ensureParent(state_dir_ / settings::cmd_history)),
+      search_history_(utils::ensureParent(state_dir_ / settings::search_history)),
+      file_history_(utils::ensureParent(state_dir_ / settings::recent_files)),
+      bookmark_manager_(utils::ensureParent(state_dir_ / settings::bookmarks_db)),
+      cmd_loader_(utils::ensureParent(state_dir_ / settings::commands_json)),
       cmd_processor_(event_bus_, cmd_loader_, cmd_history_),
-      cmd_autocomplete_(cmd_loader_, file_history_),
+      cmd_autocomplete_(cmd_loader_, file_history_, bookmark_manager_), document_(), renderer_(),
       render_scheduler_(document_, renderer_, settings::thread_count_),
       cmdline_textbox_(font_library_, glyph_atlas_, utils::char_size, ":"),
       cmdline_completions_(font_library_, glyph_atlas_, font_regular_, font_italic_, utils::char_size),
       cmdline_(font_regular_, event_bus_, cmd_processor_, cmd_autocomplete_, cmd_history_, search_history_, cmdline_textbox_, cmdline_completions_),
-      pdf_view_(file_history_, document_, render_scheduler_, event_bus_),
+      document_view_(file_history_, bookmark_manager_, document_, render_scheduler_, event_bus_),
       statusbar_(font_library_, glyph_atlas_, font_regular_, event_bus_),
-      notifications_(font_library_, glyph_atlas_, font_regular_, font_bold_, notification_history_, event_bus_),
+      notifications_(font_library_, glyph_atlas_, font_regular_, font_bold_, event_bus_),
       arrow_cursor_(sf::Cursor::Type::Arrow), text_cursor_(sf::Cursor::Type::Text) {
-  const char *home = std::getenv("HOME");
-  fs::path base = home ? fs::path(home) : fs::current_path();
-  fs::path state_dir = base / settings::state_dir;
+  font_regular_.setSmooth(false);
+  font_bold_.setSmooth(false);
+  font_italic_.setSmooth(false);
 
-  std::error_code ec;
-  fs::create_directories(state_dir, ec);
-  if (ec)
-    std::cerr << "Cannot create " << state_dir << ": " << ec.message() << '\n';
+  file_history_.setSaveUnique(true);
 
-  initFonts(state_dir);
-  initHistory(state_dir);
-  initWindow();
   initUI();
+  registerEvents();
+}
+
+void App::run() {
+  while (window_.isOpen()) {
+    processEvents();
+
+    event_bus_.update();
+    document_view_.update();
+    cmdline_.update();
+    statusbar_.update();
+    notifications_.update();
+
+    window_.clear(utils::hexToRGB(settings::bg_));
+    window_.setView(view_);
+
+    document_view_.draw(window_);
+    cmdline_.draw(window_);
+    statusbar_.draw(window_);
+    notifications_.draw(window_);
+
+    window_.display();
+  }
+}
+
+void App::registerEvents() {
+  event_bus_.subscribe<bool>("cmd.clear_files", [this](bool) { file_history_.clear(); });
+  event_bus_.subscribe<bool>("cmd.clear_search", [this](bool) { search_history_.clear(); });
+  event_bus_.subscribe<bool>("cmd.clear_commands", [this](bool) { cmd_history_.clear(); });
 
   event_bus_.subscribe<bool>("cmd.quit", [this](bool close) {
     render_scheduler_.quiesce();
@@ -80,48 +120,7 @@ App::App()
   });
 }
 
-void App::run() {
-  while (window_.isOpen()) {
-    processEvents();
-
-    event_bus_.update();
-    pdf_view_.update();
-    cmdline_.update();
-    statusbar_.update();
-    notifications_.update();
-
-    window_.clear(utils::hexToRGB(settings::bg_));
-    window_.setView(view_);
-
-    pdf_view_.draw(window_);
-    cmdline_.draw(window_);
-    statusbar_.draw(window_);
-    notifications_.draw(window_);
-
-    window_.display();
-  }
-}
-
-void App::initHistory(const std::filesystem::path &state_dir) {
-  fs::path history_dir = state_dir / "history";
-
-  std::error_code ec;
-  fs::create_directories(history_dir, ec);
-  if (ec)
-    std::cerr << "Cannot create " << history_dir << ": " << ec.message() << '\n';
-
-  cmd_history_.setPath((state_dir / settings::cmd_history).string());
-  file_history_.setPath((state_dir / settings::recent_files).string());
-  search_history_.setPath((state_dir / settings::search_history).string());
-
-  file_history_.setSaveUnique(true);
-
-  event_bus_.subscribe<bool>("cmd.clear_files", [this](bool) { file_history_.clear(); });
-  event_bus_.subscribe<bool>("cmd.clear_search", [this](bool) { search_history_.clear(); });
-  event_bus_.subscribe<bool>("cmd.clear_commands", [this](bool) { cmd_history_.clear(); });
-}
-
-void App::initWindow() {
+void App::initUI() {
   sf::ContextSettings settings;
   settings.antiAliasingLevel = 8;
 
@@ -133,38 +132,11 @@ void App::initWindow() {
   window_.setKeyRepeatEnabled(true);
 
   view_ = window_.getDefaultView();
-}
 
-void App::initUI() {
   cmdline_.onResize(view_.getSize());
   statusbar_.onResize(view_.getSize());
-  pdf_view_.onResize(view_.getSize());
+  document_view_.onResize(view_.getSize());
   window_.setMouseCursor(arrow_cursor_);
-}
-
-void App::initFonts(const std::filesystem::path &state_dir) {
-  fs::path font_path_regular = state_dir / settings::font_regular;
-  fs::path font_path_bold = state_dir / settings::font_bold;
-  fs::path font_path_italic = state_dir / settings::font_italic;
-  fs::path font_path_emoji = state_dir / settings::font_emoji;
-  fs::path font_path_cjk = state_dir / settings::font_cjk;
-
-  font_library_.tryLoadFont(graphics::FontType::Regular, font_path_regular.string().data());
-  font_library_.tryLoadFont(graphics::FontType::Bold, font_path_bold.string().data());
-  font_library_.tryLoadFont(graphics::FontType::Italic, font_path_italic.string().data());
-  font_library_.tryLoadFont(graphics::FontType::Emoji, font_path_emoji.string().data());
-  font_library_.tryLoadFont(graphics::FontType::CJK, font_path_cjk.string().data());
-
-  if (!font_regular_.openFromFile(font_path_regular))
-    throw std::runtime_error("Can't load font: " + font_path_regular.string());
-  if (!font_bold_.openFromFile(font_path_bold))
-    throw std::runtime_error("Can't load font: " + font_path_bold.string());
-  if (!font_italic_.openFromFile(font_path_italic))
-    throw std::runtime_error("Can't load font: " + font_path_italic.string());
-
-  font_regular_.setSmooth(false);
-  font_bold_.setSmooth(false);
-  font_italic_.setSmooth(false);
 }
 
 void App::processEvents() {
@@ -180,7 +152,7 @@ void App::processEvents() {
 
       cmdline_.onResize(view_.getSize());
       statusbar_.onResize(view_.getSize());
-      pdf_view_.onResize(view_.getSize());
+      document_view_.onResize(view_.getSize());
       notifications_.onResize(view_.getSize());
     }
 
@@ -200,7 +172,7 @@ void App::processEvents() {
 
     cmdline_.handleEvent(*event);
     statusbar_.handleEvent(*event);
-    pdf_view_.handleEvent(*event);
+    document_view_.handleEvent(*event);
     notifications_.handleEvent(*event);
   }
 }

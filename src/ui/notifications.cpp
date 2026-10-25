@@ -11,12 +11,10 @@ Notifications::Notifications(
     graphics::GlyphAtlas &glyph_atlas,
     const sf::Font &font_normal,
     const sf::Font &font_bold,
-    core::HistoryManager &notification_history,
     core::EventBus &event_bus
 )
-    : event_bus_(event_bus), history_(notification_history), font_library_(font_lib),
-      font_normal_(font_normal), font_bold_(font_bold),
-      display_header_(font_bold, "Notification", utils::char_size + 2),
+    : event_bus_(event_bus), font_library_(font_lib), font_normal_(font_normal),
+      font_bold_(font_bold), display_header_(font_bold, "Notification", utils::char_size + 2),
       display_msg_(font_lib, glyph_atlas, utils::char_size) {
   visible_ = false;
   hovered_ = false;
@@ -176,8 +174,6 @@ std::string Notifications::wrapText(
 }
 
 void Notifications::show(const std::string &msg) {
-  history_.add(msg);
-
   const float inner_width = max_width_ - 2.f * padding_;
   std::string wrapped = wrapText(msg, font_normal_, utils::char_size, inner_width);
 

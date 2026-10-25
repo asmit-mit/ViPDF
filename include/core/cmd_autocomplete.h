@@ -1,16 +1,15 @@
 #pragma once
+
 #include "core/cmd_loader.h"
-#include "core/history_manager.h"
-#include "utils/trie.h"
+
 #include <string>
 #include <vector>
 
-namespace core {
+#include "core/bookmark_manager.h"
+#include "core/history_manager.h"
+#include "utils/trie.h"
 
-enum class CmdAutocompleteType : int {
-  Subcommand = 0,
-  Files,
-};
+namespace core {
 
 struct CmdAutocompleteItem {
   std::string name;
@@ -20,7 +19,11 @@ struct CmdAutocompleteItem {
 
 class CmdAutocomplete {
 public:
-  explicit CmdAutocomplete(const CmdLoader &cmd_loader, const HistoryManager &file_history);
+  explicit CmdAutocomplete(
+      const CmdLoader &cmd_loader,
+      const HistoryManager &file_history,
+      const BookmarkManager &bookmark_manager
+  );
 
   std::vector<CmdAutocompleteItem> complete(const std::string &prefix);
 
@@ -40,10 +43,17 @@ private:
       std::vector<CmdAutocompleteItem> &results
   );
 
+  void getBookmarkCmp(
+      const std::string &scoped_key,
+      const std::string &typing,
+      std::vector<CmdAutocompleteItem> &results
+  );
+
 private:
   utils::Trie trie_;
   const CmdLoader &cmd_loader_;
   const HistoryManager &file_history_;
+  const BookmarkManager &bookmark_manager_;
 };
 
 } // namespace core

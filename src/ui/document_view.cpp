@@ -15,13 +15,14 @@ namespace ui {
 
 DocumentView::DocumentView(
     core::HistoryManager &file_history,
+    core::BookmarkManager &bookmark_manager,
     pdf::PDFDocument &document,
     core::RenderScheduler &scheduler,
     core::EventBus &event_bus
 )
     : document_(document), layout_manager_(scheduler, pages_), view_controller_(scheduler, pages_),
       search_controller_(pages_), selection_controller_(document_, pages_), event_bus_(event_bus),
-      file_history_(file_history), scheduler_(scheduler) {
+      file_history_(file_history), bookmark_manager_(bookmark_manager), scheduler_(scheduler) {
   should_take_input_ = false;
   recolor_ = settings::default_recolor;
   update_recolor_ = false;
@@ -33,38 +34,8 @@ DocumentView::DocumentView(
   layout_manager_.setBackPage(0);
   layout_manager_.setPageWithMaxWidth(0);
 
-  event_bus_.subscribe<std::string>("cmd.open_document", [this](const std::string &filepath) {
-    onOpenDocument(filepath);
-  });
-
-  event_bus_.subscribe<bool>("cmd.reload_document", [this](bool) {
-    if (!document_.isOpen()) {
-      event_bus_.emit("notification.msg", std::string("No document open to reload"));
-      return;
-    }
-
-    std::size_t curr_page = layout_manager_.getAnchorPage();
-    onOpenDocument(document_.getFilePath());
-    onSwitchPage(curr_page);
-  });
-
-  event_bus_.subscribe<bool>("cmd.close_document", [this](bool) { onCloseDocument(); });
-
-  event_bus_.subscribe<int>("cmd.switch_page", [this](int page_num) {
-    onSwitchPage(page_num - 1);
-  });
-
-  event_bus_.subscribe<const std::u32string &>("cmd.search", [this](const std::u32string &text) {
-    onSearchPage(text);
-  });
-
-  event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
-    bool prev = should_take_input_;
-    should_take_input_ = focus == ui::UIElements::PDFView;
-    focus_update_ = prev != should_take_input_;
-  });
-
   registerKeybindings();
+  registerEvents();
 }
 
 void DocumentView::draw(sf::RenderTarget &window) const {
@@ -420,6 +391,7 @@ void DocumentView::onOpenDocument(const std::string &filepath) {
     event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
 
     file_history_.add(absolute_path);
+    bookmark_manager_.setDocumentPath(absolute_path);
   } catch (const std::runtime_error &e) {
     onCloseDocument();
     event_bus_.emit("notification.msg", std::string(e.what()));
@@ -432,6 +404,7 @@ void DocumentView::onCloseDocument() {
 
   resetView();
   document_.closeDocument();
+  bookmark_manager_.resetPath();
   event_bus_.emit("statusbar.pdf_path", std::string("[No document open]"));
   event_bus_
       .emit("statusbar.page_state", std::make_pair(static_cast<std::size_t>(0), static_cast<std::size_t>(0)));
@@ -486,6 +459,68 @@ void DocumentView::onAnnotate(std::vector<std::size_t> pages) {
   scheduler_.refreshPages(pages);
   selection_controller_.reset();
   event_bus_.emit("statusbar.document_edited", document_.hasChanges());
+}
+
+void DocumentView::registerEvents() {
+  event_bus_.subscribe<std::string>("cmd.open_document", [this](const std::string &filepath) {
+    onOpenDocument(filepath);
+  });
+
+  event_bus_.subscribe<bool>("cmd.reload_document", [this](bool) {
+    if (!document_.isOpen()) {
+      event_bus_.emit("notification.msg", std::string("No document open to reload"));
+      return;
+    }
+
+    std::size_t curr_page = layout_manager_.getAnchorPage();
+    onOpenDocument(document_.getFilePath());
+    onSwitchPage(curr_page);
+  });
+
+  event_bus_.subscribe<bool>("cmd.close_document", [this](bool) { onCloseDocument(); });
+
+  event_bus_.subscribe<int>("cmd.switch_page", [this](int page_num) {
+    onSwitchPage(page_num - 1);
+  });
+
+  event_bus_.subscribe<const std::string &>("bmark.add", [this](const std::string &label) {
+    if (!document_.isOpen()) {
+      event_bus_.emit("notification.msg", std::string("No document currently open"));
+      return;
+    }
+
+    bookmark_manager_.addBookmark(layout_manager_.getAnchorPage() + 1, label);
+  });
+
+  event_bus_.subscribe<int>("bmark.del", [this](int id) {
+    if (!document_.isOpen()) {
+      event_bus_.emit("notification.msg", std::string("No document currently open"));
+      return;
+    }
+
+    bookmark_manager_.removeBookmark(id);
+  });
+
+  event_bus_.subscribe<int>("bmark.jump", [this](int id) {
+    if (!document_.isOpen()) {
+      event_bus_.emit("notification.msg", std::string("No document currently open"));
+      return;
+    }
+
+    const auto bmark = bookmark_manager_.getBookmarkById(id);
+    if (bmark)
+      onSwitchPage(bmark.value().page_number - 1);
+  });
+
+  event_bus_.subscribe<const std::u32string &>("cmd.search", [this](const std::u32string &text) {
+    onSearchPage(text);
+  });
+
+  event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
+    bool prev = should_take_input_;
+    should_take_input_ = focus == ui::UIElements::PDFView;
+    focus_update_ = prev != should_take_input_;
+  });
 }
 
 void DocumentView::registerKeybindings() {

@@ -3,12 +3,17 @@
 #include <stdexcept>
 #include <utf8.h>
 
+#include "core/cmd_loader.h"
 #include "utils/utils.h"
 
 namespace core {
 
-CmdAutocomplete::CmdAutocomplete(const CmdLoader &cmd_loader, const HistoryManager &file_history)
-    : cmd_loader_(cmd_loader), file_history_(file_history) {
+CmdAutocomplete::CmdAutocomplete(
+    const CmdLoader &cmd_loader,
+    const HistoryManager &file_history,
+    const BookmarkManager &bookmark_manager
+)
+    : cmd_loader_(cmd_loader), file_history_(file_history), bookmark_manager_(bookmark_manager) {
   for (const Cmd *cmd : cmd_loader_.getRootCmds())
     trie_.insert(cmd->name);
 }
@@ -59,12 +64,15 @@ std::vector<CmdAutocompleteItem> CmdAutocomplete::complete(const std::string &pr
   if (!cmd)
     return res;
 
-  switch (static_cast<CmdAutocompleteType>(cmd->cmp_type)) {
-  case CmdAutocompleteType::Subcommand:
+  switch (cmd->cmp_type) {
+  case CmdCmpType::Subcommand:
     getSubcmdCmp(scoped_key, typing, res);
     break;
-  case CmdAutocompleteType::Files:
+  case CmdCmpType::File:
     getFileCmp(scoped_key, typing, res);
+    break;
+  case CmdCmpType::Bookmark:
+    getBookmarkCmp(scoped_key, typing, res);
     break;
   default:
     throw std::runtime_error("Not valid completion type");
@@ -76,24 +84,37 @@ std::vector<CmdAutocompleteItem> CmdAutocomplete::complete(const std::string &pr
 void CmdAutocomplete::tokenize(const std::string &input, std::vector<std::string> &argv) {
   std::string token;
   bool escaping = false;
+  char quote = 0;
+  bool hasToken = false;
 
   for (char ch : input) {
     if (escaping) {
       token += ch;
       escaping = false;
-    } else if (ch == '\\') {
+    } else if (ch == '\\' && quote != '\'') {
       escaping = true;
-    } else if (std::isspace(ch)) {
-      if (!token.empty()) {
+      hasToken = true;
+    } else if (quote) {
+      if (ch == quote)
+        quote = 0;
+      else
+        token += ch;
+    } else if (ch == '"' || ch == '\'') {
+      quote = ch;
+      hasToken = true;
+    } else if (std::isspace(static_cast<unsigned char>(ch))) {
+      if (hasToken) {
         argv.push_back(token);
         token.clear();
+        hasToken = false;
       }
     } else {
       token += ch;
+      hasToken = true;
     }
   }
 
-  if (!token.empty())
+  if (hasToken)
     argv.push_back(token);
 }
 
@@ -169,6 +190,20 @@ void CmdAutocomplete::getFileCmp(
         results.push_back({file, top_cmd + " " + escapeSpaces(file), ""});
       }
     }
+  }
+}
+
+void CmdAutocomplete::getBookmarkCmp(
+    const std::string &scoped_key,
+    const std::string &typing,
+    std::vector<CmdAutocompleteItem> &results
+) {
+  const auto bookmarks = bookmark_manager_.getBookmarks(typing);
+
+  for (const auto &bmark : bookmarks) {
+    std::string full = scoped_key + " " + std::to_string(bmark.id);
+    std::replace(full.begin(), full.end(), '.', ' ');
+    results.push_back({bmark.label, full + " ", "Page " + std::to_string(bmark.page_number)});
   }
 }
 
