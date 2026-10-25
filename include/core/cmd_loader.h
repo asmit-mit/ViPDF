@@ -6,9 +6,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include <simdjson.h>
+#include <json.hpp>
 
 namespace core {
+
+using json = nlohmann::json;
 
 struct Cmd {
   std::string name;
@@ -28,7 +30,20 @@ public:
   std::vector<const Cmd *> childrenOf(const std::string &scoped_key) const;
 
 private:
-  size_t parseCmd(simdjson::dom::element obj, const std::string &parent_key, int depth);
+  size_t parseCmd(const json &obj, const std::string &parent_key, int depth);
+  [[noreturn]] void throwJsonReadError(const std::string_view error) const;
+
+  template <typename T> T requireField(const json &obj, const char *key) {
+    auto it = obj.find(key);
+    if (it == obj.end())
+      throwJsonReadError(std::format("missing {} field", key));
+
+    try {
+      return it->get<T>();
+    } catch (const json::type_error &) {
+      throwJsonReadError(std::format("invalid type for {} field", key));
+    }
+  }
 
 private:
   std::vector<Cmd> commands_;

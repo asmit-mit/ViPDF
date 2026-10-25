@@ -6,8 +6,6 @@ project('ViPDF', 'cpp',
 )
 project_name = meson.project_name()
 
-subdir('thirdparty/simdjson')
-
 sfml_dep = dependency('sfml-graphics', required: true)
 mupdf_dep = dependency('mupdf', required: true)
 gtk_dep = dependency('gtk4', required: true)
@@ -15,7 +13,8 @@ harfbuzz_dep = dependency('harfbuzz', version: '>= 14.3.0', required: true)
 harfbuzz_raster_dep = dependency('harfbuzz-raster', version: '>= 14.3.0', required: true)
 freetype_dep = dependency('freetype2', required: true)
 
-utf8cpp_includes = include_directories('thirdparty/utfcpp/source')
+utf8cpp_includes = include_directories('thirdparty/utfcpp')
+json_includes = include_directories('thirdparty/json')
 
 includes = include_directories('include')
 sources = files(
@@ -51,6 +50,6 @@ sources = files(
 executable(
   project_name,
   sources,
-  include_directories: [includes, utf8cpp_includes],
-  dependencies: [sfml_dep, mupdf_dep, gtk_dep, harfbuzz_dep, harfbuzz_raster_dep, freetype_dep, simdjson_dep],
+  include_directories: [includes, utf8cpp_includes, json_includes],
+  dependencies: [sfml_dep, mupdf_dep, gtk_dep, harfbuzz_dep, harfbuzz_raster_dep, freetype_dep],
 )

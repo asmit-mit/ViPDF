@@ -1,19 +1,22 @@
 #include "core/cmd_loader.h"
 
+#include <fstream>
 #include <stdexcept>
 
 namespace core {
 
 CmdLoader::CmdLoader(const std::filesystem::path path) {
-  simdjson::dom::parser parser;
-  simdjson::dom::element doc;
+  std::ifstream file(path);
+  if (!file)
+    throw std::runtime_error("Failed to load commands from: " + path.string());
 
-  auto error = parser.load(path.generic_string()).get(doc);
-  if (error)
-    throw std::runtime_error(simdjson::error_message(error));
+  const json data = json::parse(file);
+  if (!data.is_array())
+    throwJsonReadError("not an array");
 
-  for (simdjson::dom::element cmd : doc.get_array())
+  for (const auto &cmd : data)
     parseCmd(cmd, "", 0);
+  commands_.shrink_to_fit();
 }
 
 std::vector<const Cmd *> CmdLoader::getRootCmds() const {
@@ -47,20 +50,20 @@ std::vector<const Cmd *> CmdLoader::childrenOf(const std::string &scoped_key) co
   return res;
 }
 
-std::size_t
-CmdLoader::parseCmd(simdjson::dom::element obj, const std::string &parent_key, int depth) {
+std::size_t CmdLoader::parseCmd(const json &obj, const std::string &parent_key, int depth) {
+  if (!obj.is_object())
+    throwJsonReadError("command entry is not an object");
+
   Cmd cmd;
-  cmd.name = std::string(obj["name"].get_string().value());
-  cmd.description = std::string(obj["description"].get_string().value());
-  cmd.args = static_cast<int32_t>(obj["args"].get_int64().value());
+  cmd.name = requireField<std::string>(obj, "name");
+  cmd.description = requireField<std::string>(obj, "description");
+  cmd.args = requireField<int>(obj, "args");
 
-  std::string_view event;
-  if (obj["event"].get_string().get(event) == simdjson::SUCCESS)
-    cmd.event = std::string(event);
+  if (auto it = obj.find("event"); it != obj.end() && it->is_string())
+    cmd.event = it->get<std::string>();
 
-  int64_t cmp_type;
-  if (obj["cmp_type"].get_int64().get(cmp_type) == simdjson::SUCCESS)
-    cmd.cmp_type = static_cast<int32_t>(cmp_type);
+  if (auto it = obj.find("cmp_type"); it != obj.end() && it->is_number_integer())
+    cmd.cmp_type = it->get<int>();
 
   std::string scoped_key = parent_key.empty() ? cmd.name : parent_key + "." + cmd.name;
   size_t idx = commands_.size();
@@ -68,9 +71,8 @@ CmdLoader::parseCmd(simdjson::dom::element obj, const std::string &parent_key, i
     roots_.push_back(idx);
   commands_.push_back({});
 
-  simdjson::dom::array children;
-  if (obj["children"].get_array().get(children) == simdjson::SUCCESS) {
-    for (simdjson::dom::element child : children) {
+  if (auto it = obj.find("children"); it != obj.end() && it->is_array()) {
+    for (const auto &child : *it) {
       size_t child_idx = parseCmd(child, scoped_key, depth + 1);
       commands_[idx].children.push_back(child_idx);
     }
@@ -80,6 +82,10 @@ CmdLoader::parseCmd(simdjson::dom::element obj, const std::string &parent_key, i
   commands_[idx] = std::move(cmd);
   index_[scoped_key] = idx;
   return idx;
+}
+
+void CmdLoader::throwJsonReadError(const std::string_view error) const {
+  throw std::runtime_error(std::format("Invalid commands.json: {}", error));
 }
 
 } // namespace core

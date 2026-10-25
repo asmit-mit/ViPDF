@@ -63,13 +63,13 @@
     "children": [
       {
         "name": "add",
-        "args": 1,
+        "args": 2,
         "event": "bmark.add",
         "description": "Save current page as bookmark"
       },
       {
         "name": "delete",
-        "args": 1,
+        "args": 2,
         "event": "bmark.del",
         "description": "Delete specified bookmark"
       },

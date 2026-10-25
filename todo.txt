@@ -1,0 +1,2 @@
+1. add alias like o for open and q for quit
+2. make separate branch to control pdf page with only stext
