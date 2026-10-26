@@ -53,4 +53,5 @@ executable(
   sources,
   include_directories: [includes, utf8cpp_includes, json_includes],
   dependencies: [sfml_dep, mupdf_dep, harfbuzz_dep, harfbuzz_raster_dep, freetype_dep, sqlitecpp_dep],
+  install: true,
 )
