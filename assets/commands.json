@@ -1,6 +1,7 @@
 [
   {
     "name": "open",
+    "alias": "o",
     "args": 2,
     "event": "cmd.open_document",
     "description": "Open document with absolute path",
@@ -45,12 +46,14 @@
   },
   {
     "name": "quit",
+    "alias": "q",
     "event": "cmd.quit",
     "args": 1,
     "description": "Quit app"
   },
   {
     "name": "write",
+    "alias": "w",
     "event": "cmd.write",
     "args": 2,
     "description": "Save changes",
@@ -58,6 +61,7 @@
   },
   {
     "name": "bmark",
+    "alias": "b",
     "args": 3,
     "description": "Work with bookmarks",
     "children": [

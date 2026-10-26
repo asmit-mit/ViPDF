@@ -115,6 +115,8 @@ private:
   bool selecting_;
 
   sf::Vector2f window_size_;
+  sf::Vector2f right_click_pos_;
+  int right_click_on_page_;
 
   static constexpr float scroll_dist_ = 40.f;
 };

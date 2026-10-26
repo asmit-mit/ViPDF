@@ -29,6 +29,9 @@ DocumentView::DocumentView(
   selecting_ = false;
   focus_update_ = false;
 
+  right_click_pos_ = {0.f, 0.f};
+  right_click_on_page_ = -1;
+
   layout_manager_.setAnchorPage(0);
   layout_manager_.setFrontPage(0);
   layout_manager_.setBackPage(0);
@@ -130,22 +133,31 @@ void DocumentView::handleEvent(const sf::Event &event) {
       if (selection_controller_.isShowingSelection())
         selection_controller_.reset();
       selecting_ = true;
+
       for (std::size_t i = front_page; i <= back_page; i++) {
         if (pages_[i].containsMouse(mouse->position)) {
+          right_click_pos_ = pages_[i].getReferenceShape().getInverseTransform().transformPoint(
+              sf::Vector2f(mouse->position)
+          );
+          right_click_on_page_ = i;
+
           selection_controller_.setSelectionStart(i, mouse->position);
           break;
         }
       }
+
       selection_controller_.showSelection();
     }
   }
 
   if (const auto *move = event.getIf<sf::Event::MouseMoved>()) {
+    right_click_on_page_ = -1;
     auto cursor = ui::CursorType::Arrow;
     for (std::size_t i = front_page; i <= back_page; i++) {
       if (!document_.getPage(i).isContentLoaded())
         document_.loadPageContent(i);
-      const sf::Vector2f point = pages_[i].getReferenceShape().getInverseTransform().transformPoint(
+
+      const auto point = pages_[i].getReferenceShape().getInverseTransform().transformPoint(
           sf::Vector2f(move->position)
       );
 
@@ -365,7 +377,11 @@ void DocumentView::addAnnotation(enum pdf_annot_type type, int color_index) {
 }
 
 void DocumentView::removeAnnotation() {
-  onAnnotate(document_.removeAnnotations());
+  if (right_click_on_page_ == -1)
+    return;
+
+  if (document_.removeAnnotations(right_click_on_page_, right_click_pos_))
+    onAnnotate({static_cast<std::size_t>(right_click_on_page_)});
 }
 
 void DocumentView::onResize(const sf::Vector2f &size) {

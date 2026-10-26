@@ -65,7 +65,15 @@ std::size_t CmdLoader::parseCmd(const json &obj, const std::string &parent_key, 
   if (auto it = obj.find("cmp_type"); it != obj.end() && it->is_string())
     cmd.cmp_type = it->get<CmdCmpType>();
 
+  std::string alias;
+  if (auto it = obj.find("alias"); it != obj.end() && it->is_string())
+    alias = it->get<std::string>();
+
+  std::string alias_key;
   std::string scoped_key = parent_key.empty() ? cmd.name : parent_key + "." + cmd.name;
+  if (!alias.empty())
+    alias_key = parent_key.empty() ? alias : parent_key + "." + alias;
+
   size_t idx = commands_.size();
   if (depth == 0)
     roots_.push_back(idx);
@@ -81,6 +89,8 @@ std::size_t CmdLoader::parseCmd(const json &obj, const std::string &parent_key, 
   cmd.children = std::move(commands_[idx].children);
   commands_[idx] = std::move(cmd);
   index_[scoped_key] = idx;
+  if (!alias_key.empty())
+    index_[alias_key] = idx;
   return idx;
 }
 

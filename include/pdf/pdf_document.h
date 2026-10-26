@@ -48,7 +48,7 @@ public:
   void saveChanges(const std::filesystem::path &path = "");
 
   std::vector<std::size_t> createAnnotations(enum pdf_annot_type type, const sf::Color &color);
-  std::vector<std::size_t> removeAnnotations();
+  bool removeAnnotations(std::size_t page_idx, const sf::Vector2f &page_loc);
   void clearSelections();
 
   std::size_t pageWithMaxWidth() const;
@@ -69,7 +69,7 @@ private:
       const sf::Color &color
   );
 
-  bool removeAnnotationsInPage(std::size_t page_idx, const std::vector<fz_quad> &quads);
+  bool removeAnnotationsInPage(std::size_t page_idx, const fz_point &p);
 
 private:
   std::array<std::mutex, FZ_LOCK_MAX> mutexes_;

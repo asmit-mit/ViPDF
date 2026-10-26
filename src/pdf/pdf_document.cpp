@@ -4,12 +4,6 @@
 
 namespace pdf {
 
-namespace {
-static bool rectsOverlap(const fz_rect &a, const fz_rect &b) {
-  return !fz_is_empty_rect(fz_intersect_rect(a, b));
-}
-} // namespace
-
 PDFDocument::PDFDocument() {
   locks_.user = this;
   locks_.lock = &PDFDocument::lockMutex;
@@ -177,26 +171,17 @@ PDFDocument::createAnnotations(enum pdf_annot_type type, const sf::Color &color)
   return changed;
 }
 
-std::vector<std::size_t> PDFDocument::removeAnnotations() {
-  std::vector<std::size_t> changed;
-  if (!doc_)
-    return changed;
+bool PDFDocument::removeAnnotations(std::size_t page_idx, const sf::Vector2f &page_loc) {
+  if (!doc_ || page_idx >= pages_.size())
+    return false;
 
-  for (std::size_t i = 0; i < pages_.size(); ++i) {
-    PDFPage &page = pages_[i];
-    if (!page.hasSelections())
-      continue;
+  const fz_point p = fz_make_point(page_loc.x, page_loc.y);
+  const bool removed = removeAnnotationsInPage(page_idx, p);
 
-    const std::vector<fz_quad> &quads = page.getSelectionFzQuads();
-    if (!quads.empty() && removeAnnotationsInPage(i, quads))
-      changed.push_back(i);
+  if (removed)
+    is_edited_ = true;
 
-    page.clearSelections();
-  }
-
-  is_edited_ = is_edited_ ? true : !changed.empty();
-
-  return changed;
+  return removed;
 }
 
 void PDFDocument::clearSelections() {
@@ -321,15 +306,10 @@ bool PDFDocument::addAnnotationInPage(
   return ok;
 }
 
-bool PDFDocument::removeAnnotationsInPage(std::size_t page_idx, const std::vector<fz_quad> &quads) {
+bool PDFDocument::removeAnnotationsInPage(std::size_t page_idx, const fz_point &p) {
   pdf_document *pdf = pdf_specifics(ctx_, doc_);
   if (!pdf)
     return false;
-
-  std::vector<fz_rect> sel_rects;
-  sel_rects.reserve(quads.size());
-  for (const fz_quad &q : quads)
-    sel_rects.push_back(fz_rect_from_quad(q));
 
   pdf_page *page = nullptr;
   bool removed = false;
@@ -339,32 +319,35 @@ bool PDFDocument::removeAnnotationsInPage(std::size_t page_idx, const std::vecto
   fz_try(ctx_) {
     page = pdf_load_page(ctx_, pdf, static_cast<int>(page_idx));
 
-    std::vector<pdf_annot *> hits;
-    for (pdf_annot *a = pdf_first_annot(ctx_, page); a; a = pdf_next_annot(ctx_, a)) {
-      bool hit = false;
-      const int qn = pdf_annot_quad_point_count(ctx_, a);
+    pdf_annot *target = nullptr;
 
-      if (qn < 0)
+    for (pdf_annot *a = pdf_first_annot(ctx_, page); a; a = pdf_next_annot(ctx_, a)) {
+      const enum pdf_annot_type type = pdf_annot_type(ctx_, a);
+      if (type == PDF_ANNOT_WIDGET || type == PDF_ANNOT_POPUP)
         continue;
 
-      for (int k = 0; k < qn && !hit; ++k) {
-        const fz_rect ar = fz_rect_from_quad(pdf_annot_quad_point(ctx_, a, k));
-        for (const fz_rect &s : sel_rects) {
-          if (rectsOverlap(ar, s)) {
-            hit = true;
-            break;
-          }
-        }
-      }
+      const fz_rect bounds = pdf_bound_annot(ctx_, a);
+      if (!fz_is_point_inside_rect(p, fz_expand_rect(bounds, 1.0f)))
+        continue;
 
-      if (hit)
-        hits.push_back(a);
+      bool hit = false;
+      const int qn = pdf_annot_quad_point_count(ctx_, a);
+      if (!qn)
+        continue;
+
+      for (int k = 0; k < qn && !hit; ++k)
+        hit = fz_is_point_inside_quad(p, pdf_annot_quad_point(ctx_, a, k));
+
+      if (hit) {
+        target = a;
+        break;
+      }
     }
 
-    for (pdf_annot *a : hits)
-      pdf_delete_annot(ctx_, page, a);
-
-    removed = !hits.empty();
+    if (target) {
+      pdf_delete_annot(ctx_, page, target);
+      removed = true;
+    }
   }
   fz_always(ctx_) {
     if (page)
