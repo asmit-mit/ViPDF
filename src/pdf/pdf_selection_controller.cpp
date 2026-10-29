@@ -87,6 +87,42 @@ void PDFSelectionController::setSelectionEnd(std::size_t page_idx, const sf::Vec
   }
 }
 
+std::string PDFSelectionController::copySelection() {
+  if (!isShowingSelection())
+    return {};
+
+  std::size_t first_page = start_page_, last_page = end_page_;
+  sf::Vector2f first_point = start_point_, last_point = end_point_;
+  if (first_page > last_page) {
+    std::swap(first_page, last_page);
+    std::swap(first_point, last_point);
+  }
+
+  const std::optional<sf::Vector2f> p1 = first_point, p2 = last_point;
+  std::string result;
+
+  for (std::size_t i = first_page; i <= last_page; ++i) {
+    std::string part;
+    if (first_page == last_page)
+      part = document_.copySelectionFromPage(i, PDFSelectionDirection::INSIDE, p1, p2);
+    else if (i == first_page)
+      part = document_.copySelectionFromPage(i, PDFSelectionDirection::DOWN, p1, std::nullopt);
+    else if (i == last_page)
+      part = document_.copySelectionFromPage(i, PDFSelectionDirection::UP, p2, std::nullopt);
+    else
+      part = document_
+                 .copySelectionFromPage(i, PDFSelectionDirection::ALL, std::nullopt, std::nullopt);
+
+    if (part.empty())
+      continue;
+    if (!result.empty())
+      result += '\n';
+    result += part;
+  }
+
+  return result;
+}
+
 void PDFSelectionController::showSelection() {
   selection_visible_ = true;
 }

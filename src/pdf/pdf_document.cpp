@@ -117,8 +117,8 @@ std::vector<fz_rect> PDFDocument::searchPage(std::size_t page_idx, const std::st
 sf::VertexArray PDFDocument::getSelectionBoxesFromPage(
     std::size_t page_idx,
     PDFSelectionDirection direction,
-    std::optional<sf::Vector2f> mouse_pos1,
-    std::optional<sf::Vector2f> mouse_pos2
+    const std::optional<sf::Vector2f> &mouse_pos1,
+    const std::optional<sf::Vector2f> &mouse_pos2
 ) {
   sf::VertexArray boxes{sf::PrimitiveType::Triangles};
   if (!doc_ || page_idx >= pages_.size())
@@ -128,50 +128,48 @@ sf::VertexArray PDFDocument::getSelectionBoxesFromPage(
   if (!page.isContentLoaded())
     loadPageContent(page_idx);
 
-  const fz_rect bounds = page.getPageBounds();
-  fz_point a = fz_make_point(bounds.x0, bounds.y0);
-  fz_point b = fz_make_point(bounds.x1, bounds.y1);
+  const auto pts = selectionPoints(page_idx, direction, mouse_pos1, mouse_pos2);
+  if (!pts)
+    return boxes;
 
-  switch (direction) {
-  case PDFSelectionDirection::ALL:
-    break;
-  case PDFSelectionDirection::UP:
-    if (!mouse_pos1)
-      return boxes;
-    b = fz_make_point(mouse_pos1->x, mouse_pos1->y);
-    break;
-  case PDFSelectionDirection::DOWN:
-    if (!mouse_pos1)
-      return boxes;
-    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
-    break;
-  case PDFSelectionDirection::INSIDE: {
-    if (!mouse_pos1 || !mouse_pos2)
-      return boxes;
-    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
-    b = fz_make_point(mouse_pos2->x, mouse_pos2->y);
-    const bool b_earlier = b.y < a.y || (b.y == a.y && b.x < a.x);
-    if (b_earlier)
-      std::swap(a, b);
-    break;
-  }
-  }
-
-  const std::vector<fz_quad> &quads = page.selectPage(ctx_, a, b);
+  const std::vector<fz_quad> quads = page.selectPage(ctx_, pts->first, pts->second);
   const sf::Color color = utils::hexToRGBA(settings::selection_box_color_);
 
-  auto v = [](fz_point p) { return sf::Vector2f{p.x, p.y}; };
   for (const fz_quad &q : quads) {
-    const sf::Vector2f ul = v(q.ul), ur = v(q.ur), lr = v(q.lr), ll = v(q.ll);
+    const sf::Vector2f ul{q.ul.x, q.ul.y};
+    const sf::Vector2f ur{q.ur.x, q.ur.y};
+    const sf::Vector2f lr{q.lr.x, q.lr.y};
+    const sf::Vector2f ll{q.ll.x, q.ll.y};
+
     boxes.append({ul, color});
     boxes.append({ur, color});
     boxes.append({lr, color});
+
     boxes.append({ul, color});
     boxes.append({lr, color});
     boxes.append({ll, color});
   }
 
   return boxes;
+}
+
+std::string PDFDocument::copySelectionFromPage(
+    std::size_t page_idx,
+    PDFSelectionDirection direction,
+    const std::optional<sf::Vector2f> &mouse_pos1,
+    const std::optional<sf::Vector2f> &mouse_pos2
+) {
+  if (!doc_ || page_idx >= pages_.size())
+    return {};
+
+  PDFPage &page = pages_[page_idx];
+  if (!page.isContentLoaded())
+    loadPageContent(page_idx);
+
+  const auto pts = selectionPoints(page_idx, direction, mouse_pos1, mouse_pos2);
+  if (!pts)
+    return {};
+  return page.copySelection(ctx_, pts->first, pts->second);
 }
 
 const std::vector<OutlineEntry> &PDFDocument::getOutline() const {
@@ -366,6 +364,41 @@ bool PDFDocument::addAnnotationInPage(
   }
 
   return ok;
+}
+
+std::optional<std::pair<fz_point, fz_point>> PDFDocument::selectionPoints(
+    std::size_t page_idx,
+    PDFSelectionDirection direction,
+    const std::optional<sf::Vector2f> &mouse_pos1,
+    const std::optional<sf::Vector2f> &mouse_pos2
+) const {
+  const fz_rect bounds = pages_[page_idx].getPageBounds();
+  fz_point a = fz_make_point(bounds.x0, bounds.y0);
+  fz_point b = fz_make_point(bounds.x1, bounds.y1);
+
+  switch (direction) {
+  case PDFSelectionDirection::ALL:
+    break;
+  case PDFSelectionDirection::UP:
+    if (!mouse_pos1)
+      return std::nullopt;
+    b = fz_make_point(mouse_pos1->x, mouse_pos1->y);
+    break;
+  case PDFSelectionDirection::DOWN:
+    if (!mouse_pos1)
+      return std::nullopt;
+    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
+    break;
+  case PDFSelectionDirection::INSIDE:
+    if (!mouse_pos1 || !mouse_pos2)
+      return std::nullopt;
+    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
+    b = fz_make_point(mouse_pos2->x, mouse_pos2->y);
+    if (b.y < a.y || (b.y == a.y && b.x < a.x))
+      std::swap(a, b);
+    break;
+  }
+  return std::make_pair(a, b);
 }
 
 bool PDFDocument::removeAnnotationsInPage(std::size_t page_idx, const fz_point &p) {

@@ -42,9 +42,16 @@ public:
   sf::VertexArray getSelectionBoxesFromPage(
       std::size_t page_idx,
       PDFSelectionDirection direction,
-      std::optional<sf::Vector2f> mouse_pos1,
-      std::optional<sf::Vector2f> mouse_pos2
+      const std::optional<sf::Vector2f> &mouse_pos1,
+      const std::optional<sf::Vector2f> &mouse_pos2
   );
+  std::string copySelectionFromPage(
+      std::size_t page_idx,
+      PDFSelectionDirection direction,
+      const std::optional<sf::Vector2f> &mouse_pos1,
+      const std::optional<sf::Vector2f> &mouse_pos2
+  );
+
   const std::vector<OutlineEntry> &getOutline() const;
 
   bool isOpen() const;
@@ -73,6 +80,12 @@ private:
       enum pdf_annot_type type,
       const sf::Color &color
   );
+  std::optional<std::pair<fz_point, fz_point>> selectionPoints(
+      std::size_t page_idx,
+      PDFSelectionDirection direction,
+      const std::optional<sf::Vector2f> &mouse_pos1,
+      const std::optional<sf::Vector2f> &mouse_pos2
+  ) const;
 
   bool removeAnnotationsInPage(std::size_t page_idx, const fz_point &p);
 

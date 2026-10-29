@@ -127,6 +127,27 @@ const std::vector<fz_quad> &PDFPage::selectPage(fz_context *ctx, fz_point a, fz_
   return selection_quads_;
 }
 
+std::string PDFPage::copySelection(fz_context *ctx, fz_point a, fz_point b) const {
+  std::lock_guard lock(mutex_);
+  if (!stext_)
+    return {};
+
+  char *raw = nullptr;
+  fz_var(raw);
+  fz_try(ctx) raw = fz_copy_selection(ctx, stext_.get(), a, b, 0);
+  fz_catch(ctx) return {};
+
+  if (!raw)
+    return {};
+
+  std::string text(raw);
+  fz_free(ctx, raw);
+
+  while (!text.empty() && (text.back() == '\n' || text.back() == '\r'))
+    text.pop_back();
+  return text;
+}
+
 bool PDFPage::isContentLoaded() const {
   std::lock_guard lock(mutex_);
   return content_loaded_;

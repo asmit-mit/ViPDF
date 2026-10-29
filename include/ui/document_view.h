@@ -2,9 +2,9 @@
 
 #include <SFML/Graphics.hpp>
 
+#include "core/bookmark_manager.h"
 #include "core/event_bus.h"
 #include "core/history_manager.h"
-#include "core/bookmark_manager.h"
 #include "core/input_handler.h"
 #include "core/render_scheduler.h"
 #include "mupdf/pdf/annot.h"
@@ -37,6 +37,7 @@ enum class DocumentAction {
   Recolor,
   SearchNext,
   SearchPrev,
+  CopySelection,
   AnnotateHighlight,
   AnnotateStrikethrough,
   AnnotateUnderline,
@@ -88,6 +89,7 @@ private:
   void fitWidth();
   void gotoPage(std::optional<std::size_t> one_based, std::size_t fallback);
   void stepSearch(bool forward);
+  void copySelection();
   void addAnnotation(enum pdf_annot_type type, int color_index);
   void removeAnnotation();
   void emitSearchState(std::size_t display_offset);

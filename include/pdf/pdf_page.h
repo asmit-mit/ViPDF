@@ -47,6 +47,7 @@ public:
 
   std::vector<fz_quad> searchText(fz_context *ctx, const std::string &needle) const;
   const std::vector<fz_quad> &selectPage(fz_context *ctx, fz_point a, fz_point b) const;
+  std::string copySelection(fz_context *ctx, fz_point a, fz_point b) const;
 
   bool hasSelections() const;
   void clearSelections();

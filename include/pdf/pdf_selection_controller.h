@@ -14,6 +14,7 @@ public:
   bool isSelecting() const;
   void setSelectionStart(std::size_t page_idx, const sf::Vector2i &screen_pos);
   void setSelectionEnd(std::size_t page_idx, const sf::Vector2i &screen_pos);
+  std::string copySelection();
 
   void showSelection();
   bool isShowingSelection() const;

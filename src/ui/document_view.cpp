@@ -266,6 +266,10 @@ void DocumentView::execute(const core::InputCmd<DocumentAction> &cmd) {
     stepSearch(false);
     break;
 
+  case DocumentAction::CopySelection:
+    copySelection();
+    break;
+
   case DocumentAction::AnnotateHighlight:
     if (cmd.arg)
       addAnnotation(PDF_ANNOT_HIGHLIGHT, *cmd.arg);
@@ -342,6 +346,17 @@ void DocumentView::stepSearch(bool forward) {
   if (page)
     onSwitchPage(*page);
   emitSearchState(1);
+}
+
+void DocumentView::copySelection() {
+  if (!selection_controller_.isShowingSelection())
+    return;
+  const std::string text = selection_controller_.copySelection();
+  if (!text.empty()) {
+    sf::Clipboard::setString(sf::String::fromUtf8(text.begin(), text.end()));
+    event_bus_.emit("notification.msg", std::string("Copied selected text to clipboard"));
+  }
+  selection_controller_.reset();
 }
 
 void DocumentView::emitSearchState(std::size_t display_offset) {
@@ -550,6 +565,7 @@ void DocumentView::registerKeybindings() {
 
   input_handler_.bind({{Key::U}}, DocumentAction::PrevPage);
   input_handler_.bind({{Key::D}}, DocumentAction::NextPage);
+
   input_handler_.bind({{Key::U, true}}, DocumentAction::HalfPageUp);
   input_handler_.bind({{Key::D, true}}, DocumentAction::HalfPageDown);
   input_handler_.bind({{Key::G}, {Key::G}}, DocumentAction::FirstPage);
@@ -566,6 +582,7 @@ void DocumentView::registerKeybindings() {
 
   input_handler_.bind({{Key::N}}, DocumentAction::SearchNext);
   input_handler_.bind({{Key::N, false, true}}, DocumentAction::SearchPrev);
+  input_handler_.bind({{Key::Y}}, DocumentAction::CopySelection);
 
   for (int i = 0; i <= 4; ++i) {
     const auto digit = static_cast<Key>(static_cast<int>(Key::Num1) + i);
