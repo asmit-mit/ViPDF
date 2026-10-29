@@ -38,12 +38,17 @@ public:
 
   std::string &getFilePath();
   PDFPage &getPage(std::size_t page_idx);
+  std::vector<fz_rect> searchPage(std::size_t page_idx, const std::string &needle);
+  sf::VertexArray getSelectionBoxesFromPage(
+      std::size_t page_idx,
+      PDFSelectionDirection direction,
+      std::optional<sf::Vector2f> mouse_pos1,
+      std::optional<sf::Vector2f> mouse_pos2
+  );
   const std::vector<OutlineEntry> &getOutline() const;
 
   bool isOpen() const;
-  bool isAllContentLoaded() const;
   bool hasChanges() const;
-  void loadAllContent();
   void loadPageContent(std::size_t idx);
   void saveChanges(const std::filesystem::path &path = "");
 
@@ -84,7 +89,6 @@ private:
   fz_context *ctx_;
   fz_document *doc_;
 
-  bool all_content_loaded_;
   bool is_edited_;
 };
 

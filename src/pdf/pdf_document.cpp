@@ -1,6 +1,9 @@
 #include <stdexcept>
 
 #include "pdf/pdf_document.h"
+#include "pdf/pdf_page.h"
+#include "utils/settings.h"
+#include "utils/utils.h"
 
 namespace pdf {
 
@@ -9,7 +12,6 @@ PDFDocument::PDFDocument() {
   locks_.lock = &PDFDocument::lockMutex;
   locks_.unlock = &PDFDocument::unlockMutex;
 
-  all_content_loaded_ = false;
   is_edited_ = false;
 
   ctx_ = fz_new_context(nullptr, &locks_, FZ_STORE_DEFAULT);
@@ -30,15 +32,11 @@ void PDFDocument::openDocument(const std::string &filepath) {
   closeDocument();
 
   fz_try(ctx_) doc_ = fz_open_document(ctx_, filepath.c_str());
-  fz_catch(ctx_) {
-    throw std::runtime_error("Failed to open document: " + filepath);
-  }
+  fz_catch(ctx_) throw std::runtime_error("Failed to open document: " + filepath);
 
   int page_count;
   fz_try(ctx_) page_count = fz_count_pages(ctx_, doc_);
-  fz_catch(ctx_) {
-    throw std::runtime_error("Failed to count number of pages");
-  }
+  fz_catch(ctx_) throw std::runtime_error("Failed to count number of pages");
 
   int max_width = 0;
   page_with_max_width_ = 0;
@@ -66,6 +64,7 @@ void PDFDocument::openDocument(const std::string &filepath) {
   }
 
   filepath_ = filepath;
+  is_edited_ = false;
   loadOutline();
 }
 
@@ -76,11 +75,10 @@ void PDFDocument::closeDocument() {
   }
 
   pages_.clear();
-  all_content_loaded_ = false;
 }
 
 void PDFDocument::reloadDocument() {
-  if (filepath_.empty())
+  if (!doc_ || filepath_.empty())
     return;
   openDocument(filepath_);
 }
@@ -99,6 +97,83 @@ PDFPage &PDFDocument::getPage(std::size_t page_idx) {
   return pages_[page_idx];
 }
 
+std::vector<fz_rect> PDFDocument::searchPage(std::size_t page_idx, const std::string &needle) {
+  std::vector<fz_rect> rects;
+  if (!doc_ || page_idx >= pages_.size() || needle.empty())
+    return rects;
+
+  PDFPage &page = pages_[page_idx];
+  if (!page.isContentLoaded())
+    loadPageContent(page_idx);
+
+  const std::vector<fz_quad> quads = page.searchText(ctx_, needle);
+  rects.reserve(quads.size());
+  for (const fz_quad &q : quads)
+    rects.push_back(fz_rect_from_quad(q));
+
+  return rects;
+}
+
+sf::VertexArray PDFDocument::getSelectionBoxesFromPage(
+    std::size_t page_idx,
+    PDFSelectionDirection direction,
+    std::optional<sf::Vector2f> mouse_pos1,
+    std::optional<sf::Vector2f> mouse_pos2
+) {
+  sf::VertexArray boxes{sf::PrimitiveType::Triangles};
+  if (!doc_ || page_idx >= pages_.size())
+    return boxes;
+
+  PDFPage &page = pages_[page_idx];
+  if (!page.isContentLoaded())
+    loadPageContent(page_idx);
+
+  const fz_rect bounds = page.getPageBounds();
+  fz_point a = fz_make_point(bounds.x0, bounds.y0);
+  fz_point b = fz_make_point(bounds.x1, bounds.y1);
+
+  switch (direction) {
+  case PDFSelectionDirection::ALL:
+    break;
+  case PDFSelectionDirection::UP:
+    if (!mouse_pos1)
+      return boxes;
+    b = fz_make_point(mouse_pos1->x, mouse_pos1->y);
+    break;
+  case PDFSelectionDirection::DOWN:
+    if (!mouse_pos1)
+      return boxes;
+    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
+    break;
+  case PDFSelectionDirection::INSIDE: {
+    if (!mouse_pos1 || !mouse_pos2)
+      return boxes;
+    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
+    b = fz_make_point(mouse_pos2->x, mouse_pos2->y);
+    const bool b_earlier = b.y < a.y || (b.y == a.y && b.x < a.x);
+    if (b_earlier)
+      std::swap(a, b);
+    break;
+  }
+  }
+
+  const std::vector<fz_quad> &quads = page.selectPage(ctx_, a, b);
+  const sf::Color color = utils::hexToRGBA(settings::selection_box_color_);
+
+  auto v = [](fz_point p) { return sf::Vector2f{p.x, p.y}; };
+  for (const fz_quad &q : quads) {
+    const sf::Vector2f ul = v(q.ul), ur = v(q.ur), lr = v(q.lr), ll = v(q.ll);
+    boxes.append({ul, color});
+    boxes.append({ur, color});
+    boxes.append({lr, color});
+    boxes.append({ul, color});
+    boxes.append({lr, color});
+    boxes.append({ll, color});
+  }
+
+  return boxes;
+}
+
 const std::vector<OutlineEntry> &PDFDocument::getOutline() const {
   return outline_;
 }
@@ -107,31 +182,18 @@ bool PDFDocument::isOpen() const {
   return doc_;
 }
 
-bool PDFDocument::isAllContentLoaded() const {
-  return all_content_loaded_;
-}
-
 bool PDFDocument::hasChanges() const {
   return is_edited_;
 }
 
-void PDFDocument::loadAllContent() {
-  if (!doc_)
-    return;
-
-  for (std::size_t i = 0; i < pages_.size(); i++)
-    loadPageContent(i);
-  all_content_loaded_ = true;
-}
-
 void PDFDocument::loadPageContent(std::size_t idx) {
-  fz_stext_page *text = nullptr;
-  fz_try(ctx_) {
-    text = fz_new_stext_page_from_page_number(ctx_, doc_, idx, nullptr);
-    pages_[idx].loadContent(text);
-  }
-  fz_always(ctx_) fz_drop_stext_page(ctx_, text);
+  fz_stext_page *raw = nullptr;
+  fz_var(raw);
+
+  fz_try(ctx_) raw = fz_new_stext_page_from_page_number(ctx_, doc_, idx, nullptr);
   fz_catch(ctx_) throw std::runtime_error("Failed to load text from page");
+
+  pages_[idx].loadContent(FzStextPagePtr(raw, FzStextDeleter{ctx_}));
 }
 
 void PDFDocument::saveChanges(const std::filesystem::path &path) {

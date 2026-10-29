@@ -1,5 +1,7 @@
 #include "pdf/pdf_search_controller.h"
 
+#include <utf8.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <limits>
@@ -23,9 +25,7 @@ std::optional<std::size_t> PDFSearchController::search(
   if (!document.isOpen())
     return std::nullopt;
 
-  if (!document.isAllContentLoaded())
-    document.loadAllContent();
-
+  std::string needle = utf8::utf32to8(text);
   pages_with_search_results_.clear();
   int closest_page = -1;
   int closest_distance = std::numeric_limits<int>::max();
@@ -35,7 +35,7 @@ std::optional<std::size_t> PDFSearchController::search(
     pages_[i].clearSearchResults();
     ui::PDFSearchResult res;
     res.start = global_start;
-    res.local_rects = document.getPage(i).searchText(text);
+    res.local_rects = document.searchPage(i, needle);
     global_start += res.local_rects.size();
 
     if (!res.local_rects.empty()) {

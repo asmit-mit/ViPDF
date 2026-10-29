@@ -491,6 +491,7 @@ void DocumentView::registerEvents() {
     std::size_t curr_page = layout_manager_.getAnchorPage();
     onOpenDocument(document_.getFilePath());
     onSwitchPage(curr_page);
+    event_bus_.emit("statusbar.document_edited", document_.hasChanges());
   });
 
   event_bus_.subscribe<bool>("cmd.close_document", [this](bool) { onCloseDocument(); });
@@ -696,6 +697,9 @@ void DocumentView::resetView() {
 
   search_controller_.reset();
   selection_controller_.reset();
+
+  emitSearchState(0);
+  event_bus_.emit("statusbar.pending_keys", std::string(""));
 }
 
 } // namespace ui

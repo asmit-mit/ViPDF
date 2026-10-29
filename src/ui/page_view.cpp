@@ -32,23 +32,20 @@ void PageView::update() {
     search_boxes_.clear();
 
     for (std::size_t i = 0; i < search_result_.local_rects.size(); i++) {
-      const auto &res = search_result_.local_rects[i];
       const sf::Color &color = (i == selected_search_result_) ? selected_color_ : normal_color_;
 
-      for (std::size_t j = 0; j < res.size(); j++) {
-        const auto &rect = search_result_.local_rects[i][j];
-        sf::Vector2f tl = {rect.x0, rect.y0};
-        sf::Vector2f tr = {rect.x1, rect.y0};
-        sf::Vector2f br = {rect.x1, rect.y1};
-        sf::Vector2f bl = {rect.x0, rect.y1};
+      const auto &rect = search_result_.local_rects[i];
+      sf::Vector2f tl = {rect.x0, rect.y0};
+      sf::Vector2f tr = {rect.x1, rect.y0};
+      sf::Vector2f br = {rect.x1, rect.y1};
+      sf::Vector2f bl = {rect.x0, rect.y1};
 
-        search_boxes_.append({tl, color});
-        search_boxes_.append({tr, color});
-        search_boxes_.append({br, color});
-        search_boxes_.append({tl, color});
-        search_boxes_.append({br, color});
-        search_boxes_.append({bl, color});
-      }
+      search_boxes_.append({tl, color});
+      search_boxes_.append({tr, color});
+      search_boxes_.append({br, color});
+      search_boxes_.append({tl, color});
+      search_boxes_.append({br, color});
+      search_boxes_.append({bl, color});
     }
 
     update_search_boxes_ = false;
@@ -116,7 +113,7 @@ const PDFSearchResult &PageView::getSearchResults() {
 
 sf::Vector2f PageView::getSearchResultPosition(std::size_t idx) {
   const auto &boxes = search_result_.local_rects[idx];
-  sf::Vector2f center = {(boxes[0].x0 + boxes[0].x1) * 0.5f, (boxes[0].y0 + boxes[0].y1) * 0.5f};
+  sf::Vector2f center = {(boxes.x0 + boxes.x1) * 0.5f, (boxes.y0 + boxes.y1) * 0.5f};
   return original_shape_.getTransform().transformPoint(center);
 }
 

@@ -407,7 +407,6 @@ void Textbox::del() {
   text_dirty_ = true;
 }
 
-// If idx is inside a cluster, move it to that cluster's left edge.
 std::size_t Textbox::snapToCluster(std::size_t idx) const {
   idx = std::min(idx, u32_text_.size());
   std::size_t s = clusterStart(u32_text_, idx);

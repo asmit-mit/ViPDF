@@ -67,19 +67,22 @@ void PDFSelectionController::setSelectionEnd(std::size_t page_idx, const sf::Vec
       continue;
     }
 
-    if (!document_.getPage(i).isContentLoaded())
-      document_.loadPageContent(i);
-    const PDFPage &page = document_.getPage(i);
-
     if (first_page == last_page)
-      pages_[i].setSelections(page.getSelectionBoxes(PDFSelectionDirection::INSIDE, p1, p2));
+      pages_[i].setSelections(
+          document_.getSelectionBoxesFromPage(i, PDFSelectionDirection::INSIDE, p1, p2)
+      );
     else if (i == first_page)
-      pages_[i].setSelections(page.getSelectionBoxes(PDFSelectionDirection::DOWN, p1, std::nullopt));
+      pages_[i].setSelections(
+          document_.getSelectionBoxesFromPage(i, PDFSelectionDirection::DOWN, p1, std::nullopt)
+      );
     else if (i == last_page)
-      pages_[i].setSelections(page.getSelectionBoxes(PDFSelectionDirection::UP, p2, std::nullopt));
+      pages_[i].setSelections(
+          document_.getSelectionBoxesFromPage(i, PDFSelectionDirection::UP, p2, std::nullopt)
+      );
     else
       pages_[i].setSelections(
-          page.getSelectionBoxes(PDFSelectionDirection::ALL, std::nullopt, std::nullopt)
+          document_
+              .getSelectionBoxesFromPage(i, PDFSelectionDirection::ALL, std::nullopt, std::nullopt)
       );
   }
 }
