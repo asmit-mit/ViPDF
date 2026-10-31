@@ -5,6 +5,7 @@ namespace ui {
 enum class UIElements {
   Cmdline,
   PDFView,
+  PasswordDialog,
   PrintDialog,
   None,
 };

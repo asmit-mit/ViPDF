@@ -85,6 +85,9 @@ Textbox::Textbox(
   selecting_ = false;
   selection_dirty_ = false;
 
+  width_ = 0.f;
+  scroll_x_ = 0.f;
+
   selection_box_.setFillColor(utils::hexToRGB(settings::textbox_highlight_fg_));
 
   display_text_.setFillColor(utils::hexToRGB(settings::fg_));
@@ -98,6 +101,23 @@ void Textbox::draw(sf::RenderTarget &window) const {
   if (!visible_)
     return;
 
+  const bool clip = width_ > 0.f;
+  const sf::View old_view = window.getView();
+
+  if (clip) {
+    const auto tl = window.mapCoordsToPixel({pos_.x, pos_.y});
+    const auto br = window.mapCoordsToPixel({pos_.x + width_, pos_.y + utils::cmdline_height_});
+    const sf::Vector2f target(window.getSize());
+
+    sf::View clipped = old_view;
+    clipped.setScissor(
+        sf::FloatRect(
+            {tl.x / target.x, tl.y / target.y}, {(br.x - tl.x) / target.x, (br.y - tl.y) / target.y}
+        )
+    );
+    window.setView(clipped);
+  }
+
   if (selection_.active())
     window.draw(selection_box_);
 
@@ -107,6 +127,9 @@ void Textbox::draw(sf::RenderTarget &window) const {
     window.draw(display_text_selected_);
 
   cursor_.draw(window);
+
+  if (clip)
+    window.setView(old_view);
 }
 
 void Textbox::update() {
@@ -118,10 +141,16 @@ void Textbox::update() {
 
   if (text_dirty_) {
     display_text_.setString(u32_text_);
-    display_text_.setPosition(pos_);
     text_ = utf8::utf32to8(u32_text_);
     text_dirty_ = false;
   }
+
+  if (cursor_dirty_ && updateScroll()) {
+    selection_dirty_ = true;
+    cursor_dirty_ = true;
+  }
+
+  display_text_.setPosition({pos_.x - scroll_x_, pos_.y});
 
   if (selection_dirty_) {
     rebuildDisplayTexts();
@@ -283,6 +312,8 @@ void Textbox::setCursorSize(const sf::Vector2f &cursor_size) {
 
 void Textbox::setPosition(const sf::Vector2f &pos) {
   pos_ = pos;
+  cursor_dirty_ = true;
+  selection_dirty_ = true;
 }
 
 sf::Vector2f Textbox::getPosition() const {
@@ -473,18 +504,14 @@ std::size_t Textbox::getCharacterIndex(const sf::Vector2i &mouse) {
   return glyphs.size();
 }
 
+void Textbox::setWidth(float width) {
+  width_ = std::max(0.f, width);
+  cursor_dirty_ = true;
+  selection_dirty_ = true;
+}
+
 float Textbox::getCursorX(std::size_t index) {
-  const auto &glyphs = display_text_.getShapedGlyphs();
-  if (index == 0 || glyphs.empty())
-    return pos_.x;
-
-  sf::Vector2f local;
-  if (index < glyphs.size())
-    local = glyphs[index].position;
-  else
-    local = {glyphs.back().position.x + glyphs.back().advance, glyphs.back().position.y};
-
-  return display_text_.getTransform().transformPoint(local).x;
+  return pos_.x - scroll_x_ + getLocalX(index);
 }
 
 void Textbox::createSelectionBox() {
@@ -533,6 +560,41 @@ std::u32string Textbox::getSelectedText() const {
   const auto first = selection_.begin();
   const auto last = selection_.end();
   return u32_text_.substr(first, last - first);
+}
+
+float Textbox::getLocalX(std::size_t index) const {
+  const auto &glyphs = display_text_.getShapedGlyphs();
+  if (index == 0 || glyphs.empty())
+    return 0.f;
+
+  if (index < glyphs.size())
+    return glyphs[index].position.x;
+
+  return glyphs.back().position.x + glyphs.back().advance;
+}
+
+bool Textbox::updateScroll() {
+  const float old = scroll_x_;
+
+  if (width_ <= 0.f) {
+    scroll_x_ = 0.f;
+    return old != scroll_x_;
+  }
+
+  const float cursor_w = cursor_size_.x;
+  const float visible = std::max(0.f, width_ - cursor_w);
+  const float caret = getLocalX(selection_.caret);
+  const float text_w = getLocalX(u32_text_.size());
+
+  if (caret - scroll_x_ > visible)
+    scroll_x_ = caret - visible;
+  if (caret < scroll_x_)
+    scroll_x_ = caret;
+
+  const float max_scroll = std::max(0.f, text_w + cursor_w - width_);
+  scroll_x_ = std::clamp(scroll_x_, 0.f, max_scroll);
+
+  return old != scroll_x_;
 }
 
 } // namespace ui

@@ -9,11 +9,7 @@ PDFLayoutManager::PDFLayoutManager(
     core::RenderScheduler &scheduler, std::vector<ui::PageView> &pages
 )
     : scheduler_(scheduler), pages_(pages) {
-  page_positions_dirty_ = false;
-  anchor_page_pos_before_scroll_ = {0.f, 0.f};
-  anchor_page_changed_ = false;
-  need_initial_pos_ = false;
-  scrolled_ = false;
+  reset();
 }
 
 void PDFLayoutManager::setAnchorPage(std::size_t idx) {
@@ -88,8 +84,8 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
       curr.setPosition({new_center.x, curr.getPosition().y});
     } else {
       const sf::Vector2f old_center{old_window_size_.x * 0.5f, old_window_size_.y * 0.5f};
-      const auto &local_focus = curr.getSprite().getInverseTransform().transformPoint(old_center);
-      const auto &focus_after = curr.getSprite().getTransform().transformPoint(local_focus);
+      const auto local_focus = curr.getSprite().getInverseTransform().transformPoint(old_center);
+      const auto focus_after = curr.getSprite().getTransform().transformPoint(local_focus);
       curr.move(new_center - focus_after);
     }
 
@@ -100,6 +96,11 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
   discretizePosition(curr);
   updateNeighbourPositions();
 
+  for (std::size_t i = front_page_; i <= back_page_; ++i) {
+    if (!pages_[i].hasTexture())
+      return;
+  }
+
   const sf::Vector2f front_size = pages_[front_page_].getGlobalBounds().size;
   const sf::Vector2f back_size = pages_[back_page_].getGlobalBounds().size;
 
@@ -107,28 +108,34 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
   const float back_bottom = pages_[back_page_].getPosition().y + back_size.y * 0.5f;
   const float bottom_limit = window_size_.y - utils::cmdline_height_;
   const float curr_y = curr.getPosition().y;
-
   const float total_height = back_bottom - front_top;
-  if (total_height < bottom_limit) {
+
+  const bool at_top = front_page_ == 0;
+  const bool at_bottom = back_page_ + 1 >= pages_.size();
+
+  if (at_top && at_bottom && total_height < bottom_limit) {
     const float offset = (bottom_limit * 0.5f) - (front_top + total_height * 0.5f);
     curr.setPosition({curr.getPosition().x, curr_y + offset});
-  } else if (front_top > 0.f) {
+  } else if (at_top && front_top > 0.f) {
     curr.setPosition({curr.getPosition().x, curr_y - front_top});
-  } else if (back_bottom < bottom_limit) {
+  } else if (at_bottom && back_bottom < bottom_limit) {
     curr.setPosition({curr.getPosition().x, curr_y + (bottom_limit - back_bottom)});
-  } else {
-    discretizePosition(curr);
-    return;
   }
 
   discretizePosition(curr);
   updateNeighbourPositions();
 
   page_positions_dirty_ = false;
+  if (!need_initial_pos_)
+    layout_pending_ = false;
 }
 
 bool PDFLayoutManager::needInitialPos() const {
   return need_initial_pos_;
+}
+
+bool PDFLayoutManager::isLayoutPending() const {
+  return need_initial_pos_ || layout_pending_;
 }
 
 bool PDFLayoutManager::anchorPageChanged() const {
@@ -239,6 +246,20 @@ void PDFLayoutManager::discretizePosition(ui::PageView &page) {
   const float x = std::round(loc.x + offset.x) - offset.x;
   const float y = std::round(loc.y + offset.y) - offset.y;
   page.setPosition({x, y});
+}
+
+void PDFLayoutManager::reset() {
+  page_with_max_width_ = 0;
+  front_page_ = 0;
+  anchor_page_ = 0;
+  back_page_ = 0;
+  layout_pending_ = true;
+  page_positions_dirty_ = false;
+  anchor_page_pos_before_scroll_ = {0.f, 0.f};
+  anchor_page_changed_ = false;
+  need_initial_pos_ = false;
+  layout_pending_ = true;
+  scrolled_ = false;
 }
 
 } // namespace pdf

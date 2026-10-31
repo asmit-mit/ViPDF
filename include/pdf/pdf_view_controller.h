@@ -29,6 +29,8 @@ public:
 
   void syncWithTargetState(std::size_t front, std::size_t anchor, std::size_t back);
 
+  void reset();
+
 private:
   core::RenderScheduler &scheduler_;
   std::vector<ui::PageView> &pages_;

@@ -6,8 +6,7 @@ PDFViewController::PDFViewController(
     core::RenderScheduler &scheduler, std::vector<ui::PageView> &pages
 )
     : scheduler_(scheduler), pages_(pages) {
-  pending_page_update_ = false;
-  sync_state_dirty_ = false;
+  reset();
 }
 
 void PDFViewController::setZoom(float zoom) {
@@ -110,6 +109,13 @@ void PDFViewController::syncWithTargetState(
   }
 
   sync_state_dirty_ = false;
+}
+
+void PDFViewController::reset() {
+  target_state_.zoom = 1.f;
+  target_state_.rotate = 0;
+  sync_state_dirty_ = false;
+  pending_page_update_ = false;
 }
 
 } // namespace pdf

@@ -1,6 +1,7 @@
 #include "ui/document_view.h"
 
 #include <algorithm>
+#include <print>
 #include <stdexcept>
 #include <utf8.h>
 
@@ -45,7 +46,7 @@ void DocumentView::draw(sf::RenderTarget &window) const {
   if (!document_.isOpen())
     return;
 
-  if (layout_manager_.needInitialPos())
+  if (layout_manager_.needInitialPos() || layout_manager_.isLayoutPending())
     return;
 
   for (std::size_t i = layout_manager_.getFrontPage(); i <= layout_manager_.getBackPage(); i++)
@@ -454,8 +455,8 @@ void DocumentView::onSwitchPage(int page_idx) {
 
   std::size_t anchor_page = static_cast<std::size_t>(page_idx);
   VisualInfo view_state = view_controller_.getState();
-  layout_manager_.setAnchorPage(anchor_page);
   requestPage(anchor_page, view_state.zoom, view_state.rotate, recolor_);
+  layout_manager_.setAnchorPage(anchor_page);
   event_bus_.emit("statusbar.page_state", std::make_pair(anchor_page + 1, document_.pageCount()));
 }
 
@@ -703,15 +704,8 @@ void DocumentView::resetView() {
     pages_[i].setPageShapeSize({width, height});
   }
 
-  layout_manager_.setPageWithMaxWidth(0);
-  layout_manager_.setFrontPage(0);
-  layout_manager_.setAnchorPage(0);
-  layout_manager_.setBackPage(0);
-
-  view_controller_.setZoom(1.f);
-  view_controller_.setRotate(0);
-  view_controller_.clearSyncDirty();
-
+  layout_manager_.reset();
+  view_controller_.reset();
   search_controller_.reset();
   selection_controller_.reset();
 

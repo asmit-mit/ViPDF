@@ -31,8 +31,11 @@ public:
   void updatePagePositions(const ui::VisualInfo &visual_state);
 
   bool needInitialPos() const;
+  bool isLayoutPending() const;
   bool anchorPageChanged() const;
   void updateAnchorPage();
+
+  void reset();
 
 private:
   void updateNeighbourPositions();
@@ -56,6 +59,7 @@ private:
 
   bool need_initial_pos_;
   bool anchor_page_changed_;
+  bool layout_pending_;
 
   sf::Vector2f window_size_;
   sf::Vector2f old_window_size_;

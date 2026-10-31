@@ -37,6 +37,8 @@ public:
   const std::string &getText() const;
   const std::u32string &getTextU32() const;
 
+  void setWidth(float width);
+
   float getCursorX(std::size_t idx);
   void setCursorPosition(int pos);
   std::size_t getCursorPosition() const;
@@ -61,6 +63,9 @@ private:
   void deleteSelection();
   void clearSelection();
   std::u32string getSelectedText() const;
+
+  float getLocalX(std::size_t index) const;
+  bool updateScroll();
 
 private:
   struct Selection {
@@ -96,6 +101,9 @@ private:
   std::string text_;
   std::u32string u32_text_;
   bool text_dirty_;
+
+  float width_;
+  float scroll_x_;
 
   Selection selection_;
   bool selection_dirty_;

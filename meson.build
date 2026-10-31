@@ -3,7 +3,7 @@ project('vipdf', 'cpp',
     meson_version: '>= 0.58.0',
     default_options: [
         'cpp_std=c++23',
-        'buildtype=release',
+        'buildtype=debugoptimized',
     ]
 )
 project_name = meson.project_name()

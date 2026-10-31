@@ -172,6 +172,7 @@ void Cmdline::onResize(const sf::Vector2f &size) {
   window_size_ = size;
   display_area_.setSize({size.x, utils::cmdline_height_});
   completions_.onResize(size);
+  textbox_.setWidth(window_size_.x);
 
   const float curr_x_ = 0.f;
   const float curr_y_ = window_size_.y - utils::cmdline_height_;
