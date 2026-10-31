@@ -1,7 +1,9 @@
-project('ViPDF', 'cpp',
+project('vipdf', 'cpp',
+    version: '0.1.0',
+    meson_version: '>= 0.58.0',
     default_options: [
         'cpp_std=c++23',
-        'buildtype=debugoptimized',
+        'buildtype=release',
     ]
 )
 project_name = meson.project_name()
@@ -16,7 +18,15 @@ sqlitecpp_dep = dependency('sqlitecpp', required: true)
 utf8cpp_includes = include_directories('thirdparty/utfcpp')
 json_includes = include_directories('thirdparty/json')
 
-includes = include_directories('include')
+datadir = get_option('prefix') / get_option('datadir')
+asset_install_dir = datadir / project_name
+
+conf = configuration_data()
+conf.set_quoted('VIPDF_DATADIR', asset_install_dir)
+configure_file(output: 'vipdf_config.h', configuration: conf)
+
+includes = include_directories('include', '.')
+
 sources = files(
   'src/app.cpp',
   'src/core/cmd_processor.cpp',
@@ -55,3 +65,11 @@ executable(
   dependencies: [sfml_dep, mupdf_dep, harfbuzz_dep, harfbuzz_raster_dep, freetype_dep, sqlitecpp_dep],
   install: true,
 )
+
+install_subdir('assets/fonts', install_dir: asset_install_dir)
+install_data('assets/commands.json', install_dir: asset_install_dir)
+
+install_data('assets/vipdf.desktop', install_dir: datadir / 'applications')
+install_data('assets/vipdf.svg', install_dir: datadir / 'icons/hicolor/scalable/apps')
+
+meson.add_devenv(environment({'VIPDF_ASSETS': meson.project_source_root() / 'assets'}))

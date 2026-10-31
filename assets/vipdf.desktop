@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=ViPDF
+GenericName=PDF Reader
+Comment=Vim-style PDF reader
+Exec=vipdf %f
+Icon=vipdf
+Terminal=false
+Categories=Office;Viewer;
+MimeType=application/pdf;
+Keywords=pdf;reader;viewer;vim;
+StartupNotify=false

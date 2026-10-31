@@ -18,19 +18,26 @@
 #include "ui/statusbar.h"
 #include "ui/ui_elements.h"
 
+namespace fs = std::filesystem;
+
 class App {
 public:
   App();
 
   void run();
+  void openDocument(std::string path);
 
 private:
   void registerEvents();
   void initUI();
   void processEvents();
 
+  static fs::path prepareState(const fs::path &assets);
+
 private:
-  std::filesystem::path state_dir_;
+  fs::path asset_dir_;
+  fs::path state_dir_;
+
   core::EventBus event_bus_;
 
   sf::RenderWindow window_;
@@ -66,6 +73,8 @@ private:
 
   sf::Cursor arrow_cursor_;
   sf::Cursor text_cursor_;
+
+  std::optional<std::string> pending_open_;
 
   const unsigned int res_x_ = 640;
   const unsigned int res_y_ = 480;

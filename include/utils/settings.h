@@ -39,16 +39,19 @@ constexpr std::size_t display_list_cache_size_ = 200;
 constexpr std::size_t page_cache_size_ = 15;
 constexpr std::size_t thread_count_ = 5;
 
-constexpr char font_regular[] = "assets/fonts/JetBrainsMonoNLNerdFont-Regular.ttf";
-constexpr char font_bold[] = "assets/fonts/JetBrainsMonoNLNerdFont-Bold.ttf";
-constexpr char font_italic[] = "assets/fonts/JetBrainsMonoNLNerdFont-Italic.ttf";
-constexpr char font_emoji[] = "assets/fonts/NotoEmoji-Regular.ttf";
-constexpr char font_cjk[] = "assets/fonts/NotoSansMonoCJK-VF.ttc";
-constexpr char commands_json[] = "assets/commands.json";
+constexpr char font_regular[] = "fonts/JetBrainsMonoNLNerdFont-Regular.ttf";
+constexpr char font_bold[] = "fonts/JetBrainsMonoNLNerdFont-Bold.ttf";
+constexpr char font_italic[] = "fonts/JetBrainsMonoNLNerdFont-Italic.ttf";
+constexpr char font_emoji[] = "fonts/NotoEmoji-Regular.ttf";
+constexpr char font_cjk[] = "fonts/NotoSansMonoCJK-VF.ttc";
+constexpr char default_commands[] = "commands.json";
+
+constexpr char commands_json[] = "commands.json";
 constexpr char cmd_history[] = "history/cmd_history";
 constexpr char recent_files[] = "history/recent_files";
 constexpr char search_history[] = "history/search_history";
 constexpr char bookmarks_db[] = "bookmarks/bookmarks.db3";
-constexpr char state_dir[] = ".local/state/ViPDF";
+
+constexpr char app_name[] = "ViPDF";
 
 } // namespace settings

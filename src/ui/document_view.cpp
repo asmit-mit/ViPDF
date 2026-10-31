@@ -23,7 +23,7 @@ DocumentView::DocumentView(
     : document_(document), layout_manager_(scheduler, pages_), view_controller_(scheduler, pages_),
       search_controller_(pages_), selection_controller_(document_, pages_), event_bus_(event_bus),
       file_history_(file_history), bookmark_manager_(bookmark_manager), scheduler_(scheduler) {
-  should_take_input_ = false;
+  should_take_input_ = true;
   recolor_ = settings::default_recolor;
   update_recolor_ = false;
   selecting_ = false;

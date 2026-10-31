@@ -6,24 +6,16 @@
 namespace fs = std::filesystem;
 
 App::App()
-    : state_dir_(
-          utils::ensureParent(
-              (std::getenv("HOME") ? fs::path(std::getenv("HOME")) : fs::current_path()) /
-              settings::state_dir
-          )
-      ),
-      font_regular_(utils::ensureParent(state_dir_ / settings::font_regular)),
-      font_bold_(utils::ensureParent(state_dir_ / settings::font_bold)),
-      font_italic_(utils::ensureParent(state_dir_ / settings::font_italic)),
+    : asset_dir_(utils::assetDir()), state_dir_(prepareState(asset_dir_)),
+      font_regular_(asset_dir_ / settings::font_regular),
+      font_bold_(asset_dir_ / settings::font_bold),
+      font_italic_(asset_dir_ / settings::font_italic),
       font_library_({
-          {graphics::FontType::Regular,
-           utils::ensureParent(state_dir_ / settings::font_regular).c_str()},
-          {graphics::FontType::Bold, utils::ensureParent(state_dir_ / settings::font_bold).c_str()},
-          {graphics::FontType::Italic,
-           utils::ensureParent(state_dir_ / settings::font_italic).c_str()},
-          {graphics::FontType::CJK, utils::ensureParent(state_dir_ / settings::font_cjk).c_str()},
-          {graphics::FontType::Emoji,
-           utils::ensureParent(state_dir_ / settings::font_emoji).c_str()},
+          {graphics::FontType::Regular, (asset_dir_ / settings::font_regular).c_str()},
+          {graphics::FontType::Bold, (asset_dir_ / settings::font_bold).c_str()},
+          {graphics::FontType::Italic, (asset_dir_ / settings::font_italic).c_str()},
+          {graphics::FontType::CJK, (asset_dir_ / settings::font_cjk).c_str()},
+          {graphics::FontType::Emoji, (asset_dir_ / settings::font_emoji).c_str()},
       }),
       cmd_history_(utils::ensureParent(state_dir_ / settings::cmd_history)),
       search_history_(utils::ensureParent(state_dir_ / settings::search_history)),
@@ -54,6 +46,11 @@ void App::run() {
   while (window_.isOpen()) {
     processEvents();
 
+    if (pending_open_) {
+      event_bus_.emit("cmd.open_document", *pending_open_);
+      pending_open_.reset();
+    }
+
     event_bus_.update();
     document_view_.update();
     cmdline_.update();
@@ -70,6 +67,10 @@ void App::run() {
 
     window_.display();
   }
+}
+
+void App::openDocument(std::string path) {
+  pending_open_ = std::filesystem::absolute(path).string();
 }
 
 void App::registerEvents() {
@@ -118,6 +119,17 @@ void App::registerEvents() {
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
     focus_ = focus;
   });
+}
+
+fs::path App::prepareState(const fs::path &assets) {
+  fs::path dir = utils::stateDir();
+  std::error_code ec;
+  fs::create_directories(dir, ec);
+
+  fs::path cmds = dir / settings::commands_json;
+  if (!fs::exists(cmds))
+    fs::copy_file(assets / settings::default_commands, cmds, ec);
+  return dir;
 }
 
 void App::initUI() {
