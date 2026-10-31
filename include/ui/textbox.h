@@ -37,6 +37,9 @@ public:
   const std::string &getText() const;
   const std::u32string &getTextU32() const;
 
+  void setMask(bool enabled, char32_t mask_char = U'*');
+  bool isMasked() const;
+
   void setWidth(float width);
 
   float getCursorX(std::size_t idx);
@@ -63,6 +66,10 @@ private:
   void deleteSelection();
   void clearSelection();
   std::u32string getSelectedText() const;
+
+  std::u32string displayString(const std::u32string &s) const;
+  std::size_t prevIndex(std::size_t pos) const;
+  std::size_t nextIndex(std::size_t pos) const;
 
   float getLocalX(std::size_t index) const;
   bool updateScroll();
@@ -101,6 +108,9 @@ private:
   std::string text_;
   std::u32string u32_text_;
   bool text_dirty_;
+
+  bool masked_;
+  char32_t mask_char_ = U'*';
 
   float width_;
   float scroll_x_;

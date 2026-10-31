@@ -84,6 +84,7 @@ Textbox::Textbox(
   cursor_dirty_ = false;
   selecting_ = false;
   selection_dirty_ = false;
+  masked_ = false;
 
   width_ = 0.f;
   scroll_x_ = 0.f;
@@ -140,7 +141,7 @@ void Textbox::update() {
   selection_dirty_ |= text_dirty_;
 
   if (text_dirty_) {
-    display_text_.setString(u32_text_);
+    display_text_.setString(displayString(u32_text_));
     text_ = utf8::utf32to8(u32_text_);
     text_dirty_ = false;
   }
@@ -196,12 +197,12 @@ void Textbox::handleEvent(const sf::Event &event) {
       break;
 
     case sf::Keyboard::Key::C:
-      if (key->control && selection_.active())
+      if (key->control && selection_.active() && !masked_)
         sf::Clipboard::setString(getSelectedText());
       break;
 
     case sf::Keyboard::Key::X:
-      if (key->control && selection_.active()) {
+      if (key->control && selection_.active() && !masked_) {
         sf::Clipboard::setString(getSelectedText());
         deleteSelection();
       }
@@ -227,7 +228,7 @@ void Textbox::handleEvent(const sf::Event &event) {
         if (key->control)
           ctrlArrowLeft();
         else
-          setCursorPosition(clusterStart(u32_text_, selection_.caret));
+          setCursorPosition(prevIndex(selection_.caret));
 
         selection_dirty_ = true;
       } else if (selection_.active()) {
@@ -246,7 +247,7 @@ void Textbox::handleEvent(const sf::Event &event) {
         if (key->control)
           ctrlArrowRight();
         else
-          setCursorPosition(clusterEnd(u32_text_, selection_.caret));
+          setCursorPosition(nextIndex(selection_.caret));
 
         selection_dirty_ = true;
       } else if (selection_.active()) {
@@ -380,6 +381,37 @@ const std::u32string &Textbox::getTextU32() const {
   return u32_text_;
 }
 
+void Textbox::setMask(bool enabled, char32_t mask_char) {
+  masked_ = enabled;
+  mask_char_ = mask_char;
+
+  text_dirty_ = true;
+  cursor_dirty_ = true;
+  selection_dirty_ = true;
+}
+
+bool Textbox::isMasked() const {
+  return masked_;
+}
+
+std::u32string Textbox::displayString(const std::u32string &s) const {
+  if (!masked_)
+    return s;
+  return std::u32string(s.size(), mask_char_);
+}
+
+std::size_t Textbox::prevIndex(std::size_t pos) const {
+  if (masked_)
+    return pos > 0 ? pos - 1 : 0;
+  return clusterStart(u32_text_, pos);
+}
+
+std::size_t Textbox::nextIndex(std::size_t pos) const {
+  if (masked_)
+    return std::min(pos + 1, u32_text_.size());
+  return clusterEnd(u32_text_, pos);
+}
+
 void Textbox::setCursorPosition(int pos) {
   selection_.caret = std::clamp(pos, 0, (int)u32_text_.size());
   cursor_dirty_ = true;
@@ -390,6 +422,9 @@ std::size_t Textbox::getCursorPosition() const {
 }
 
 std::size_t Textbox::findWordStart(std::size_t pos) const {
+  if (masked_)
+    return 0;
+
   while (pos > 0 && isSpaceChar(u32_text_[pos - 1]))
     --pos;
 
@@ -403,6 +438,9 @@ std::size_t Textbox::findWordStart(std::size_t pos) const {
 }
 
 std::size_t Textbox::findWordEnd(std::size_t pos) const {
+  if (masked_)
+    return u32_text_.size();
+
   while (pos < u32_text_.size() && isSpaceChar(u32_text_[pos]))
     ++pos;
 
@@ -419,7 +457,7 @@ void Textbox::backspace() {
   if (selection_.caret == 0)
     return;
 
-  std::size_t start = clusterStart(u32_text_, selection_.caret);
+  std::size_t start = prevIndex(selection_.caret);
   u32_text_.erase(start, selection_.caret - start);
   setCursorPosition(start);
   clearSelection();
@@ -432,7 +470,7 @@ void Textbox::del() {
     return;
   }
 
-  std::size_t end = clusterEnd(u32_text_, selection_.caret);
+  std::size_t end = nextIndex(selection_.caret);
   u32_text_.erase(selection_.caret, end - selection_.caret);
   clearSelection();
   text_dirty_ = true;
@@ -440,6 +478,8 @@ void Textbox::del() {
 
 std::size_t Textbox::snapToCluster(std::size_t idx) const {
   idx = std::min(idx, u32_text_.size());
+  if (masked_)
+    return idx;
   std::size_t s = clusterStart(u32_text_, idx);
   return clusterEnd(u32_text_, s) == idx ? idx : s;
 }
@@ -530,7 +570,7 @@ void Textbox::rebuildDisplayTexts() {
   const auto last = selection_.end();
 
   std::u32string selected = u32_text_.substr(first, last - first);
-  display_text_selected_.setString(selected);
+  display_text_selected_.setString(displayString(selected));
 
   sf::Vector2f pos = {getCursorX(first), pos_.y};
   display_text_selected_.setPosition(pos);

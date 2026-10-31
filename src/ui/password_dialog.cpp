@@ -26,6 +26,7 @@ PasswordDialog::PasswordDialog(const sf::Font &font, core::EventBus &event_bus, 
   password_bg_.setSize({dialog_width_ - 2.f * outer_padding_, input_height_});
 
   textbox_.setCursorSize({2.f, 20.f});
+  textbox_.setMask(true);
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
     visible_ = focus == ui::UIElements::PasswordDialog;
