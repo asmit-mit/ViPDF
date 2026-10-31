@@ -33,6 +33,7 @@ public:
   PDFDocument &operator=(const PDFDocument &) = delete;
 
   void openDocument(const std::string &filepath);
+  bool authenticate(const std::string &password);
   void closeDocument();
   void reloadDocument();
 
@@ -55,6 +56,7 @@ public:
   const std::vector<OutlineEntry> &getOutline() const;
 
   bool isOpen() const;
+  bool needsAuth() const;
   bool hasChanges() const;
   void loadPageContent(std::size_t idx);
   void saveChanges(const std::filesystem::path &path = "");
@@ -74,6 +76,7 @@ private:
   static void unlockMutex(void *user, int lock);
 
   void loadOutline();
+  void loadPages();
   bool addAnnotationInPage(
       std::size_t page_idx,
       const std::vector<fz_quad> &quads,
@@ -98,11 +101,14 @@ private:
   std::vector<OutlineEntry> outline_;
   std::vector<pdf::PDFPage> pages_;
   std::size_t page_with_max_width_;
+  std::size_t page_count_;
 
   fz_context *ctx_;
   fz_document *doc_;
 
+
   bool is_edited_;
+  bool requires_password_;
 };
 
 } // namespace pdf

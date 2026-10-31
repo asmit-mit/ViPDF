@@ -12,9 +12,10 @@ namespace utils {
 
 namespace fs = std::filesystem;
 
-const float padding = 8.f;
-const float char_size = 16.f;
-const float cmdline_height_ = 24.f;
+constexpr float padding = 8.f;
+constexpr float char_size = 16.f;
+constexpr float cmdline_height = 24.f;
+constexpr float outline_thickness = 2.f;
 
 inline static sf::Color hexToRGB(const uint32_t hex) {
   return sf::Color((hex >> 16) & 0xFF, (hex >> 8) & 0xFF, hex & 0xFF);

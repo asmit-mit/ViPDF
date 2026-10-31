@@ -22,11 +22,11 @@ Notifications::Notifications(
   display_msg_.setFillColor(utils::hexToRGB(settings::fg_));
   display_header_.setFillColor(utils::hexToRGB(settings::fg_));
 
-  display_area_.setFillColor(utils::hexToRGB(settings::bg_));
+  display_area_.setFillColor(utils::hexToRGB(settings::bg_hard_));
   display_area_.setOutlineThickness(2.f);
   display_area_.setOutlineColor(utils::hexToRGB(settings::notification_outline_bg_));
 
-  idle_color_ = utils::hexToRGB(settings::bg_);
+  idle_color_ = utils::hexToRGB(settings::bg_hard_);
   hover_color_ = utils::hexToRGB(settings::notification_hover_bg_);
 
   event_bus_.subscribe<const std::string &>("notification.msg", [this](const std::string &msg) {

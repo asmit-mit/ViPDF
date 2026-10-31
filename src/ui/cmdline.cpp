@@ -19,7 +19,7 @@ Cmdline::Cmdline(
     ui::Completions &completions
 )
     : event_bus_(event_bus), cmd_processor_(cmd_processor), cmd_autocomplete_(cmd_autocomplete),
-      cmd_history_(cmd_history), search_history_(search_history), font_(font_normal),
+      cmd_history_(cmd_history), search_history_(search_history),
       label_(font_normal, ":", utils::char_size), textbox_(textbox), completions_(completions) {
   visible_ = false;
 
@@ -27,8 +27,8 @@ Cmdline::Cmdline(
 
   label_.setFillColor(utils::hexToRGB(settings::fg_));
 
-  display_area_.setFillColor(utils::hexToRGB(settings::cmd_bg_));
-  display_area_.setSize({200.f, utils::cmdline_height_});
+  display_area_.setFillColor(utils::hexToRGB(settings::bg_light_));
+  display_area_.setSize({200.f, utils::cmdline_height});
 
   completions_.setCmdColor(utils::hexToRGB(settings::fg_));
   completions_.setDescColor(utils::hexToRGB(settings::completions_desc_fg_));
@@ -169,16 +169,15 @@ void Cmdline::setMode(CmdlineMode mode) {
 }
 
 void Cmdline::onResize(const sf::Vector2f &size) {
-  window_size_ = size;
-  display_area_.setSize({size.x, utils::cmdline_height_});
+  display_area_.setSize({size.x, utils::cmdline_height});
   completions_.onResize(size);
-  textbox_.setWidth(window_size_.x);
+  textbox_.setWidth(size.x);
 
-  const float curr_x_ = 0.f;
-  const float curr_y_ = window_size_.y - utils::cmdline_height_;
-  float round_y = std::round(curr_y_) + 1.f;
+  const float curr_x = 0.f;
+  const float curr_y = size.y - utils::cmdline_height;
+  float round_y = std::round(curr_y) + 1.f;
 
-  display_area_.setPosition({curr_x_, round_y});
+  display_area_.setPosition({curr_x, round_y});
   label_.setPosition({utils::padding - 4.f, round_y});
 
   const auto bounds = label_.getGlobalBounds();

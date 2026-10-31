@@ -15,6 +15,7 @@
 #include "ui/cmdline.h"
 #include "ui/document_view.h"
 #include "ui/notifications.h"
+#include "ui/password_dialog.h"
 #include "ui/statusbar.h"
 #include "ui/ui_elements.h"
 
@@ -62,9 +63,11 @@ private:
   pdf::PDFRenderer renderer_;
   core::RenderScheduler render_scheduler_;
 
+  ui::Textbox password_dialog_textbox_;
   ui::Textbox cmdline_textbox_;
   ui::Completions cmdline_completions_;
 
+  ui::PasswordDialog password_dialog_;
   ui::Cmdline cmdline_;
   ui::DocumentView document_view_;
   ui::Statusbar statusbar_;

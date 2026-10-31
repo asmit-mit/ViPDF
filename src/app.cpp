@@ -1,7 +1,9 @@
 #include "app.h"
 
+#include "ui/password_dialog.h"
 #include "utils/settings.h"
 #include "utils/utils.h"
+#include <print>
 
 namespace fs = std::filesystem;
 
@@ -25,8 +27,10 @@ App::App()
       cmd_processor_(event_bus_, cmd_loader_, cmd_history_),
       cmd_autocomplete_(cmd_loader_, file_history_, bookmark_manager_), document_(), renderer_(),
       render_scheduler_(document_, renderer_, settings::thread_count_),
-      cmdline_textbox_(font_library_, glyph_atlas_, utils::char_size, ":"),
+      password_dialog_textbox_(font_library_, glyph_atlas_, utils::char_size, ""),
+      cmdline_textbox_(font_library_, glyph_atlas_, utils::char_size, ""),
       cmdline_completions_(font_library_, glyph_atlas_, font_regular_, font_italic_, utils::char_size),
+      password_dialog_(font_bold_, event_bus_, password_dialog_textbox_),
       cmdline_(font_regular_, event_bus_, cmd_processor_, cmd_autocomplete_, cmd_history_, search_history_, cmdline_textbox_, cmdline_completions_),
       document_view_(file_history_, bookmark_manager_, document_, render_scheduler_, event_bus_),
       statusbar_(font_library_, glyph_atlas_, font_regular_, event_bus_),
@@ -51,19 +55,24 @@ void App::run() {
       pending_open_.reset();
     }
 
+    if (document_.needsAuth() && focus_ != ui::UIElements::PasswordDialog)
+      event_bus_.emit("ui.focus", ui::UIElements::PasswordDialog);
+
     event_bus_.update();
     document_view_.update();
     cmdline_.update();
     statusbar_.update();
     notifications_.update();
+    password_dialog_.update();
 
-    window_.clear(utils::hexToRGB(settings::bg_));
+    window_.clear(utils::hexToRGB(settings::bg_hard_));
     window_.setView(view_);
 
     document_view_.draw(window_);
     cmdline_.draw(window_);
     statusbar_.draw(window_);
     notifications_.draw(window_);
+    password_dialog_.draw(window_);
 
     window_.display();
   }
@@ -148,6 +157,7 @@ void App::initUI() {
   cmdline_.onResize(view_.getSize());
   statusbar_.onResize(view_.getSize());
   document_view_.onResize(view_.getSize());
+  password_dialog_.onResize(view_.getSize());
   window_.setMouseCursor(arrow_cursor_);
 }
 
@@ -162,6 +172,7 @@ void App::processEvents() {
       auto view_size = view_.getSize();
       view_.setCenter({view_size.x / 2, view_size.y / 2});
 
+      password_dialog_.onResize(view_.getSize());
       cmdline_.onResize(view_.getSize());
       statusbar_.onResize(view_.getSize());
       document_view_.onResize(view_.getSize());
@@ -186,5 +197,6 @@ void App::processEvents() {
     statusbar_.handleEvent(*event);
     document_view_.handleEvent(*event);
     notifications_.handleEvent(*event);
+    password_dialog_.handleEvent(*event);
   }
 }

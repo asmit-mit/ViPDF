@@ -4,10 +4,11 @@
 
 namespace settings {
 
-constexpr uint32_t bg_ = 0x1d2021;
+constexpr uint32_t bg_darker_ = 0x090a0a;
+constexpr uint32_t bg_hard_ = 0x1d2021;
+constexpr uint32_t bg_ = 0x282828;
+constexpr uint32_t bg_light_ = 0x3c3836;
 constexpr uint32_t fg_ = 0xebdfc3;
-constexpr uint32_t cmd_bg_ = 0x3c3836;
-constexpr uint32_t status_bg_ = 0x282828;
 
 constexpr uint32_t completions_desc_fg_ = 0xd5c7a2;
 constexpr uint32_t completion_highlight_bg_ = 0x458588;

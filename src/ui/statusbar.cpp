@@ -21,7 +21,7 @@ Statusbar::Statusbar(
       display_zoom_(font_, "[]", settings::status_font_size_),
       display_pending_keys_(font_, "", settings::status_font_size_),
       display_modified_(font_, "[+]", settings::status_font_size_) {
-  display_area_.setSize({200.0, utils::cmdline_height_});
+  display_area_.setSize({200.0, utils::cmdline_height});
 
   const auto fg = utils::hexToRGB(settings::fg_);
 
@@ -43,7 +43,7 @@ Statusbar::Statusbar(
   curr_x_ = 0.f;
   curr_y_ = 0.f;
 
-  display_area_.setFillColor(utils::hexToRGB(settings::status_bg_));
+  display_area_.setFillColor(utils::hexToRGB(settings::bg_));
   display_filepath_.setFillColor(fg);
   display_search_state_.setFillColor(fg);
   display_page_state_.setFillColor(fg);
@@ -115,11 +115,11 @@ void Statusbar::update() {
 
   float y = std::round(curr_y_);
   if (move_up_)
-    y = (y - utils::cmdline_height_) + 1.f;
+    y = (y - utils::cmdline_height) + 1.f;
   display_area_.setPosition({curr_x_, y});
 
   const float filepath_h = display_filepath_.getSize().y;
-  const float text_y = std::round(y + (utils::cmdline_height_ - filepath_h) / 2.f) - 3.f;
+  const float text_y = std::round(y + (utils::cmdline_height - filepath_h) / 2.f) - 3.f;
 
   layoutRightWidgets(text_y);
 
@@ -224,8 +224,8 @@ void Statusbar::fitFilepath(float max_width) {
 
 void Statusbar::onResize(const sf::Vector2f &size) {
   curr_x_ = 0;
-  curr_y_ = size.y - utils::cmdline_height_;
-  display_area_.setSize({size.x, utils::cmdline_height_});
+  curr_y_ = size.y - utils::cmdline_height;
+  display_area_.setSize({size.x, utils::cmdline_height});
 }
 
 } // namespace ui

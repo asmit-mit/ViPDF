@@ -43,7 +43,7 @@ DocumentView::DocumentView(
 }
 
 void DocumentView::draw(sf::RenderTarget &window) const {
-  if (!document_.isOpen())
+  if (!canWorkWithDocument())
     return;
 
   if (layout_manager_.needInitialPos() || layout_manager_.isLayoutPending())
@@ -54,8 +54,13 @@ void DocumentView::draw(sf::RenderTarget &window) const {
 }
 
 void DocumentView::update() {
-  if (!document_.isOpen())
+  if (!canWorkWithDocument())
     return;
+
+  if (pending_page_swtich_) {
+    onSwitchPage(*pending_page_swtich_);
+    pending_page_swtich_.reset();
+  }
 
   std::size_t front_page = layout_manager_.getFrontPage();
   std::size_t anchor_page = layout_manager_.getAnchorPage();
@@ -68,7 +73,7 @@ void DocumentView::update() {
     update_recolor_ = false;
   }
 
-  if (document_.isOpen() && view_controller_.canUpdatePages()) {
+  if (canWorkWithDocument() && view_controller_.canUpdatePages()) {
     requestPage(layout_manager_.getAnchorPage(), view_state.zoom, view_state.rotate, recolor_);
     view_controller_.clearPendingUpdates();
   }
@@ -112,7 +117,7 @@ void DocumentView::update() {
 }
 
 void DocumentView::handleEvent(const sf::Event &event) {
-  if (!document_.isOpen())
+  if (!canWorkWithDocument())
     return;
 
   const std::size_t front_page = layout_manager_.getFrontPage();
@@ -312,7 +317,7 @@ void DocumentView::fitPage() {
   if (page_dims.x <= 0 || page_dims.y <= 0)
     return;
 
-  const float viewable_h = window_size_.y - utils::cmdline_height_;
+  const float viewable_h = window_size_.y - utils::cmdline_height;
   const float viewable_w = window_size_.x;
   const float zoom_x = viewable_w / static_cast<float>(page_dims.x);
   const float zoom_y = viewable_h / static_cast<float>(page_dims.y);
@@ -415,9 +420,7 @@ void DocumentView::onOpenDocument(const std::string &filepath) {
     scheduler_.resume();
 
     resetView();
-    onSwitchPage(0);
-    layout_manager_.setPageWithMaxWidth(document_.pageWithMaxWidth());
-
+    pending_page_swtich_ = 0;
     event_bus_.emit("statusbar.pdf_path", absolute_path);
     event_bus_.emit("statusbar.page_state", std::make_pair(0, document_.pageCount()));
     event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
@@ -443,7 +446,7 @@ void DocumentView::onCloseDocument() {
 }
 
 void DocumentView::onSwitchPage(int page_idx) {
-  if (!document_.isOpen()) {
+  if (!canWorkWithDocument()) {
     event_bus_.emit("notification.msg", std::string("No document currently open"));
     return;
   }
@@ -461,7 +464,7 @@ void DocumentView::onSwitchPage(int page_idx) {
 }
 
 void DocumentView::onSearchPage(const std::u32string &text) {
-  if (!document_.isOpen()) {
+  if (!canWorkWithDocument()) {
     event_bus_.emit("notification.msg", std::string("No document open to search"));
     return;
   }
@@ -483,7 +486,7 @@ void DocumentView::onSearchPage(const std::u32string &text) {
 }
 
 void DocumentView::onAnnotate(std::vector<std::size_t> pages) {
-  if (!document_.isOpen())
+  if (!canWorkWithDocument())
     return;
 
   for (auto page : pages)
@@ -493,20 +496,27 @@ void DocumentView::onAnnotate(std::vector<std::size_t> pages) {
   event_bus_.emit("statusbar.document_edited", document_.hasChanges());
 }
 
+void DocumentView::onAuthenticate() {
+  resetView();
+  event_bus_.emit("ui.focus", ui::UIElements::PDFView);
+  event_bus_.emit("statusbar.page_state", std::make_pair(0, document_.pageCount()));
+  event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
+}
+
 void DocumentView::registerEvents() {
   event_bus_.subscribe<std::string>("cmd.open_document", [this](const std::string &filepath) {
     onOpenDocument(filepath);
   });
 
   event_bus_.subscribe<bool>("cmd.reload_document", [this](bool) {
-    if (!document_.isOpen()) {
+    if (!canWorkWithDocument()) {
       event_bus_.emit("notification.msg", std::string("No document open to reload"));
       return;
     }
 
     std::size_t curr_page = layout_manager_.getAnchorPage();
     onOpenDocument(document_.getFilePath());
-    onSwitchPage(curr_page);
+    pending_page_swtich_ = curr_page;
     event_bus_.emit("statusbar.document_edited", document_.hasChanges());
   });
 
@@ -516,8 +526,15 @@ void DocumentView::registerEvents() {
     onSwitchPage(page_num - 1);
   });
 
+  event_bus_.subscribe<std::string>("password.submit", [this](std::string password) {
+    if (document_.authenticate(password))
+      onAuthenticate();
+    else
+      event_bus_.emit("ui.focus", ui::UIElements::PasswordDialog);
+  });
+
   event_bus_.subscribe<const std::string &>("bmark.add", [this](const std::string &label) {
-    if (!document_.isOpen()) {
+    if (!canWorkWithDocument()) {
       event_bus_.emit("notification.msg", std::string("No document currently open"));
       return;
     }
@@ -526,7 +543,7 @@ void DocumentView::registerEvents() {
   });
 
   event_bus_.subscribe<int>("bmark.del", [this](int id) {
-    if (!document_.isOpen()) {
+    if (!canWorkWithDocument()) {
       event_bus_.emit("notification.msg", std::string("No document currently open"));
       return;
     }
@@ -535,7 +552,7 @@ void DocumentView::registerEvents() {
   });
 
   event_bus_.subscribe<int>("bmark.jump", [this](int id) {
-    if (!document_.isOpen()) {
+    if (!canWorkWithDocument()) {
       event_bus_.emit("notification.msg", std::string("No document currently open"));
       return;
     }
@@ -596,6 +613,10 @@ void DocumentView::registerKeybindings() {
   input_handler_.bind({{Key::Escape}}, DocumentAction::Cancel);
 }
 
+bool DocumentView::canWorkWithDocument() const {
+  return document_.isOpen() && !document_.needsAuth();
+}
+
 void DocumentView::centerOnSearchResult(
     std::size_t anchor_page,
     std::size_t front_page,
@@ -638,7 +659,7 @@ void DocumentView::renderRequestedPages() {
 }
 
 void DocumentView::requestPage(std::size_t page_idx, float zoom, int rotate, bool recolor) {
-  if (!document_.isOpen())
+  if (!canWorkWithDocument())
     return;
 
   pdf::PDFRenderKey center_key{page_idx, zoom, rotate, 0};
@@ -695,6 +716,9 @@ void DocumentView::requestPage(std::size_t page_idx, float zoom, int rotate, boo
 }
 
 void DocumentView::resetView() {
+  if (!canWorkWithDocument())
+    return;
+
   pages_.clear();
   pages_.resize(document_.pageCount(), dummy_);
   for (std::size_t i = 0; i < document_.pageCount(); i++) {
@@ -708,6 +732,8 @@ void DocumentView::resetView() {
   view_controller_.reset();
   search_controller_.reset();
   selection_controller_.reset();
+
+  layout_manager_.setPageWithMaxWidth(document_.pageWithMaxWidth());
 
   emitSearchState(0);
   event_bus_.emit("statusbar.pending_keys", std::string(""));

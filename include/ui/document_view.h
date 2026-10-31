@@ -67,9 +67,11 @@ private:
   void onSwitchPage(int page_idx);
   void onSearchPage(const std::u32string &text);
   void onAnnotate(std::vector<std::size_t> pages);
+  void onAuthenticate();
 
   void registerEvents();
   void registerKeybindings();
+  bool canWorkWithDocument() const;
 
   void centerOnSearchResult(
       std::size_t anchor_page,
@@ -119,6 +121,8 @@ private:
   sf::Vector2f window_size_;
   sf::Vector2f right_click_pos_;
   int right_click_on_page_;
+
+  std::optional<int> pending_page_swtich_;
 
   static constexpr float scroll_dist_ = 40.f;
 };

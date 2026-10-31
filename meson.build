@@ -52,6 +52,7 @@ sources = files(
   'src/ui/notifications.cpp',
   'src/ui/page_view.cpp',
   'src/ui/document_view.cpp',
+  'src/ui/password_dialog.cpp',
   'src/ui/scrollwheel.cpp',
   'src/ui/statusbar.cpp',
   'src/ui/textbox.cpp',

@@ -45,14 +45,12 @@ private:
   core::CmdAutocomplete &cmd_autocomplete_;
   core::HistoryManager &cmd_history_;
   core::HistoryManager &search_history_;
-  const sf::Font &font_;
 
   sf::Text label_;
   ui::Textbox &textbox_;
   ui::Completions &completions_;
   sf::RectangleShape display_area_;
 
-  sf::Vector2f window_size_;
   std::string original_string_;
 
   CmdlineMode mode_;

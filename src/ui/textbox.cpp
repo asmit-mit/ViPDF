@@ -91,7 +91,7 @@ Textbox::Textbox(
   selection_box_.setFillColor(utils::hexToRGB(settings::textbox_highlight_fg_));
 
   display_text_.setFillColor(utils::hexToRGB(settings::fg_));
-  display_text_selected_.setFillColor(utils::hexToRGB(settings::cmd_bg_));
+  display_text_selected_.setFillColor(utils::hexToRGB(settings::bg_light_));
 
   cursor_size_ = {0.f, 0.f};
   pos_ = {0.f, 0.f};
@@ -106,7 +106,7 @@ void Textbox::draw(sf::RenderTarget &window) const {
 
   if (clip) {
     const auto tl = window.mapCoordsToPixel({pos_.x, pos_.y});
-    const auto br = window.mapCoordsToPixel({pos_.x + width_, pos_.y + utils::cmdline_height_});
+    const auto br = window.mapCoordsToPixel({pos_.x + width_, pos_.y + utils::cmdline_height});
     const sf::Vector2f target(window.getSize());
 
     sf::View clipped = old_view;
@@ -521,7 +521,7 @@ void Textbox::createSelectionBox() {
   const float left = (start_pos < end_pos) ? start_pos : end_pos;
   const float size = std::abs(start_pos - end_pos);
 
-  selection_box_.setSize({size, utils::cmdline_height_});
+  selection_box_.setSize({size, utils::cmdline_height});
   selection_box_.setPosition({left, pos_.y});
 }
 

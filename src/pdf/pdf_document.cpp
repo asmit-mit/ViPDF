@@ -13,6 +13,7 @@ PDFDocument::PDFDocument() {
   locks_.unlock = &PDFDocument::unlockMutex;
 
   is_edited_ = false;
+  requires_password_ = false;
 
   ctx_ = fz_new_context(nullptr, &locks_, FZ_STORE_DEFAULT);
   if (!ctx_)
@@ -26,6 +27,8 @@ PDFDocument::PDFDocument() {
   }
 
   doc_ = nullptr;
+  page_count_ = 0;
+  page_with_max_width_ = 0;
 }
 
 void PDFDocument::openDocument(const std::string &filepath) {
@@ -34,38 +37,35 @@ void PDFDocument::openDocument(const std::string &filepath) {
   fz_try(ctx_) doc_ = fz_open_document(ctx_, filepath.c_str());
   fz_catch(ctx_) throw std::runtime_error("Failed to open document: " + filepath);
 
-  int page_count;
-  fz_try(ctx_) page_count = fz_count_pages(ctx_, doc_);
-  fz_catch(ctx_) throw std::runtime_error("Failed to count number of pages");
-
-  int max_width = 0;
-  page_with_max_width_ = 0;
-
-  pages_.reserve(page_count);
-  for (int i = 0; i < page_count; ++i) {
-    fz_page *page = nullptr;
-
-    fz_try(ctx_) {
-      page = fz_load_page(ctx_, doc_, i);
-
-      fz_rect bounds = fz_bound_page(ctx_, page);
-
-      int width = static_cast<int>(std::abs(bounds.x1 - bounds.x0));
-
-      if (width > max_width) {
-        max_width = width;
-        page_with_max_width_ = i;
-      }
-
-      pages_.emplace_back(i, bounds);
-    }
-    fz_always(ctx_) fz_drop_page(ctx_, page);
-    fz_catch(ctx_) throw std::runtime_error("Failed to inspect PDF page");
-  }
-
   filepath_ = filepath;
   is_edited_ = false;
-  loadOutline();
+
+  if (fz_needs_password(ctx_, doc_)) {
+    requires_password_ = true;
+    return;
+  }
+
+  loadPages();
+}
+
+bool PDFDocument::authenticate(const std::string &password) {
+  if (!doc_)
+    return false;
+
+  if (!requires_password_)
+    return true;
+
+  int ok = 0;
+
+  fz_try(ctx_) ok = fz_authenticate_password(ctx_, doc_, password.c_str());
+  fz_catch(ctx_) return false;
+
+  if (!ok)
+    return false;
+
+  requires_password_ = false;
+  loadPages();
+  return true;
 }
 
 void PDFDocument::closeDocument() {
@@ -74,6 +74,9 @@ void PDFDocument::closeDocument() {
     doc_ = nullptr;
   }
 
+  requires_password_ = false;
+  page_count_ = 0;
+  page_with_max_width_ = 0;
   pages_.clear();
 }
 
@@ -180,6 +183,10 @@ bool PDFDocument::isOpen() const {
   return doc_;
 }
 
+bool PDFDocument::needsAuth() const {
+  return doc_ && requires_password_;
+}
+
 bool PDFDocument::hasChanges() const {
   return is_edited_;
 }
@@ -252,7 +259,7 @@ void PDFDocument::clearSelections() {
 }
 
 std::size_t PDFDocument::pageCount() const {
-  return pages_.size();
+  return page_count_;
 }
 
 FzContextPtr PDFDocument::cloneContext() const {
@@ -278,6 +285,36 @@ void PDFDocument::lockMutex(void *user, int lock) {
 
 void PDFDocument::unlockMutex(void *user, int lock) {
   static_cast<PDFDocument *>(user)->mutexes_[lock].unlock();
+}
+
+void PDFDocument::loadPages() {
+  fz_try(ctx_) page_count_ = fz_count_pages(ctx_, doc_);
+  fz_catch(ctx_) throw std::runtime_error("Failed to count number of pages");
+
+  int max_width = 0;
+  page_with_max_width_ = 0;
+
+  pages_.reserve(page_count_);
+  for (std::size_t i = 0; i < page_count_; ++i) {
+    fz_page *page = nullptr;
+
+    fz_try(ctx_) {
+      page = fz_load_page(ctx_, doc_, static_cast<int>(i));
+
+      fz_rect bounds = fz_bound_page(ctx_, page);
+
+      int width = static_cast<int>(std::abs(bounds.x1 - bounds.x0));
+
+      if (width > max_width) {
+        max_width = width;
+        page_with_max_width_ = i;
+      }
+
+      pages_.emplace_back(i, bounds);
+    }
+    fz_always(ctx_) fz_drop_page(ctx_, page);
+    fz_catch(ctx_) throw std::runtime_error("Failed to open PDF page");
+  }
 }
 
 void PDFDocument::loadOutline() {
