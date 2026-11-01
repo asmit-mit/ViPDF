@@ -19,6 +19,7 @@ The following dependencies must be installed manually, using your system's packa
 | --------------------------------------- | ------------------ |
 | [SFML](https://www.sfml-dev.org/)       | 3.1.0+             |
 | [MuPDF](https://mupdf.com/)             | any recent version |
+| [FreeType2](https://freetype.org/)      | any recent version |
 | [Meson](https://mesonbuild.com/)        | build system       |
 
 ## Installation
