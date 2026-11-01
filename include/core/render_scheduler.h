@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/config_reader.h"
 #include "pdf/pdf_document.h"
 #include "pdf/pdf_renderer.h"
 #include "utils/lru_cache.h"
@@ -15,7 +16,7 @@ namespace core {
 
 class RenderScheduler {
 public:
-  RenderScheduler(pdf::PDFDocument &document, pdf::PDFRenderer &renderer, std::size_t worker_count);
+  RenderScheduler(pdf::PDFDocument &document, pdf::PDFRenderer &renderer, const Config &config);
   ~RenderScheduler();
 
   void request(const pdf::PDFRenderKey &key);
@@ -59,6 +60,9 @@ private:
   std::mutex lock_;
   std::condition_variable cv_work_;
   std::condition_variable cv_idle_;
+
+  std::size_t worker_count_;
+  std::size_t cache_size_;
 
   std::size_t active_jobs_;
   bool quiescing_;

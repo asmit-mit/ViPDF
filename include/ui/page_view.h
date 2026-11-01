@@ -19,7 +19,7 @@ struct PDFSearchResult {
 
 class PageView : public Widget {
 public:
-  PageView(const sf::Texture &dummy);
+  PageView(const sf::Texture &dummy, const sf::Color normal_color, const sf::Color selected_color);
 
   void draw(sf::RenderTarget &window) const override;
   void update() override;

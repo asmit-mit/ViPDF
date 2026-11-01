@@ -5,6 +5,7 @@
 
 #include <mutex>
 
+#include "core/config_reader.h"
 #include "utils/lru_cache.h"
 
 namespace pdf {
@@ -91,7 +92,7 @@ private:
 
 class PDFRenderer {
 public:
-  explicit PDFRenderer();
+  explicit PDFRenderer(int32_t recolor_dark, int32_t recolor_light);
 
   void render(
       fz_context *ctx,
@@ -118,6 +119,9 @@ private:
   PDFPageDisplayListCache display_list_cache_;
   FzRectCache fz_rect_cache_;
   std::mutex display_mutex_;
+
+  int32_t recolor_dark_;
+  int32_t recolor_light_;
 };
 
 } // namespace pdf

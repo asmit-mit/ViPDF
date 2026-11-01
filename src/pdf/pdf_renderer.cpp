@@ -1,7 +1,7 @@
 #include <stdexcept>
 
 #include "pdf/pdf_renderer.h"
-#include "utils/settings.h"
+#include "utils/utils.h"
 
 namespace pdf {
 
@@ -41,9 +41,10 @@ void PDFPageDisplayList::reset() {
   }
 }
 
-PDFRenderer::PDFRenderer()
-    : display_list_cache_(settings::display_list_cache_size_),
-      fz_rect_cache_(settings::display_list_cache_size_) {}
+PDFRenderer::PDFRenderer(int32_t recolor_dark, int32_t recolor_light)
+    : display_list_cache_(utils::DISPLAY_LIST_CACHE_SIZE),
+      fz_rect_cache_(utils::DISPLAY_LIST_CACHE_SIZE), recolor_dark_(recolor_dark),
+      recolor_light_(recolor_light) {}
 
 void PDFRenderer::render(
     fz_context *ctx,
@@ -56,7 +57,7 @@ void PDFRenderer::render(
   fz_pixmap *pix = getPixmapFromDisplayList(ctx, list, key.zoom, key.rotate);
 
   if (key.recolor)
-    fz_tint_pixmap(ctx, pix, settings::recolor_dark, settings::recolor_light);
+    fz_tint_pixmap(ctx, pix, recolor_dark_, recolor_light_);
   rastarizeToBitmap(ctx, pix, rgba, image);
 }
 

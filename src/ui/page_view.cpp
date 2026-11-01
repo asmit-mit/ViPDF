@@ -1,16 +1,15 @@
 #include "ui/page_view.h"
-#include "utils/settings.h"
-#include "utils/utils.h"
 
 namespace ui {
 
-PageView::PageView(const sf::Texture &dummy) : sprite_(dummy), key_(0, 0, 0, 0) {
+PageView::PageView(
+    const sf::Texture &dummy, const sf::Color normal_color, const sf::Color selected_color
+)
+    : sprite_(dummy), key_(0, 0, 0, 0), normal_color_(normal_color),
+      selected_color_(selected_color) {
   active_ = false;
   update_search_boxes_ = false;
   selected_search_result_ = -1;
-
-  normal_color_ = utils::hexToRGBA(settings::search_box_color_);
-  selected_color_ = utils::hexToRGBA(settings::search_highlight_color_);
 };
 
 void PageView::draw(sf::RenderTarget &window) const {

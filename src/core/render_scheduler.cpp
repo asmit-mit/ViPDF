@@ -1,21 +1,23 @@
 #include <stdexcept>
 
 #include "core/render_scheduler.h"
-#include "utils/settings.h"
 
 namespace core {
 
 RenderScheduler::RenderScheduler(
-    pdf::PDFDocument &document, pdf::PDFRenderer &renderer, std::size_t worker_count
+    pdf::PDFDocument &document, pdf::PDFRenderer &renderer, const Config &config
 )
-    : document_(document), renderer_(renderer), image_cache_(settings::page_cache_size_),
-      texture_cache_(settings::page_cache_size_), active_jobs_(0), quiescing_(false), stop_(false) {
-  slots_.reserve(worker_count);
-  for (std::size_t i = 0; i < worker_count; i++)
+    : document_(document), renderer_(renderer), image_cache_(config.page_cache_size),
+      texture_cache_(config.page_cache_size), active_jobs_(0), quiescing_(false), stop_(false) {
+  worker_count_ = config.thread_count;
+  cache_size_ = config.page_cache_size;
+
+  slots_.reserve(worker_count_);
+  for (std::size_t i = 0; i < worker_count_; i++)
     slots_.push_back(WorkerSlot{i, document_.cloneContext()});
 
-  workers_.reserve(worker_count);
-  for (std::size_t i = 0; i < worker_count; i++)
+  workers_.reserve(worker_count_);
+  for (std::size_t i = 0; i < worker_count_; i++)
     workers_.emplace_back(&RenderScheduler::workerLoop, this, i);
 }
 
@@ -139,7 +141,7 @@ void RenderScheduler::requestLocked(const pdf::PDFRenderKey &key) {
   if (!pending_.insert(key).second)
     return;
 
-  if (job_queue_.size() >= settings::page_cache_size_) {
+  if (job_queue_.size() >= texture_cache_.capacity()) {
     pending_.erase(job_queue_.front());
     job_queue_.pop_front();
   }

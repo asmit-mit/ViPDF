@@ -23,9 +23,12 @@ public:
   void handleEvent(const sf::Event &event) override;
   void onResize(const sf::Vector2f &size);
 
-  void setFillColor(const sf::Color &color);
-  void setCmdColor(const sf::Color &color);
-  void setDescColor(const sf::Color &color);
+  void setBackgroundColor(const sf::Color &color);
+  void setLeftTextColor(const sf::Color &color);
+  void setRightTextColor(const sf::Color &color);
+  void setLeftHighlightColor(const sf::Color &color);
+  void setRightHighlightColor(const sf::Color &color);
+
   void setPosition(const sf::Vector2f &pos);
 
   bool isVisible();

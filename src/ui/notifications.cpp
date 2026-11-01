@@ -1,7 +1,6 @@
 #include <utf8.h>
 
 #include "ui/notifications.h"
-#include "utils/settings.h"
 #include "utils/utils.h"
 
 namespace ui {
@@ -11,23 +10,23 @@ Notifications::Notifications(
     graphics::GlyphAtlas &glyph_atlas,
     const sf::Font &font_normal,
     const sf::Font &font_bold,
-    core::EventBus &event_bus
+    core::EventBus &event_bus,
+    const core::Config &config
 )
     : event_bus_(event_bus), font_library_(font_lib), font_normal_(font_normal),
-      font_bold_(font_bold), display_header_(font_bold, "Notification", utils::char_size + 2),
-      display_msg_(font_lib, glyph_atlas, utils::char_size) {
+      font_bold_(font_bold), display_header_(font_bold, "Notification", utils::TEXT_SIZE + 2),
+      display_msg_(font_lib, glyph_atlas, utils::TEXT_SIZE) {
   visible_ = false;
   hovered_ = false;
 
-  display_msg_.setFillColor(utils::hexToRGB(settings::fg_));
-  display_header_.setFillColor(utils::hexToRGB(settings::fg_));
+  display_msg_.setFillColor(utils::hexToRGB(config.notification_msg_text_color));
+  display_header_.setFillColor(utils::hexToRGB(config.notification_heading_text_color));
 
-  display_area_.setFillColor(utils::hexToRGB(settings::bg_hard_));
-  display_area_.setOutlineThickness(2.f);
-  display_area_.setOutlineColor(utils::hexToRGB(settings::notification_outline_bg_));
+  display_area_.setOutlineThickness(utils::OUTLINE_THICKNESS);
+  display_area_.setOutlineColor(utils::hexToRGB(config.notification_outline_color));
 
-  idle_color_ = utils::hexToRGB(settings::bg_hard_);
-  hover_color_ = utils::hexToRGB(settings::notification_hover_bg_);
+  idle_color_ = utils::hexToRGB(config.notification_background_idle_color);
+  hover_color_ = utils::hexToRGB(config.notification_background_hover_color);
 
   event_bus_.subscribe<const std::string &>("notification.msg", [this](const std::string &msg) {
     show(msg);
@@ -175,7 +174,7 @@ std::string Notifications::wrapText(
 
 void Notifications::show(const std::string &msg) {
   const float inner_width = max_width_ - 2.f * padding_;
-  std::string wrapped = wrapText(msg, font_normal_, utils::char_size, inner_width);
+  std::string wrapped = wrapText(msg, font_normal_, utils::TEXT_SIZE, inner_width);
 
   display_msg_.setString(wrapped);
   display_timer_.restart();

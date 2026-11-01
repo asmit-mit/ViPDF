@@ -1,7 +1,6 @@
 #include "ui/statusbar.h"
 
 #include "ui/ui_elements.h"
-#include "utils/settings.h"
 #include "utils/utils.h"
 #include <cmath>
 #include <utf8.h>
@@ -12,18 +11,19 @@ Statusbar::Statusbar(
     graphics::FontLibrary &font_lib,
     graphics::GlyphAtlas &glyph_atlas,
     const sf::Font &font,
-    core::EventBus &event_bus
+    core::EventBus &event_bus,
+    const core::Config &config
 )
     : font_(font), event_bus_(event_bus),
-      display_filepath_(font_lib, glyph_atlas, settings::status_font_size_),
-      display_search_state_(font_, "[]", settings::status_font_size_),
-      display_page_state_(font_, "[]", settings::status_font_size_),
-      display_zoom_(font_, "[]", settings::status_font_size_),
-      display_pending_keys_(font_, "", settings::status_font_size_),
-      display_modified_(font_, "[+]", settings::status_font_size_) {
-  display_area_.setSize({200.0, utils::cmdline_height});
+      display_filepath_(font_lib, glyph_atlas, utils::TEXT_SIZE),
+      display_search_state_(font_, "[]", utils::TEXT_SIZE),
+      display_page_state_(font_, "[]", utils::TEXT_SIZE),
+      display_zoom_(font_, "[]", utils::TEXT_SIZE),
+      display_pending_keys_(font_, "", utils::TEXT_SIZE),
+      display_modified_(font_, "[+]", utils::TEXT_SIZE) {
+  display_area_.setSize({200.0, utils::CMDLINE_HEIGHT});
 
-  const auto fg = utils::hexToRGB(settings::fg_);
+  const auto fg = utils::hexToRGB(config.statusbar_text_color);
 
   filepath_ = U"[No document open]";
   last_available_width_ = -1.f;
@@ -43,7 +43,7 @@ Statusbar::Statusbar(
   curr_x_ = 0.f;
   curr_y_ = 0.f;
 
-  display_area_.setFillColor(utils::hexToRGB(settings::bg_));
+  display_area_.setFillColor(utils::hexToRGB(config.statusbar_background_colo));
   display_filepath_.setFillColor(fg);
   display_search_state_.setFillColor(fg);
   display_page_state_.setFillColor(fg);
@@ -115,19 +115,19 @@ void Statusbar::update() {
 
   float y = std::round(curr_y_);
   if (move_up_)
-    y = (y - utils::cmdline_height) + 1.f;
+    y = (y - utils::CMDLINE_HEIGHT) + 1.f;
   display_area_.setPosition({curr_x_, y});
 
   const float filepath_h = display_filepath_.getSize().y;
-  const float text_y = std::round(y + (utils::cmdline_height - filepath_h) / 2.f) - 3.f;
+  const float text_y = std::round(y + (utils::CMDLINE_HEIGHT - filepath_h) / 2.f) - 3.f;
 
   layoutRightWidgets(text_y);
 
   fitFilepath(max_filepath_width_);
-  display_filepath_.setPosition({utils::padding, text_y});
+  display_filepath_.setPosition({utils::PADDING, text_y});
 
   if (shouldShowModified()) {
-    const float x = utils::padding + display_filepath_.getSize().x + utils::padding;
+    const float x = utils::PADDING + display_filepath_.getSize().x + utils::PADDING;
     display_modified_.setPosition({std::round(x), text_y + 1.f});
   }
 }
@@ -165,7 +165,7 @@ void Statusbar::refreshTexts() {
 }
 
 float Statusbar::placeLeftOf(sf::Text &text, float right_edge, float y) {
-  const float x = right_edge - text.getLocalBounds().size.x - utils::padding;
+  const float x = right_edge - text.getLocalBounds().size.x - utils::PADDING;
   text.setPosition({std::round(x), y});
   return x;
 }
@@ -185,9 +185,9 @@ void Statusbar::layoutRightWidgets(float y) {
   if (shouldShowPendingKeys())
     edge = placeLeftOf(display_pending_keys_, edge, widget_y);
 
-  max_filepath_width_ = edge - utils::padding * 2.f;
+  max_filepath_width_ = edge - utils::PADDING * 2.f;
   if (shouldShowModified())
-    max_filepath_width_ -= display_modified_.getLocalBounds().size.x + utils::padding;
+    max_filepath_width_ -= display_modified_.getLocalBounds().size.x + utils::PADDING;
 }
 
 void Statusbar::setFilepath(std::u32string filepath) {
@@ -224,8 +224,8 @@ void Statusbar::fitFilepath(float max_width) {
 
 void Statusbar::onResize(const sf::Vector2f &size) {
   curr_x_ = 0;
-  curr_y_ = size.y - utils::cmdline_height;
-  display_area_.setSize({size.x, utils::cmdline_height});
+  curr_y_ = size.y - utils::CMDLINE_HEIGHT;
+  display_area_.setSize({size.x, utils::CMDLINE_HEIGHT});
 }
 
 } // namespace ui

@@ -2,6 +2,7 @@
 
 #include <SFML/Graphics.hpp>
 
+#include "core/config_reader.h"
 #include "core/event_bus.h"
 #include "ui/textbox.h"
 #include "ui/widget.h"
@@ -10,7 +11,12 @@ namespace ui {
 
 class PasswordDialog : public Widget {
 public:
-  explicit PasswordDialog(const sf::Font &font, core::EventBus &event_bus, ui::Textbox &textbox);
+  explicit PasswordDialog(
+      const sf::Font &font,
+      core::EventBus &event_bus,
+      ui::Textbox &textbox,
+      const core::Config &config
+  );
 
   void draw(sf::RenderTarget &window) const override;
   void update() override;

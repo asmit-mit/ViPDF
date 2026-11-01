@@ -40,6 +40,10 @@ public:
   void setMask(bool enabled, char32_t mask_char = U'*');
   bool isMasked() const;
 
+  void setTextColor(const sf::Color &color);
+  void setHighlightColor(const sf::Color &color);
+  void setHighlightTextColor(const sf::Color &color);
+
   void setWidth(float width);
 
   float getCursorX(std::size_t idx);

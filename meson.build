@@ -3,7 +3,7 @@ project('vipdf', 'cpp',
     meson_version: '>= 0.58.0',
     default_options: [
         'cpp_std=c++23',
-        'buildtype=debugoptimized',
+        'buildtype=release',
     ]
 )
 project_name = meson.project_name()
@@ -16,6 +16,7 @@ freetype_dep = dependency('freetype2', required: true)
 sqlitecpp_dep = dependency('sqlitecpp', required: true)
 
 utf8cpp_includes = include_directories('thirdparty/utfcpp')
+inicpp_includes = include_directories('thirdparty/inicpp')
 json_includes = include_directories('thirdparty/json')
 
 datadir = get_option('prefix') / get_option('datadir')
@@ -35,6 +36,7 @@ sources = files(
   'src/core/history_manager.cpp',
   'src/core/bookmark_manager.cpp',
   'src/core/render_scheduler.cpp',
+  'src/core/config_reader.cpp',
   'src/graphics/font_library.cpp',
   'src/graphics/glyph_atlas.cpp',
   'src/graphics/rich_text.cpp',
@@ -53,7 +55,6 @@ sources = files(
   'src/ui/page_view.cpp',
   'src/ui/document_view.cpp',
   'src/ui/password_dialog.cpp',
-  'src/ui/scrollwheel.cpp',
   'src/ui/statusbar.cpp',
   'src/ui/textbox.cpp',
   'src/utils/trie.cpp',
@@ -62,7 +63,7 @@ sources = files(
 executable(
   project_name,
   sources,
-  include_directories: [includes, utf8cpp_includes, json_includes],
+  include_directories: [includes, utf8cpp_includes, json_includes, inicpp_includes],
   dependencies: [sfml_dep, mupdf_dep, harfbuzz_dep, harfbuzz_raster_dep, freetype_dep, sqlitecpp_dep],
   install: true,
 )

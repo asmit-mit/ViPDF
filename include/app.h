@@ -7,6 +7,7 @@
 #include "core/bookmark_manager.h"
 #include "core/cmd_autocomplete.h"
 #include "core/cmd_processor.h"
+#include "core/config_reader.h"
 #include "core/event_bus.h"
 #include "core/history_manager.h"
 #include "core/render_scheduler.h"
@@ -39,8 +40,6 @@ private:
   fs::path asset_dir_;
   fs::path state_dir_;
 
-  core::EventBus event_bus_;
-
   sf::RenderWindow window_;
   sf::View view_;
   sf::Font font_regular_;
@@ -50,11 +49,13 @@ private:
   graphics::FontLibrary font_library_;
   graphics::GlyphAtlas glyph_atlas_;
 
+  core::EventBus event_bus_;
   core::HistoryManager cmd_history_;
   core::HistoryManager search_history_;
   core::HistoryManager file_history_;
   core::BookmarkManager bookmark_manager_;
 
+  core::ConfigReader config_reader_;
   core::CmdLoader cmd_loader_;
   core::CmdProcessor cmd_processor_;
   core::CmdAutocomplete cmd_autocomplete_;
@@ -74,6 +75,7 @@ private:
   ui::Notifications notifications_;
   ui::UIElements focus_;
 
+  sf::Color app_bg_color_;
   sf::Cursor arrow_cursor_;
   sf::Cursor text_cursor_;
 

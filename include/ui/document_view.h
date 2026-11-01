@@ -3,6 +3,7 @@
 #include <SFML/Graphics.hpp>
 
 #include "core/bookmark_manager.h"
+#include "core/config_reader.h"
 #include "core/event_bus.h"
 #include "core/history_manager.h"
 #include "core/input_handler.h"
@@ -52,7 +53,8 @@ public:
       core::BookmarkManager &bookmark_manager,
       pdf::PDFDocument &document,
       core::RenderScheduler &scheduler,
-      core::EventBus &event_bus
+      core::EventBus &event_bus,
+      const core::Config &config
   );
 
   void draw(sf::RenderTarget &window) const;
@@ -104,6 +106,7 @@ private:
   pdf::PDFSearchController search_controller_;
   pdf::PDFSelectionController selection_controller_;
 
+  const core::Config &config_;
   core::EventBus &event_bus_;
   core::HistoryManager &file_history_;
   core::BookmarkManager &bookmark_manager_;
@@ -121,6 +124,9 @@ private:
   sf::Vector2f window_size_;
   sf::Vector2f right_click_pos_;
   int right_click_on_page_;
+
+  sf::Color search_box_color_;
+  sf::Color selected_search_box_color_;
 
   std::optional<int> pending_page_swtich_;
 

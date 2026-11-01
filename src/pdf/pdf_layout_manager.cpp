@@ -106,7 +106,7 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
 
   const float front_top = pages_[front_page_].getPosition().y - front_size.y * 0.5f;
   const float back_bottom = pages_[back_page_].getPosition().y + back_size.y * 0.5f;
-  const float bottom_limit = window_size_.y - utils::cmdline_height;
+  const float bottom_limit = window_size_.y - utils::CMDLINE_HEIGHT;
   const float curr_y = curr.getPosition().y;
   const float total_height = back_bottom - front_top;
 
@@ -179,8 +179,8 @@ void PDFLayoutManager::setInitialPagePos() {
 
   float x = window_size_.x * 0.5f;
   float y = size.y * 0.5f;
-  if (size.y <= (window_size_.y - utils::cmdline_height))
-    y = (window_size_.y - utils::cmdline_height) * 0.5;
+  if (size.y <= (window_size_.y - utils::CMDLINE_HEIGHT))
+    y = (window_size_.y - utils::CMDLINE_HEIGHT) * 0.5;
 
   pages_[anchor_page_].setPosition({x, y});
 

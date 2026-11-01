@@ -1,12 +1,9 @@
 #include "ui/cursor.h"
-#include "utils/settings.h"
-#include "utils/utils.h"
 
 namespace ui {
 
 Cursor::Cursor() {
   cursor_.setSize({2.f, 24.f});
-  cursor_.setFillColor(utils::hexToRGB(settings::fg_));
 }
 
 void Cursor::draw(sf::RenderTarget &window) const {
@@ -29,6 +26,10 @@ void Cursor::update() {
 
   const auto blink = elapsed - typing_delay_;
   visible_ = (blink.asMilliseconds() / blink_interval_.asMilliseconds()) % 2 == 0;
+}
+
+void Cursor::setColor(const sf::Color &color) {
+  cursor_.setFillColor(color);
 }
 
 void Cursor::setPosition(const sf::Vector2f &position) {

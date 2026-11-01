@@ -2,6 +2,7 @@
 
 #include "core/cmd_autocomplete.h"
 #include "core/cmd_processor.h"
+#include "core/config_reader.h"
 #include "core/event_bus.h"
 #include "core/history_manager.h"
 #include "ui/completions.h"
@@ -25,7 +26,8 @@ public:
       core::HistoryManager &cmd_history,
       core::HistoryManager &search_history,
       ui::Textbox &textbox,
-      ui::Completions &completions
+      ui::Completions &completions,
+      const core::Config &config
   );
 
   void draw(sf::RenderTarget &window) const override;

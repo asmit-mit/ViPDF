@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/config_reader.h"
 #include "core/event_bus.h"
 #include "graphics/rich_text.h"
 #include "ui/widget.h"
@@ -13,7 +14,8 @@ public:
       graphics::GlyphAtlas &glyph_atlas,
       const sf::Font &font_normal,
       const sf::Font &font_bold,
-      core::EventBus &event_bus
+      core::EventBus &event_bus,
+      const core::Config &config
   );
 
   void draw(sf::RenderTarget &window) const override;

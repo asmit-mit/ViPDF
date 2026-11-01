@@ -1,40 +1,65 @@
 #include "app.h"
 
+#include "core/config_reader.h"
 #include "ui/password_dialog.h"
-#include "utils/settings.h"
 #include "utils/utils.h"
-#include <print>
 
 namespace fs = std::filesystem;
 
 App::App()
     : asset_dir_(utils::assetDir()), state_dir_(prepareState(asset_dir_)),
-      font_regular_(asset_dir_ / settings::font_regular),
-      font_bold_(asset_dir_ / settings::font_bold),
-      font_italic_(asset_dir_ / settings::font_italic),
+      font_regular_(asset_dir_ / utils::FONT_REGULAR), font_bold_(asset_dir_ / utils::FONT_BOLD),
+      font_italic_(asset_dir_ / utils::FONT_ITALITC),
       font_library_({
-          {graphics::FontType::Regular, (asset_dir_ / settings::font_regular).c_str()},
-          {graphics::FontType::Bold, (asset_dir_ / settings::font_bold).c_str()},
-          {graphics::FontType::Italic, (asset_dir_ / settings::font_italic).c_str()},
-          {graphics::FontType::CJK, (asset_dir_ / settings::font_cjk).c_str()},
-          {graphics::FontType::Emoji, (asset_dir_ / settings::font_emoji).c_str()},
+          {graphics::FontType::Regular, (asset_dir_ / utils::FONT_REGULAR).c_str()},
+          {graphics::FontType::Bold, (asset_dir_ / utils::FONT_BOLD).c_str()},
+          {graphics::FontType::Italic, (asset_dir_ / utils::FONT_ITALITC).c_str()},
+          {graphics::FontType::CJK, (asset_dir_ / utils::FONT_ITALITC).c_str()},
+          {graphics::FontType::Emoji, (asset_dir_ / utils::FONT_EMOJI).c_str()},
       }),
-      cmd_history_(utils::ensureParent(state_dir_ / settings::cmd_history)),
-      search_history_(utils::ensureParent(state_dir_ / settings::search_history)),
-      file_history_(utils::ensureParent(state_dir_ / settings::recent_files)),
-      bookmark_manager_(utils::ensureParent(state_dir_ / settings::bookmarks_db)),
-      cmd_loader_(utils::ensureParent(state_dir_ / settings::commands_json)),
+      cmd_history_(utils::ensureParent(state_dir_ / utils::CMD_HISTORY)),
+      search_history_(utils::ensureParent(state_dir_ / utils::SEARCH_HISTORY)),
+      file_history_(utils::ensureParent(state_dir_ / utils::RECENT_FILES)),
+      bookmark_manager_(utils::ensureParent(state_dir_ / utils::BOOKMARKS_DB)),
+      config_reader_(utils::configPath()),
+      cmd_loader_(utils::ensureParent(asset_dir_ / utils::DEFAULT_COMMANDS)),
       cmd_processor_(event_bus_, cmd_loader_, cmd_history_),
-      cmd_autocomplete_(cmd_loader_, file_history_, bookmark_manager_), document_(), renderer_(),
-      render_scheduler_(document_, renderer_, settings::thread_count_),
-      password_dialog_textbox_(font_library_, glyph_atlas_, utils::char_size, ""),
-      cmdline_textbox_(font_library_, glyph_atlas_, utils::char_size, ""),
-      cmdline_completions_(font_library_, glyph_atlas_, font_regular_, font_italic_, utils::char_size),
-      password_dialog_(font_bold_, event_bus_, password_dialog_textbox_),
-      cmdline_(font_regular_, event_bus_, cmd_processor_, cmd_autocomplete_, cmd_history_, search_history_, cmdline_textbox_, cmdline_completions_),
-      document_view_(file_history_, bookmark_manager_, document_, render_scheduler_, event_bus_),
-      statusbar_(font_library_, glyph_atlas_, font_regular_, event_bus_),
-      notifications_(font_library_, glyph_atlas_, font_regular_, font_bold_, event_bus_),
+      cmd_autocomplete_(cmd_loader_, file_history_, bookmark_manager_),
+      document_(config_reader_.getConfig()),
+      renderer_(config_reader_.getConfig().recolor_dark, config_reader_.getConfig().recolor_light),
+      render_scheduler_(document_, renderer_, config_reader_.getConfig()),
+      password_dialog_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
+      cmdline_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
+      cmdline_completions_(font_library_, glyph_atlas_, font_regular_, font_italic_, utils::TEXT_SIZE),
+      password_dialog_(font_bold_, event_bus_, password_dialog_textbox_, config_reader_.getConfig()),
+      cmdline_(
+          font_regular_,
+          event_bus_,
+          cmd_processor_,
+          cmd_autocomplete_,
+          cmd_history_,
+          search_history_,
+          cmdline_textbox_,
+          cmdline_completions_,
+          config_reader_.getConfig()
+      ),
+      document_view_(
+          file_history_,
+          bookmark_manager_,
+          document_,
+          render_scheduler_,
+          event_bus_,
+          config_reader_.getConfig()
+      ),
+      statusbar_(font_library_, glyph_atlas_, font_regular_, event_bus_, config_reader_.getConfig()),
+      notifications_(
+          font_library_,
+          glyph_atlas_,
+          font_regular_,
+          font_bold_,
+          event_bus_,
+          config_reader_.getConfig()
+      ),
       arrow_cursor_(sf::Cursor::Type::Arrow), text_cursor_(sf::Cursor::Type::Text) {
   font_regular_.setSmooth(false);
   font_bold_.setSmooth(false);
@@ -65,7 +90,7 @@ void App::run() {
     notifications_.update();
     password_dialog_.update();
 
-    window_.clear(utils::hexToRGB(settings::bg_hard_));
+    window_.clear(app_bg_color_);
     window_.setView(view_);
 
     document_view_.draw(window_);
@@ -134,10 +159,6 @@ fs::path App::prepareState(const fs::path &assets) {
   fs::path dir = utils::stateDir();
   std::error_code ec;
   fs::create_directories(dir, ec);
-
-  fs::path cmds = dir / settings::commands_json;
-  if (!fs::exists(cmds))
-    fs::copy_file(assets / settings::default_commands, cmds, ec);
   return dir;
 }
 
@@ -151,6 +172,7 @@ void App::initUI() {
 
   window_.setFramerateLimit(fps_);
   window_.setKeyRepeatEnabled(true);
+  app_bg_color_ = utils::hexToRGB(config_reader_.getConfig().app_background_color);
 
   view_ = window_.getDefaultView();
 

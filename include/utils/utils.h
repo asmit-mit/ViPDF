@@ -12,10 +12,25 @@ namespace utils {
 
 namespace fs = std::filesystem;
 
-constexpr float padding = 8.f;
-constexpr float char_size = 16.f;
-constexpr float cmdline_height = 24.f;
-constexpr float outline_thickness = 2.f;
+constexpr float PADDING = 8.f;
+constexpr float TEXT_SIZE = 16.f;
+constexpr float CMDLINE_HEIGHT = 24.f;
+constexpr float OUTLINE_THICKNESS = 2.f;
+
+constexpr std::size_t DISPLAY_LIST_CACHE_SIZE = 200;
+
+constexpr char FONT_REGULAR[] = "fonts/JetBrainsMonoNLNerdFont-Regular.ttf";
+constexpr char FONT_BOLD[] = "fonts/JetBrainsMonoNLNerdFont-Bold.ttf";
+constexpr char FONT_ITALITC[] = "fonts/JetBrainsMonoNLNerdFont-Italic.ttf";
+constexpr char FONT_EMOJI[] = "fonts/NotoEmoji-Regular.ttf";
+constexpr char FONT_CJK[] = "fonts/NotoSansMonoCJK-VF.ttc";
+constexpr char DEFAULT_COMMANDS[] = "commands.json";
+constexpr char DEFAULT_CONFIG[] = "config.ini";
+
+constexpr char CMD_HISTORY[] = "history/cmd_history";
+constexpr char RECENT_FILES[] = "history/recent_files";
+constexpr char SEARCH_HISTORY[] = "history/search_history";
+constexpr char BOOKMARKS_DB[] = "bookmarks/bookmarks.db3";
 
 inline static sf::Color hexToRGB(const uint32_t hex) {
   return sf::Color((hex >> 16) & 0xFF, (hex >> 8) & 0xFF, hex & 0xFF);
@@ -109,6 +124,20 @@ inline static fs::path assetDir() {
   }
 
   throw std::runtime_error("Cannot find vipdf assets (set VIPDF_ASSETS)");
+}
+
+inline static fs::path configDir() {
+  if (const char *xdg = std::getenv("XDG_CONFIG_HOME"); xdg && *xdg && fs::path(xdg).is_absolute())
+    return fs::path(xdg) / "vipdf";
+
+  if (fs::path home = homeDir(); !home.empty())
+    return home / ".config/vipdf";
+
+  return fs::temp_directory_path() / "vipdf";
+}
+
+inline static fs::path configPath() {
+  return configDir() / "config.ini";
 }
 
 } // namespace utils

@@ -1,7 +1,6 @@
 #include "ui/document_view.h"
 
 #include <algorithm>
-#include <print>
 #include <stdexcept>
 #include <utf8.h>
 
@@ -9,7 +8,6 @@
 #include "pdf/pdf_renderer.h"
 #include "pdf/pdf_selection_controller.h"
 #include "ui/ui_elements.h"
-#include "utils/settings.h"
 #include "utils/utils.h"
 
 namespace ui {
@@ -19,19 +17,24 @@ DocumentView::DocumentView(
     core::BookmarkManager &bookmark_manager,
     pdf::PDFDocument &document,
     core::RenderScheduler &scheduler,
-    core::EventBus &event_bus
+    core::EventBus &event_bus,
+    const core::Config &config
 )
     : document_(document), layout_manager_(scheduler, pages_), view_controller_(scheduler, pages_),
-      search_controller_(pages_), selection_controller_(document_, pages_), event_bus_(event_bus),
-      file_history_(file_history), bookmark_manager_(bookmark_manager), scheduler_(scheduler) {
+      search_controller_(pages_), selection_controller_(document_, pages_), config_(config),
+      event_bus_(event_bus), file_history_(file_history), bookmark_manager_(bookmark_manager),
+      scheduler_(scheduler) {
   should_take_input_ = true;
-  recolor_ = settings::default_recolor;
+  recolor_ = config_.default_recolor;
   update_recolor_ = false;
   selecting_ = false;
   focus_update_ = false;
 
   right_click_pos_ = {0.f, 0.f};
   right_click_on_page_ = -1;
+
+  search_box_color_ = utils::hexToRGB(config.search_box_color);
+  selected_search_box_color_ = utils::hexToRGB(config.search_highlight_color);
 
   layout_manager_.setAnchorPage(0);
   layout_manager_.setFrontPage(0);
@@ -194,7 +197,7 @@ void DocumentView::handleScroll(const sf::Event::MouseWheelScrolled &scroll) {
   if (scroll.wheel == sf::Mouse::Wheel::Vertical) {
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl) ||
         sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RControl))
-      zoomBy(scroll.delta * settings::delta_zoom_);
+      zoomBy(scroll.delta * config_.delta_zoom);
     else
       panBy({0.f, scroll.delta * scroll_dist_});
   } else if (scroll.wheel == sf::Mouse::Wheel::Horizontal) {
@@ -243,10 +246,10 @@ void DocumentView::execute(const core::InputCmd<DocumentAction> &cmd) {
     break;
 
   case DocumentAction::ZoomIn:
-    zoomBy(settings::delta_zoom_);
+    zoomBy(config_.delta_zoom);
     break;
   case DocumentAction::ZoomOut:
-    zoomBy(-settings::delta_zoom_);
+    zoomBy(-config_.delta_zoom);
     break;
   case DocumentAction::FitPage:
     fitPage();
@@ -317,7 +320,7 @@ void DocumentView::fitPage() {
   if (page_dims.x <= 0 || page_dims.y <= 0)
     return;
 
-  const float viewable_h = window_size_.y - utils::cmdline_height;
+  const float viewable_h = window_size_.y - utils::CMDLINE_HEIGHT;
   const float viewable_w = window_size_.x;
   const float zoom_x = viewable_w / static_cast<float>(page_dims.x);
   const float zoom_y = viewable_h / static_cast<float>(page_dims.y);
@@ -374,23 +377,19 @@ void DocumentView::emitSearchState(std::size_t display_offset) {
 void DocumentView::addAnnotation(enum pdf_annot_type type, int color_index) {
   switch (color_index) {
   case 0:
-    onAnnotate(
-        document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_yellow_))
-    );
+    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_1)));
     break;
   case 1:
-    onAnnotate(
-        document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_orange_))
-    );
+    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_2)));
     break;
   case 2:
-    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_red_)));
+    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_3)));
     break;
   case 3:
-    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_blue_)));
+    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_4)));
     break;
   case 4:
-    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(settings::highlight_color_green_)));
+    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_5)));
     break;
   default:
     break;
@@ -720,13 +719,14 @@ void DocumentView::resetView() {
     return;
 
   pages_.clear();
-  pages_.resize(document_.pageCount(), dummy_);
   for (std::size_t i = 0; i < document_.pageCount(); i++) {
+    pages_.emplace_back(dummy_, search_box_color_, selected_search_box_color_);
     const auto &bounds = document_.getPage(i).getPageBounds();
     float width = bounds.x1 - bounds.x0;
     float height = bounds.y1 - bounds.y0;
     pages_[i].setPageShapeSize({width, height});
   }
+  pages_.shrink_to_fit();
 
   layout_manager_.reset();
   view_controller_.reset();

@@ -2,18 +2,18 @@
 
 #include "pdf/pdf_document.h"
 #include "pdf/pdf_page.h"
-#include "utils/settings.h"
 #include "utils/utils.h"
 
 namespace pdf {
 
-PDFDocument::PDFDocument() {
+PDFDocument::PDFDocument(const core::Config &config) {
   locks_.user = this;
   locks_.lock = &PDFDocument::lockMutex;
   locks_.unlock = &PDFDocument::unlockMutex;
 
   is_edited_ = false;
   requires_password_ = false;
+  selection_highlight_color_ = utils::hexToRGBA(config.selection_highlight_color);
 
   ctx_ = fz_new_context(nullptr, &locks_, FZ_STORE_DEFAULT);
   if (!ctx_)
@@ -136,7 +136,6 @@ sf::VertexArray PDFDocument::getSelectionBoxesFromPage(
     return boxes;
 
   const std::vector<fz_quad> quads = page.selectPage(ctx_, pts->first, pts->second);
-  const sf::Color color = utils::hexToRGBA(settings::selection_box_color_);
 
   for (const fz_quad &q : quads) {
     const sf::Vector2f ul{q.ul.x, q.ul.y};
@@ -144,13 +143,13 @@ sf::VertexArray PDFDocument::getSelectionBoxesFromPage(
     const sf::Vector2f lr{q.lr.x, q.lr.y};
     const sf::Vector2f ll{q.ll.x, q.ll.y};
 
-    boxes.append({ul, color});
-    boxes.append({ur, color});
-    boxes.append({lr, color});
+    boxes.append({ul, selection_highlight_color_});
+    boxes.append({ur, selection_highlight_color_});
+    boxes.append({lr, selection_highlight_color_});
 
-    boxes.append({ul, color});
-    boxes.append({lr, color});
-    boxes.append({ll, color});
+    boxes.append({ul, selection_highlight_color_});
+    boxes.append({lr, selection_highlight_color_});
+    boxes.append({ll, selection_highlight_color_});
   }
 
   return boxes;

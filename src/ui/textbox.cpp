@@ -2,7 +2,6 @@
 
 #include <utf8.h>
 
-#include "utils/settings.h"
 #include "utils/utils.h"
 
 namespace ui {
@@ -89,11 +88,6 @@ Textbox::Textbox(
   width_ = 0.f;
   scroll_x_ = 0.f;
 
-  selection_box_.setFillColor(utils::hexToRGB(settings::textbox_highlight_fg_));
-
-  display_text_.setFillColor(utils::hexToRGB(settings::fg_));
-  display_text_selected_.setFillColor(utils::hexToRGB(settings::bg_light_));
-
   cursor_size_ = {0.f, 0.f};
   pos_ = {0.f, 0.f};
 }
@@ -107,7 +101,7 @@ void Textbox::draw(sf::RenderTarget &window) const {
 
   if (clip) {
     const auto tl = window.mapCoordsToPixel({pos_.x, pos_.y});
-    const auto br = window.mapCoordsToPixel({pos_.x + width_, pos_.y + utils::cmdline_height});
+    const auto br = window.mapCoordsToPixel({pos_.x + width_, pos_.y + utils::CMDLINE_HEIGHT});
     const sf::Vector2f target(window.getSize());
 
     sf::View clipped = old_view;
@@ -394,6 +388,19 @@ bool Textbox::isMasked() const {
   return masked_;
 }
 
+void Textbox::setTextColor(const sf::Color &color) {
+  display_text_.setFillColor(color);
+  cursor_.setColor(color);
+}
+
+void Textbox::setHighlightColor(const sf::Color &color) {
+  selection_box_.setFillColor(color);
+}
+
+void Textbox::setHighlightTextColor(const sf::Color &color) {
+  display_text_selected_.setFillColor(color);
+}
+
 std::u32string Textbox::displayString(const std::u32string &s) const {
   if (!masked_)
     return s;
@@ -561,7 +568,7 @@ void Textbox::createSelectionBox() {
   const float left = (start_pos < end_pos) ? start_pos : end_pos;
   const float size = std::abs(start_pos - end_pos);
 
-  selection_box_.setSize({size, utils::cmdline_height});
+  selection_box_.setSize({size, utils::CMDLINE_HEIGHT});
   selection_box_.setPosition({left, pos_.y});
 }
 

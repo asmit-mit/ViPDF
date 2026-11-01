@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "core/config_reader.h"
 #include "pdf/pdf_page.h"
 
 namespace pdf {
@@ -26,7 +27,7 @@ struct OutlineEntry {
 
 class PDFDocument {
 public:
-  PDFDocument();
+  PDFDocument(const core::Config &config);
   ~PDFDocument();
 
   PDFDocument(const PDFDocument &) = delete;
@@ -106,6 +107,7 @@ private:
   fz_context *ctx_;
   fz_document *doc_;
 
+  sf::Color selection_highlight_color_;
 
   bool is_edited_;
   bool requires_password_;

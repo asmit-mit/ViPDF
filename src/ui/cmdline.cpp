@@ -3,7 +3,6 @@
 
 #include "ui/cmdline.h"
 #include "ui/ui_elements.h"
-#include "utils/settings.h"
 #include "utils/utils.h"
 
 namespace ui {
@@ -16,22 +15,30 @@ Cmdline::Cmdline(
     core::HistoryManager &cmd_history,
     core::HistoryManager &search_history,
     ui::Textbox &textbox,
-    ui::Completions &completions
+    ui::Completions &completions,
+    const core::Config &config
+
 )
     : event_bus_(event_bus), cmd_processor_(cmd_processor), cmd_autocomplete_(cmd_autocomplete),
       cmd_history_(cmd_history), search_history_(search_history),
-      label_(font_normal, ":", utils::char_size), textbox_(textbox), completions_(completions) {
+      label_(font_normal, ":", utils::TEXT_SIZE), textbox_(textbox), completions_(completions) {
   visible_ = false;
 
   textbox_.setCursorSize({2.f, 24.f});
+  textbox_.setTextColor(utils::hexToRGB(config.cmdline_text_color));
+  textbox_.setHighlightColor(utils::hexToRGB(config.cmdline_textbox_highlight_color));
+  textbox_.setHighlightTextColor(utils::hexToRGB(config.cmdline_highlight_text_color));
 
-  label_.setFillColor(utils::hexToRGB(settings::fg_));
+  label_.setFillColor(utils::hexToRGB(config.cmdline_text_color));
 
-  display_area_.setFillColor(utils::hexToRGB(settings::bg_light_));
-  display_area_.setSize({200.f, utils::cmdline_height});
+  display_area_.setFillColor(utils::hexToRGB(config.cmdline_background_color));
+  display_area_.setSize({200.f, utils::CMDLINE_HEIGHT});
 
-  completions_.setCmdColor(utils::hexToRGB(settings::fg_));
-  completions_.setDescColor(utils::hexToRGB(settings::completions_desc_fg_));
+  completions_.setBackgroundColor(utils::hexToRGB(config.completions_background_color));
+  completions_.setLeftTextColor(utils::hexToRGB(config.completions_left_text_color));
+  completions_.setRightTextColor(utils::hexToRGB(config.completions_right_text_color));
+  completions_.setLeftHighlightColor(utils::hexToRGB(config.completions_highlight_color));
+  completions_.setRightHighlightColor(utils::hexToRGB(config.completions_highlight_color));
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
     visible_ = focus == ui::UIElements::Cmdline;
@@ -169,16 +176,16 @@ void Cmdline::setMode(CmdlineMode mode) {
 }
 
 void Cmdline::onResize(const sf::Vector2f &size) {
-  display_area_.setSize({size.x, utils::cmdline_height});
+  display_area_.setSize({size.x, utils::CMDLINE_HEIGHT});
   completions_.onResize(size);
   textbox_.setWidth(size.x);
 
   const float curr_x = 0.f;
-  const float curr_y = size.y - utils::cmdline_height;
+  const float curr_y = size.y - utils::CMDLINE_HEIGHT;
   float round_y = std::round(curr_y) + 1.f;
 
   display_area_.setPosition({curr_x, round_y});
-  label_.setPosition({utils::padding - 4.f, round_y});
+  label_.setPosition({utils::PADDING - 4.f, round_y});
 
   const auto bounds = label_.getGlobalBounds();
   textbox_.setPosition({bounds.position.x + bounds.size.x + 3.f, round_y});

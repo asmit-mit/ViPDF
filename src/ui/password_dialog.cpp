@@ -4,29 +4,33 @@
 #include <string>
 
 #include "ui/ui_elements.h"
-#include "utils/settings.h"
 #include "utils/utils.h"
 
 namespace ui {
 
-PasswordDialog::PasswordDialog(const sf::Font &font, core::EventBus &event_bus, ui::Textbox &textbox)
+PasswordDialog::PasswordDialog(
+    const sf::Font &font, core::EventBus &event_bus, ui::Textbox &textbox, const core::Config &config
+)
     : event_bus_(event_bus), label_(font, "Enter password:", 16), textbox_(textbox) {
   visible_ = false;
 
-  label_.setFillColor(utils::hexToRGB(settings::fg_));
+  label_.setFillColor(utils::hexToRGB(config.password_dialog_text_color));
 
-  display_area_.setFillColor(utils::hexToRGB(settings::bg_hard_));
-  display_area_.setOutlineColor(utils::hexToRGB(settings::notification_outline_bg_));
-  display_area_.setOutlineThickness(-utils::outline_thickness);
+  display_area_.setFillColor(utils::hexToRGB(config.password_dialog_background_color));
+  display_area_.setOutlineColor(utils::hexToRGB(config.password_dialog_outline_color));
+  display_area_.setOutlineThickness(-utils::OUTLINE_THICKNESS);
   display_area_.setSize({dialog_width_, dialog_height_});
 
-  password_bg_.setFillColor(utils::hexToRGB(settings::bg_));
-  password_bg_.setOutlineColor(utils::hexToRGB(settings::notification_outline_bg_));
-  password_bg_.setOutlineThickness(-utils::outline_thickness);
+  password_bg_.setFillColor(utils::hexToRGB(config.password_dialog_textbox_background_color));
+  password_bg_.setOutlineColor(utils::hexToRGB(config.password_dialog_textbox_outline_color));
+  password_bg_.setOutlineThickness(-utils::OUTLINE_THICKNESS);
   password_bg_.setSize({dialog_width_ - 2.f * outer_padding_, input_height_});
 
   textbox_.setCursorSize({2.f, 20.f});
   textbox_.setMask(true);
+  textbox_.setTextColor(utils::hexToRGB(config.password_dialog_text_color));
+  textbox_.setHighlightColor(utils::hexToRGB(config.password_dialog_textbox_highlight_color));
+  textbox_.setHighlightTextColor(utils::hexToRGB(config.password_dialog_highlight_text_color));
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
     visible_ = focus == ui::UIElements::PasswordDialog;
@@ -95,8 +99,8 @@ void PasswordDialog::onResize(const sf::Vector2f &size) {
   const float input_y = y + dialog_height_ - outer_padding_ - input_height_;
   password_bg_.setPosition({input_x, input_y});
 
-  textbox_.setWidth(password_bg_.getSize().x - 2.f * utils::padding);
-  textbox_.setPosition({input_x + utils::padding, input_y + 5.f});
+  textbox_.setWidth(password_bg_.getSize().x - 2.f * utils::PADDING);
+  textbox_.setPosition({input_x + utils::PADDING, input_y + 5.f});
 }
 
 } // namespace ui

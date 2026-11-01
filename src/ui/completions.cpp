@@ -2,7 +2,6 @@
 
 #include <utf8.h>
 
-#include "utils/settings.h"
 #include "utils/utils.h"
 
 namespace ui {
@@ -20,10 +19,6 @@ Completions::Completions(
   first_visible_ = 0;
   selected_ = 0;
   selected_has_desc_ = false;
-
-  display_area_.setFillColor(utils::hexToRGB(settings::bg_));
-  selected_cmd_area_.setFillColor(utils::hexToRGB(settings::completion_highlight_bg_));
-  selected_desc_area_.setFillColor(utils::hexToRGB(settings::completion_highlight_bg_));
 
   for (std::size_t i = 0; i < max_list_items_; i++) {
     display_cmd_list_.emplace_back(font_lib, glyph_atlas, font_size);
@@ -52,7 +47,7 @@ void Completions::update() {
     return;
 
   display_area_.setPosition(
-      {0, window_size_.y - display_area_.getSize().y - 2 * utils::cmdline_height + 1.f}
+      {0, window_size_.y - display_area_.getSize().y - 2 * utils::CMDLINE_HEIGHT + 1.f}
   );
 
   const std::size_t last = std::min(first_visible_ + max_list_items_, completions_.size());
@@ -69,34 +64,34 @@ void Completions::update() {
 
   std::size_t row = 0;
   for (std::size_t i = first_visible_; i < last; ++i, ++row) {
-    const float y_pos = display_area_.getPosition().y + row * utils::cmdline_height;
-    display_cmd_list_[row].setPosition({utils::padding, y_pos});
+    const float y_pos = display_area_.getPosition().y + row * utils::CMDLINE_HEIGHT;
+    display_cmd_list_[row].setPosition({utils::PADDING, y_pos});
     display_cmd_list_[row].setFillColor(cmd_fg_color_);
 
     display_desc_list_[row].setPosition(
-        {window_size_.x - display_desc_list_[row].getGlobalBounds().size.x - utils::padding, y_pos}
+        {window_size_.x - display_desc_list_[row].getGlobalBounds().size.x - utils::PADDING, y_pos}
     );
     display_desc_list_[row].setFillColor(desc_fg_color_);
   }
-  display_area_.setSize({window_size_.x, row * utils::cmdline_height});
+  display_area_.setSize({window_size_.x, row * utils::CMDLINE_HEIGHT});
 
   const std::size_t selected_row = selected_ - first_visible_;
   selected_cmd_area_.setPosition(
-      {utils::padding - 2.f, display_cmd_list_[selected_row].getPosition().y}
+      {utils::PADDING - 2.f, display_cmd_list_[selected_row].getPosition().y}
   );
   selected_cmd_area_.setSize(
-      {display_cmd_list_[selected_row].getSize().x + 6.f, utils::cmdline_height}
+      {display_cmd_list_[selected_row].getSize().x + 6.f, utils::CMDLINE_HEIGHT}
   );
 
   if (!display_desc_list_[selected_row].getString().isEmpty()) {
     selected_desc_area_.setPosition(
         {window_size_.x - display_desc_list_[selected_row].getGlobalBounds().size.x -
-             utils::padding - 4.f,
+             utils::PADDING - 4.f,
          display_desc_list_[selected_row].getPosition().y}
     );
     selected_desc_area_.setSize(
-        {display_desc_list_[selected_row].getGlobalBounds().size.x + utils::padding,
-         utils::cmdline_height}
+        {display_desc_list_[selected_row].getGlobalBounds().size.x + utils::PADDING,
+         utils::CMDLINE_HEIGHT}
     );
     selected_has_desc_ = true;
   } else
@@ -109,16 +104,23 @@ void Completions::onResize(const sf::Vector2f &size) {
   window_size_ = size;
 }
 
-void Completions::setFillColor(const sf::Color &color) {
+void Completions::setBackgroundColor(const sf::Color &color) {
   display_area_.setFillColor(color);
 }
 
-void Completions::setCmdColor(const sf::Color &color) {
+void Completions::setLeftTextColor(const sf::Color &color) {
   cmd_fg_color_ = color;
 }
 
-void Completions::setDescColor(const sf::Color &color) {
+void Completions::setRightTextColor(const sf::Color &color) {
   desc_fg_color_ = color;
+}
+
+void Completions::setLeftHighlightColor(const sf::Color &color) {
+  selected_cmd_area_.setFillColor(color);
+}
+void Completions::setRightHighlightColor(const sf::Color &color) {
+  selected_desc_area_.setFillColor(color);
 }
 
 void Completions::setPosition(const sf::Vector2f &pos) {
@@ -129,7 +131,7 @@ void Completions::setCompletionList(std::vector<core::CmdAutocompleteItem> list)
   clear();
   completions_ = std::move(list);
 
-  float height = std::min(max_list_items_, list.size()) * utils::cmdline_height;
+  float height = std::min(max_list_items_, list.size()) * utils::CMDLINE_HEIGHT;
   display_area_.setSize({window_size_.x, height});
 
   list_dirty_ = true;
