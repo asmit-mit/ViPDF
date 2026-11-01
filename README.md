@@ -19,7 +19,6 @@ The following dependencies must be installed manually, using your system's packa
 | --------------------------------------- | ------------------ |
 | [SFML](https://www.sfml-dev.org/)       | 3.1.0+             |
 | [MuPDF](https://mupdf.com/)             | any recent version |
-| [HarfBuzz](https://harfbuzz.github.io/) | 14.3.0+            |
 | [Meson](https://mesonbuild.com/)        | build system       |
 
 ## Installation

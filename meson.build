@@ -8,10 +8,24 @@ project('vipdf', 'cpp',
 )
 project_name = meson.project_name()
 
+hb_proj = subproject('harfbuzz', default_options: [
+  'default_library=static',
+  'raster=enabled',
+  'freetype=enabled',
+  'tests=disabled',
+  'docs=disabled',
+  'benchmark=disabled',
+  'utilities=disabled',
+  'glib=disabled',
+  'gobject=disabled',
+  'icu=disabled',
+  'cairo=disabled',
+])
+
 sfml_dep = dependency('sfml-graphics', required: true)
 mupdf_dep = dependency('mupdf', required: true)
-harfbuzz_dep = dependency('harfbuzz', version: '>= 14.3.0', required: true)
-harfbuzz_raster_dep = dependency('harfbuzz-raster', version: '>= 14.3.0', required: true)
+harfbuzz_dep = hb_proj.get_variable('libharfbuzz_dep')
+harfbuzz_raster_dep = hb_proj.get_variable('libharfbuzz_raster_dep')
 freetype_dep = dependency('freetype2', required: true)
 sqlitecpp_dep = dependency('sqlitecpp', required: true)
 
