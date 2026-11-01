@@ -15,7 +15,7 @@ CmdLoader::CmdLoader(const std::filesystem::path path) {
     throwJsonReadError("not an array");
 
   for (const auto &cmd : data)
-    parseCmd(cmd, "", 0);
+    parseCmd(cmd, {}, 0);
   commands_.shrink_to_fit();
 }
 
@@ -50,7 +50,8 @@ std::vector<const Cmd *> CmdLoader::childrenOf(const std::string &scoped_key) co
   return res;
 }
 
-std::size_t CmdLoader::parseCmd(const json &obj, const std::string &parent_key, int depth) {
+std::size_t
+CmdLoader::parseCmd(const json &obj, const std::vector<std::string> &parent_keys, int depth) {
   if (!obj.is_object())
     throwJsonReadError("command entry is not an object");
 
@@ -69,28 +70,37 @@ std::size_t CmdLoader::parseCmd(const json &obj, const std::string &parent_key, 
   if (auto it = obj.find("alias"); it != obj.end() && it->is_string())
     alias = it->get<std::string>();
 
-  std::string alias_key;
-  std::string scoped_key = parent_key.empty() ? cmd.name : parent_key + "." + cmd.name;
+  // Names this command answers to: its name, plus alias if present
+  std::vector<std::string> own_names{cmd.name};
   if (!alias.empty())
-    alias_key = parent_key.empty() ? alias : parent_key + "." + alias;
+    own_names.push_back(alias);
 
-  size_t idx = commands_.size();
+  // Cartesian product: every parent key x every own name
+  std::vector<std::string> keys;
+  if (parent_keys.empty()) {
+    keys = own_names;
+  } else {
+    for (const auto &pk : parent_keys)
+      for (const auto &n : own_names)
+        keys.push_back(pk + "." + n);
+  }
+
+  std::size_t idx = commands_.size();
   if (depth == 0)
     roots_.push_back(idx);
   commands_.push_back({});
 
   if (auto it = obj.find("children"); it != obj.end() && it->is_array()) {
     for (const auto &child : *it) {
-      size_t child_idx = parseCmd(child, scoped_key, depth + 1);
+      std::size_t child_idx = parseCmd(child, keys, depth + 1);
       commands_[idx].children.push_back(child_idx);
     }
   }
 
   cmd.children = std::move(commands_[idx].children);
   commands_[idx] = std::move(cmd);
-  index_[scoped_key] = idx;
-  if (!alias_key.empty())
-    index_[alias_key] = idx;
+  for (const auto &k : keys)
+    index_[k] = idx;
   return idx;
 }
 

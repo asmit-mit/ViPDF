@@ -45,7 +45,7 @@ public:
   std::vector<const Cmd *> childrenOf(const std::string &scoped_key) const;
 
 private:
-  size_t parseCmd(const json &obj, const std::string &parent_key, int depth);
+  std::size_t parseCmd(const json &obj, const std::vector<std::string> &parent_keys, int depth);
   [[noreturn]] void throwJsonReadError(const std::string_view error) const;
 
   template <typename T> T requireField(const json &obj, const char *key) {

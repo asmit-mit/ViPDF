@@ -14,7 +14,7 @@ App::App()
           {graphics::FontType::Regular, (asset_dir_ / utils::FONT_REGULAR).c_str()},
           {graphics::FontType::Bold, (asset_dir_ / utils::FONT_BOLD).c_str()},
           {graphics::FontType::Italic, (asset_dir_ / utils::FONT_ITALITC).c_str()},
-          {graphics::FontType::CJK, (asset_dir_ / utils::FONT_ITALITC).c_str()},
+          {graphics::FontType::CJK, (asset_dir_ / utils::FONT_CJK).c_str()},
           {graphics::FontType::Emoji, (asset_dir_ / utils::FONT_EMOJI).c_str()},
       }),
       cmd_history_(utils::ensureParent(state_dir_ / utils::CMD_HISTORY)),
