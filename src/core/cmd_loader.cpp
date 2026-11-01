@@ -70,12 +70,10 @@ CmdLoader::parseCmd(const json &obj, const std::vector<std::string> &parent_keys
   if (auto it = obj.find("alias"); it != obj.end() && it->is_string())
     alias = it->get<std::string>();
 
-  // Names this command answers to: its name, plus alias if present
   std::vector<std::string> own_names{cmd.name};
   if (!alias.empty())
     own_names.push_back(alias);
 
-  // Cartesian product: every parent key x every own name
   std::vector<std::string> keys;
   if (parent_keys.empty()) {
     keys = own_names;
