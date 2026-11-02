@@ -2,18 +2,16 @@
 
 #include "pdf/pdf_document.h"
 #include "pdf/pdf_page.h"
-#include "utils/utils.h"
 
 namespace pdf {
 
-PDFDocument::PDFDocument(const core::Config &config) {
+PDFDocument::PDFDocument() {
   locks_.user = this;
   locks_.lock = &PDFDocument::lockMutex;
   locks_.unlock = &PDFDocument::unlockMutex;
 
   is_edited_ = false;
   requires_password_ = false;
-  selection_highlight_color_ = utils::hexToRGBA(config.selection_highlight_color);
 
   ctx_ = fz_new_context(nullptr, &locks_, FZ_STORE_DEFAULT);
   if (!ctx_)
@@ -117,15 +115,14 @@ std::vector<fz_rect> PDFDocument::searchPage(std::size_t page_idx, const std::st
   return rects;
 }
 
-sf::VertexArray PDFDocument::getSelectionBoxesFromPage(
+const std::vector<fz_quad> *PDFDocument::getSelectionBoxesFromPage(
     std::size_t page_idx,
     PDFSelectionDirection direction,
     const std::optional<sf::Vector2f> &mouse_pos1,
     const std::optional<sf::Vector2f> &mouse_pos2
 ) {
-  sf::VertexArray boxes{sf::PrimitiveType::Triangles};
   if (!doc_ || page_idx >= pages_.size())
-    return boxes;
+    return nullptr;
 
   PDFPage &page = pages_[page_idx];
   if (!page.isContentLoaded())
@@ -133,26 +130,9 @@ sf::VertexArray PDFDocument::getSelectionBoxesFromPage(
 
   const auto pts = selectionPoints(page_idx, direction, mouse_pos1, mouse_pos2);
   if (!pts)
-    return boxes;
+    return nullptr;
 
-  const std::vector<fz_quad> quads = page.selectPage(ctx_, pts->first, pts->second);
-
-  for (const fz_quad &q : quads) {
-    const sf::Vector2f ul{q.ul.x, q.ul.y};
-    const sf::Vector2f ur{q.ur.x, q.ur.y};
-    const sf::Vector2f lr{q.lr.x, q.lr.y};
-    const sf::Vector2f ll{q.ll.x, q.ll.y};
-
-    boxes.append({ul, selection_highlight_color_});
-    boxes.append({ur, selection_highlight_color_});
-    boxes.append({lr, selection_highlight_color_});
-
-    boxes.append({ul, selection_highlight_color_});
-    boxes.append({lr, selection_highlight_color_});
-    boxes.append({ll, selection_highlight_color_});
-  }
-
-  return boxes;
+  return &page.selectPage(ctx_, pts->first, pts->second);
 }
 
 std::string PDFDocument::copySelectionFromPage(

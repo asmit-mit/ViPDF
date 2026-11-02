@@ -5,6 +5,7 @@
 #include "core/config_reader.h"
 #include "core/event_bus.h"
 #include "core/history_manager.h"
+#include "core/input_handler.h"
 #include "ui/completions.h"
 #include "ui/textbox.h"
 #include "ui/widget.h"
@@ -12,8 +13,19 @@
 namespace ui {
 
 enum class CmdlineMode {
-  Cmd = 0,
+  Cmd,
   Search,
+};
+
+enum class CmdlineAction {
+  Cancel,
+  Submit,
+  HistoryPrev,
+  HistoryNext,
+  CompleteNext,
+  CompletePrev,
+  SelectNext,
+  SelectPrev,
 };
 
 class Cmdline : public Widget {
@@ -38,8 +50,16 @@ public:
   void onResize(const sf::Vector2f &size);
 
 private:
-  void reset();
+  void registerKeybindings();
+  bool shouldProcessEvent(const sf::Event &event);
+
+  bool executeCmd(CmdlineAction action);
+  bool executeSearch(CmdlineAction action);
+  void stepCompletions(bool down);
+  void hideCompletions();
+
   void refreshCompletions();
+  void reset();
 
 private:
   core::EventBus &event_bus_;
@@ -47,6 +67,9 @@ private:
   core::CmdAutocomplete &cmd_autocomplete_;
   core::HistoryManager &cmd_history_;
   core::HistoryManager &search_history_;
+
+  core::InputHandler<CmdlineAction> cmd_input_;
+  core::InputHandler<CmdlineAction> search_input_;
 
   sf::Text label_;
   ui::Textbox &textbox_;

@@ -19,7 +19,12 @@ struct PDFSearchResult {
 
 class PageView : public Widget {
 public:
-  PageView(const sf::Texture &dummy, const sf::Color normal_color, const sf::Color selected_color);
+  PageView(
+      const sf::Texture &dummy,
+      const sf::Color selection_color,
+      const sf::Color unselected_color,
+      const sf::Color selected_color
+  );
 
   void draw(sf::RenderTarget &window) const override;
   void update() override;
@@ -49,7 +54,7 @@ public:
   void setSearchResults(PDFSearchResult search_results);
   void clearSearchResults();
 
-  void setSelections(sf::VertexArray selection_boxes);
+  void setSelections(const std::vector<fz_quad> *quads);
   void clearSelections();
 
   void setPageShapeSize(sf::Vector2f size);
@@ -74,8 +79,9 @@ private:
   bool active_;
   bool update_search_boxes_;
 
-  sf::Color normal_color_;
-  sf::Color selected_color_;
+  const sf::Color selection_color_;
+  const sf::Color unselected_color_;
+  const sf::Color selected_color_;
 };
 
 } // namespace ui

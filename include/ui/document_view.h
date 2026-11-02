@@ -125,8 +125,9 @@ private:
   sf::Vector2f right_click_pos_;
   int right_click_on_page_;
 
-  sf::Color search_box_color_;
-  sf::Color selected_search_box_color_;
+  const sf::Color selection_box_color_;
+  const sf::Color search_box_color_;
+  const sf::Color selected_search_box_color_;
 
   std::optional<int> pending_page_swtich_;
 

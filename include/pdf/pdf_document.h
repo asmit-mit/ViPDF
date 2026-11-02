@@ -6,10 +6,10 @@
 #include <memory>
 #include <mupdf/pdf.h>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "core/config_reader.h"
 #include "pdf/pdf_page.h"
 
 namespace pdf {
@@ -27,7 +27,7 @@ struct OutlineEntry {
 
 class PDFDocument {
 public:
-  PDFDocument(const core::Config &config);
+  PDFDocument();
   ~PDFDocument();
 
   PDFDocument(const PDFDocument &) = delete;
@@ -41,17 +41,17 @@ public:
   std::string &getFilePath();
   PDFPage &getPage(std::size_t page_idx);
   std::vector<fz_rect> searchPage(std::size_t page_idx, const std::string &needle);
-  sf::VertexArray getSelectionBoxesFromPage(
+  const std::vector<fz_quad> *getSelectionBoxesFromPage(
       std::size_t page_idx,
       PDFSelectionDirection direction,
-      const std::optional<sf::Vector2f> &mouse_pos1,
-      const std::optional<sf::Vector2f> &mouse_pos2
+      const std::optional<sf::Vector2f> &mouse_pos1 = std::nullopt,
+      const std::optional<sf::Vector2f> &mouse_pos2 = std::nullopt
   );
   std::string copySelectionFromPage(
       std::size_t page_idx,
       PDFSelectionDirection direction,
-      const std::optional<sf::Vector2f> &mouse_pos1,
-      const std::optional<sf::Vector2f> &mouse_pos2
+      const std::optional<sf::Vector2f> &mouse_pos1 = std::nullopt,
+      const std::optional<sf::Vector2f> &mouse_pos2 = std::nullopt
   );
 
   const std::vector<OutlineEntry> &getOutline() const;
@@ -106,8 +106,6 @@ private:
 
   fz_context *ctx_;
   fz_document *doc_;
-
-  sf::Color selection_highlight_color_;
 
   bool is_edited_;
   bool requires_password_;

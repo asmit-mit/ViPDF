@@ -63,7 +63,7 @@ void PDFSelectionController::setSelectionEnd(std::size_t page_idx, const sf::Vec
 
   for (std::size_t i = 0; i < pages_.size(); ++i) {
     if (i < first_page || i > last_page) {
-      pages_[i].setSelections(sf::VertexArray{sf::PrimitiveType::Triangles});
+      pages_[i].clearSelections();
       continue;
     }
 
@@ -73,17 +73,12 @@ void PDFSelectionController::setSelectionEnd(std::size_t page_idx, const sf::Vec
       );
     else if (i == first_page)
       pages_[i].setSelections(
-          document_.getSelectionBoxesFromPage(i, PDFSelectionDirection::DOWN, p1, std::nullopt)
+          document_.getSelectionBoxesFromPage(i, PDFSelectionDirection::DOWN, p1)
       );
     else if (i == last_page)
-      pages_[i].setSelections(
-          document_.getSelectionBoxesFromPage(i, PDFSelectionDirection::UP, p2, std::nullopt)
-      );
+      pages_[i].setSelections(document_.getSelectionBoxesFromPage(i, PDFSelectionDirection::UP, p2));
     else
-      pages_[i].setSelections(
-          document_
-              .getSelectionBoxesFromPage(i, PDFSelectionDirection::ALL, std::nullopt, std::nullopt)
-      );
+      pages_[i].setSelections(document_.getSelectionBoxesFromPage(i, PDFSelectionDirection::ALL));
   }
 }
 
@@ -106,12 +101,11 @@ std::string PDFSelectionController::copySelection() {
     if (first_page == last_page)
       part = document_.copySelectionFromPage(i, PDFSelectionDirection::INSIDE, p1, p2);
     else if (i == first_page)
-      part = document_.copySelectionFromPage(i, PDFSelectionDirection::DOWN, p1, std::nullopt);
+      part = document_.copySelectionFromPage(i, PDFSelectionDirection::DOWN, p1);
     else if (i == last_page)
-      part = document_.copySelectionFromPage(i, PDFSelectionDirection::UP, p2, std::nullopt);
+      part = document_.copySelectionFromPage(i, PDFSelectionDirection::UP, p2);
     else
-      part = document_
-                 .copySelectionFromPage(i, PDFSelectionDirection::ALL, std::nullopt, std::nullopt);
+      part = document_.copySelectionFromPage(i, PDFSelectionDirection::ALL);
 
     if (part.empty())
       continue;
@@ -140,7 +134,7 @@ void PDFSelectionController::reset() {
   start_point_ = {0.f, 0.f};
   end_point_ = {0.f, 0.f};
   for (auto &page : pages_)
-    page.setSelections(sf::VertexArray{sf::PrimitiveType::Triangles});
+    page.clearSelections();
   document_.clearSelections();
 }
 

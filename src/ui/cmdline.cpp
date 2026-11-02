@@ -48,6 +48,8 @@ Cmdline::Cmdline(
       textbox_.show();
     }
   });
+
+  registerKeybindings();
 }
 
 void Cmdline::draw(sf::RenderTarget &window) const {
@@ -72,96 +74,19 @@ void Cmdline::handleEvent(const sf::Event &event) {
   if (!visible_)
     return;
 
-  if (const auto *te = event.getIf<sf::Event::TextEntered>()) {
-    if (te->unicode == '\t')
+  if (const auto *te = event.getIf<sf::Event::TextEntered>(); te && te->unicode == '\t')
+    return;
+
+  const bool cmd_mode = mode_ == CmdlineMode::Cmd;
+
+  if (cmd_mode && completions_.isVisible() && shouldProcessEvent(event))
+    hideCompletions();
+
+  auto &input = cmd_mode ? cmd_input_ : search_input_;
+  if (const auto cmd = input.handleEvent(event)) {
+    const bool consumed = cmd_mode ? executeCmd(cmd->action) : executeSearch(cmd->action);
+    if (consumed)
       return;
-  }
-
-  const auto *key = event.getIf<sf::Event::KeyPressed>();
-
-  if (mode_ == CmdlineMode::Cmd) {
-    if (completions_.isVisible()) {
-      bool is_edit = false;
-      if (const auto *te = event.getIf<sf::Event::TextEntered>())
-        is_edit = te->unicode >= 0x20 && te->unicode != 0x7F;
-      if (!is_edit && key)
-        is_edit = key->code == sf::Keyboard::Key::Backspace ||
-                  key->code == sf::Keyboard::Key::Delete;
-      if (is_edit) {
-        completions_.clear();
-        completions_.hide();
-      }
-    }
-
-    if (key) {
-      if (key->code == sf::Keyboard::Key::Escape) {
-        if (completions_.isVisible()) {
-          completions_.clear();
-          completions_.hide();
-          textbox_.setText(original_string_);
-          return;
-        }
-        event_bus_.emit("ui.focus", ui::UIElements::PDFView);
-        cmd_history_.reset();
-      } else if (key->code == sf::Keyboard::Key::Enter) {
-        if (completions_.isVisible()) {
-          textbox_.setText(completions_.getSelectedText());
-          completions_.clear();
-          completions_.hide();
-          return;
-        }
-        cmd_history_.add(textbox_.getText());
-        try {
-          cmd_processor_.runCommand(textbox_.getText());
-        } catch (const std::runtime_error &e) {
-          event_bus_.emit("notification.msg", std::string(e.what()));
-        }
-        event_bus_.emit("ui.focus", ui::UIElements::PDFView);
-        reset();
-      } else if (key->code == sf::Keyboard::Key::P && key->control) {
-        textbox_.setText(cmd_history_.getPrevious());
-      } else if (key->code == sf::Keyboard::Key::N && key->control) {
-        textbox_.setText(cmd_history_.getNext());
-      } else if (key->code == sf::Keyboard::Key::Tab) {
-        if (!completions_.isVisible()) {
-          original_string_ = textbox_.getText();
-          refreshCompletions();
-        } else {
-          if (key->shift)
-            completions_.moveUp();
-          else
-            completions_.moveDown();
-          textbox_.setText(completions_.getSelectedText());
-        }
-        return;
-      } else if (key->code == sf::Keyboard::Key::J && key->control) {
-        if (completions_.isVisible()) {
-          completions_.moveDown();
-          textbox_.setText(completions_.getSelectedText());
-        }
-        return;
-      } else if (key->code == sf::Keyboard::Key::K && key->control) {
-        if (completions_.isVisible()) {
-          completions_.moveUp();
-          textbox_.setText(completions_.getSelectedText());
-        }
-        return;
-      }
-    }
-  } else {
-    if (key) {
-      if (key->code == sf::Keyboard::Key::Escape) {
-        event_bus_.emit("ui.focus", ui::UIElements::PDFView);
-      } else if (key->code == sf::Keyboard::Key::Enter) {
-        search_history_.add(textbox_.getText());
-        event_bus_.emit("cmd.search", textbox_.getTextU32());
-        event_bus_.emit("ui.focus", ui::UIElements::PDFView);
-      } else if (key->code == sf::Keyboard::Key::P && key->control) {
-        textbox_.setText(search_history_.getPrevious());
-      } else if (key->code == sf::Keyboard::Key::N && key->control) {
-        textbox_.setText(search_history_.getNext());
-      }
-    }
   }
 
   textbox_.handleEvent(event);
@@ -191,10 +116,118 @@ void Cmdline::onResize(const sf::Vector2f &size) {
   textbox_.setPosition({bounds.position.x + bounds.size.x + 3.f, round_y});
 }
 
-void Cmdline::reset() {
-  textbox_.reset();
-  textbox_.stopEditing();
-  textbox_.hide();
+void Cmdline::registerKeybindings() {
+  using Key = sf::Keyboard::Key;
+
+  for (auto *handler : {&cmd_input_, &search_input_}) {
+    handler->bind({{Key::Escape}}, CmdlineAction::Cancel);
+    handler->bind({{Key::Enter}}, CmdlineAction::Submit);
+    handler->bind({{Key::P, true}}, CmdlineAction::HistoryPrev);
+    handler->bind({{Key::N, true}}, CmdlineAction::HistoryNext);
+
+    handler->bind({{Key::Up}}, CmdlineAction::HistoryPrev);
+    handler->bind({{Key::Down}}, CmdlineAction::HistoryNext);
+  }
+
+  cmd_input_.bind({{Key::Tab}}, CmdlineAction::CompleteNext);
+  cmd_input_.bind({{Key::Tab, false, true}}, CmdlineAction::CompletePrev);
+  cmd_input_.bind({{Key::J, true}}, CmdlineAction::SelectNext);
+  cmd_input_.bind({{Key::K, true}}, CmdlineAction::SelectPrev);
+}
+
+bool Cmdline::shouldProcessEvent(const sf::Event &event) {
+  if (const auto *te = event.getIf<sf::Event::TextEntered>())
+    return te->unicode >= 0x20 && te->unicode != 0x7F;
+  if (const auto *key = event.getIf<sf::Event::KeyPressed>())
+    return key->code == sf::Keyboard::Key::Backspace || key->code == sf::Keyboard::Key::Delete;
+  return false;
+}
+
+bool Cmdline::executeCmd(CmdlineAction action) {
+  switch (action) {
+  case CmdlineAction::Cancel:
+    if (completions_.isVisible()) {
+      hideCompletions();
+      textbox_.setText(original_string_);
+      return true;
+    }
+    event_bus_.emit("ui.focus", ui::UIElements::PDFView);
+    cmd_history_.reset();
+    return false;
+
+  case CmdlineAction::Submit:
+    if (completions_.isVisible()) {
+      textbox_.setText(completions_.getSelectedText());
+      hideCompletions();
+      return true;
+    }
+    cmd_history_.add(textbox_.getText());
+    try {
+      cmd_processor_.runCommand(textbox_.getText());
+    } catch (const std::runtime_error &e) {
+      event_bus_.emit("notification.msg", std::string(e.what()));
+    }
+    event_bus_.emit("ui.focus", ui::UIElements::PDFView);
+    reset();
+    return false;
+
+  case CmdlineAction::HistoryPrev:
+    textbox_.setText(cmd_history_.getPrevious());
+    return false;
+  case CmdlineAction::HistoryNext:
+    textbox_.setText(cmd_history_.getNext());
+    return false;
+
+  case CmdlineAction::CompleteNext:
+  case CmdlineAction::CompletePrev:
+    if (!completions_.isVisible()) {
+      original_string_ = textbox_.getText();
+      refreshCompletions();
+    } else {
+      stepCompletions(action == CmdlineAction::CompleteNext);
+    }
+    return true;
+
+  case CmdlineAction::SelectNext:
+  case CmdlineAction::SelectPrev:
+    if (completions_.isVisible())
+      stepCompletions(action == CmdlineAction::SelectNext);
+    return true;
+  }
+  return false;
+}
+
+bool Cmdline::executeSearch(CmdlineAction action) {
+  switch (action) {
+  case CmdlineAction::Cancel:
+    event_bus_.emit("ui.focus", ui::UIElements::PDFView);
+    break;
+  case CmdlineAction::Submit:
+    search_history_.add(textbox_.getText());
+    event_bus_.emit("cmd.search", textbox_.getTextU32());
+    event_bus_.emit("ui.focus", ui::UIElements::PDFView);
+    break;
+  case CmdlineAction::HistoryPrev:
+    textbox_.setText(search_history_.getPrevious());
+    break;
+  case CmdlineAction::HistoryNext:
+    textbox_.setText(search_history_.getNext());
+    break;
+  default:
+    break;
+  }
+  return false;
+}
+
+void Cmdline::stepCompletions(bool down) {
+  if (down)
+    completions_.moveDown();
+  else
+    completions_.moveUp();
+  textbox_.setText(completions_.getSelectedText());
+}
+
+void Cmdline::hideCompletions() {
   completions_.clear();
   completions_.hide();
 }
@@ -218,6 +251,14 @@ void Cmdline::refreshCompletions() {
   completions_.setCompletionList(std::move(list));
   completions_.show();
   textbox_.setText(completions_.getSelectedText());
+}
+
+void Cmdline::reset() {
+  textbox_.reset();
+  textbox_.stopEditing();
+  textbox_.hide();
+  completions_.clear();
+  completions_.hide();
 }
 
 } // namespace ui

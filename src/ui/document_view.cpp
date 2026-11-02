@@ -23,7 +23,10 @@ DocumentView::DocumentView(
     : document_(document), layout_manager_(scheduler, pages_), view_controller_(scheduler, pages_),
       search_controller_(pages_), selection_controller_(document_, pages_), config_(config),
       event_bus_(event_bus), file_history_(file_history), bookmark_manager_(bookmark_manager),
-      scheduler_(scheduler) {
+      scheduler_(scheduler),
+      selection_box_color_(utils::hexToRGBA(config.selection_highlight_color)),
+      search_box_color_(utils::hexToRGBA(config.search_box_color)),
+      selected_search_box_color_(utils::hexToRGBA(config.search_highlight_color)) {
   should_take_input_ = true;
   recolor_ = config_.default_recolor;
   update_recolor_ = false;
@@ -32,9 +35,6 @@ DocumentView::DocumentView(
 
   right_click_pos_ = {0.f, 0.f};
   right_click_on_page_ = -1;
-
-  search_box_color_ = utils::hexToRGB(config.search_box_color);
-  selected_search_box_color_ = utils::hexToRGB(config.search_highlight_color);
 
   layout_manager_.setAnchorPage(0);
   layout_manager_.setFrontPage(0);
@@ -580,8 +580,16 @@ void DocumentView::registerKeybindings() {
   input_handler_.bind({{Key::K}}, DocumentAction::PanUp);
   input_handler_.bind({{Key::J}}, DocumentAction::PanDown);
 
+  input_handler_.bind({{Key::Left}}, DocumentAction::PanLeft);
+  input_handler_.bind({{Key::Right}}, DocumentAction::PanRight);
+  input_handler_.bind({{Key::Up}}, DocumentAction::PanUp);
+  input_handler_.bind({{Key::Down}}, DocumentAction::PanDown);
+
   input_handler_.bind({{Key::U}}, DocumentAction::PrevPage);
   input_handler_.bind({{Key::D}}, DocumentAction::NextPage);
+
+  input_handler_.bind({{Key::PageUp}}, DocumentAction::PrevPage);
+  input_handler_.bind({{Key::PageDown}}, DocumentAction::NextPage);
 
   input_handler_.bind({{Key::U, true}}, DocumentAction::HalfPageUp);
   input_handler_.bind({{Key::D, true}}, DocumentAction::HalfPageDown);
@@ -720,7 +728,7 @@ void DocumentView::resetView() {
 
   pages_.clear();
   for (std::size_t i = 0; i < document_.pageCount(); i++) {
-    pages_.emplace_back(dummy_, search_box_color_, selected_search_box_color_);
+    pages_.emplace_back(dummy_, selection_box_color_, search_box_color_, selected_search_box_color_);
     const auto &bounds = document_.getPage(i).getPageBounds();
     float width = bounds.x1 - bounds.x0;
     float height = bounds.y1 - bounds.y0;

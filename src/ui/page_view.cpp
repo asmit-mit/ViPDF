@@ -3,10 +3,13 @@
 namespace ui {
 
 PageView::PageView(
-    const sf::Texture &dummy, const sf::Color normal_color, const sf::Color selected_color
+    const sf::Texture &dummy,
+    const sf::Color selection_color,
+    const sf::Color unselected_color,
+    const sf::Color selected_color
 )
-    : sprite_(dummy), key_(0, 0, 0, 0), normal_color_(normal_color),
-      selected_color_(selected_color) {
+    : sprite_(dummy), key_(0, 0, 0, 0), selection_color_(selection_color),
+      unselected_color_(unselected_color), selected_color_(selected_color) {
   active_ = false;
   update_search_boxes_ = false;
   selected_search_result_ = -1;
@@ -31,7 +34,7 @@ void PageView::update() {
     search_boxes_.clear();
 
     for (std::size_t i = 0; i < search_result_.local_rects.size(); i++) {
-      const sf::Color &color = (i == selected_search_result_) ? selected_color_ : normal_color_;
+      const sf::Color &color = (i == selected_search_result_) ? selected_color_ : unselected_color_;
 
       const auto &rect = search_result_.local_rects[i];
       sf::Vector2f tl = {rect.x0, rect.y0};
@@ -132,8 +135,23 @@ void PageView::clearSearchResults() {
   selected_search_result_ = -1;
 }
 
-void PageView::setSelections(sf::VertexArray selection_boxes) {
-  selection_boxes_ = std::move(selection_boxes);
+void PageView::setSelections(const std::vector<fz_quad> *quads) {
+  selection_boxes_.clear();
+
+  for (const auto &q : *quads) {
+    const auto rect = fz_rect_from_quad(q);
+    sf::Vector2f tl = {rect.x0, rect.y0};
+    sf::Vector2f tr = {rect.x1, rect.y0};
+    sf::Vector2f br = {rect.x1, rect.y1};
+    sf::Vector2f bl = {rect.x0, rect.y1};
+
+    selection_boxes_.append({tl, selection_color_});
+    selection_boxes_.append({tr, selection_color_});
+    selection_boxes_.append({br, selection_color_});
+    selection_boxes_.append({tl, selection_color_});
+    selection_boxes_.append({br, selection_color_});
+    selection_boxes_.append({bl, selection_color_});
+  }
 }
 
 void PageView::clearSelections() {
@@ -147,8 +165,10 @@ void PageView::setPageShapeSize(sf::Vector2f size) {
 }
 
 void PageView::syncPageShapePos() {
-  original_shape_.setPosition(sprite_.getPosition());
-  update_search_boxes_ = true;
+  const sf::Vector2f pos = sprite_.getPosition();
+  if (pos == original_shape_.getPosition())
+    return;
+  original_shape_.setPosition(pos);
 }
 
 void PageView::syncPageShape(int rot) {
@@ -166,7 +186,6 @@ void PageView::syncPageShape(int rot) {
     return;
 
   original_shape_.setScale({page_size.x / shape_size.x, page_size.y / shape_size.y});
-  update_search_boxes_ = true;
 }
 
 bool PageView::hasTexture() const {
