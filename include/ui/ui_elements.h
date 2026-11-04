@@ -11,6 +11,7 @@ enum class UIElements {
 };
 
 enum class CursorType {
+  Hand,
   Arrow,
   Text,
 };

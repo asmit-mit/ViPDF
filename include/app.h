@@ -76,6 +76,7 @@ private:
   ui::UIElements focus_;
 
   sf::Color app_bg_color_;
+  sf::Cursor hand_cursor_;
   sf::Cursor arrow_cursor_;
   sf::Cursor text_cursor_;
 

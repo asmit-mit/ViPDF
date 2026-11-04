@@ -90,7 +90,6 @@ void PDFViewController::syncWithTargetState(
     if (i != anchor) {
       page.setScale({scale_x, scale_y});
       page.setRotation(delta);
-      page.syncPageShape(target_state_.rotate);
       continue;
     }
 
@@ -99,7 +98,6 @@ void PDFViewController::syncWithTargetState(
 
     page.setScale({scale_x, scale_y});
     page.setRotation(delta);
-    page.syncPageShape(target_state_.rotate);
 
     if (delta == 0) {
       const auto &focus_after = page.getSprite().getTransform().transformPoint(local_focus);

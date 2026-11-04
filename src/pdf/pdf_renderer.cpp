@@ -105,6 +105,7 @@ PDFRenderer::getOrLoadDisplayList(std::size_t page_idx, fz_context *ctx, fz_docu
 fz_display_list *
 PDFRenderer::getPageDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc) {
   fz_page *page = nullptr;
+  fz_var(page);
 
   fz_try(ctx) page = fz_load_page(ctx, doc, page_idx);
   fz_catch(ctx) throw std::runtime_error("Failed to load page");
@@ -134,6 +135,8 @@ PDFRenderer::getPixmapFromDisplayList(fz_context *ctx, fz_display_list *list, fl
 
   fz_pixmap *pix = nullptr;
   fz_device *dev = nullptr;
+  fz_var(pix);
+  fz_var(dev);
 
   fz_rect bounds = fz_bound_display_list(ctx, list);
   fz_rect transformed = fz_transform_rect(bounds, ctm);

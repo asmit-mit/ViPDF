@@ -8,7 +8,7 @@ RenderScheduler::RenderScheduler(
     pdf::PDFDocument &document, pdf::PDFRenderer &renderer, const Config &config
 )
     : document_(document), renderer_(renderer), image_cache_(config.page_cache_size),
-      texture_cache_(config.page_cache_size), active_jobs_(0), quiescing_(false), stop_(false) {
+      texture_cache_(config.page_cache_size), active_jobs_(0), quiescing_(false) {
   worker_count_ = config.thread_count;
   cache_size_ = config.page_cache_size;
 
@@ -18,19 +18,18 @@ RenderScheduler::RenderScheduler(
 
   workers_.reserve(worker_count_);
   for (std::size_t i = 0; i < worker_count_; i++)
-    workers_.emplace_back(&RenderScheduler::workerLoop, this, i);
+    workers_.emplace_back([this, i](std::stop_token st) { workerLoop(st, i); });
 }
 
 RenderScheduler::~RenderScheduler() {
   {
     std::lock_guard lock(lock_);
     clearCacheLocked();
-    stop_ = true;
   }
 
-  cv_work_.notify_all();
   for (auto &worker : workers_)
-    worker.join();
+    worker.request_stop();
+  workers_.clear();
 }
 
 void RenderScheduler::request(const pdf::PDFRenderKey &key) {
@@ -71,7 +70,7 @@ void RenderScheduler::refreshPages(const std::vector<size_t> &pages) {
   cv_work_.notify_all();
 }
 
-const sf::Vector2u RenderScheduler::getPageSize(const pdf::PDFRenderKey &key) {
+sf::Vector2u RenderScheduler::getPageSize(const pdf::PDFRenderKey &key) const {
   std::lock_guard lock(lock_);
 
   if (quiescing_)
@@ -83,7 +82,7 @@ const sf::Vector2u RenderScheduler::getPageSize(const pdf::PDFRenderKey &key) {
   return renderer_.getPageSize(document_.getPage(key.page_idx).getPageBounds(), key);
 }
 
-bool RenderScheduler::isReady(const pdf::PDFRenderKey &key) {
+bool RenderScheduler::isReady(const pdf::PDFRenderKey &key) const {
   std::lock_guard lock(lock_);
   return texture_cache_.contains(key) || image_cache_.contains(key);
 }
@@ -149,27 +148,30 @@ void RenderScheduler::requestLocked(const pdf::PDFRenderKey &key) {
   job_queue_.push_back(key);
 }
 
-void RenderScheduler::workerLoop(std::size_t idx) {
+void RenderScheduler::workerLoop(std::stop_token st, std::size_t idx) {
   while (true) {
-    pdf::PDFRenderKey key(0, 0, 0, 0);
-
     std::unique_lock lock(lock_);
-    cv_work_.wait(lock, [&] { return stop_ || !job_queue_.empty(); });
 
-    if (stop_ && job_queue_.empty())
+    if (!cv_work_.wait(lock, st, [&] { return !job_queue_.empty(); }))
       return;
 
-    key = job_queue_.front();
+    pdf::PDFRenderKey key = job_queue_.front();
     job_queue_.pop_front();
     active_jobs_++;
 
     fz_context *ctx = slots_[idx].ctx.get();
     lock.unlock();
 
-    renderer_.render(ctx, document_.getDoc(), key, slots_[idx].rgba, slots_[idx].image);
+    bool ok = true;
+    try {
+      renderer_.render(ctx, document_.getDoc(), key, slots_[idx].rgba, slots_[idx].image);
+    } catch (...) {
+      ok = false; 
+    }
 
     lock.lock();
-    image_cache_.put(key, std::move(slots_[idx].image));
+    if (ok)
+      image_cache_.put(key, std::move(slots_[idx].image));
     pending_.erase(key);
 
     active_jobs_--;

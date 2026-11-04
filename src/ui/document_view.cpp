@@ -1,6 +1,8 @@
 #include "ui/document_view.h"
 
 #include <algorithm>
+#include <clip.h>
+#include <print>
 #include <stdexcept>
 #include <utf8.h>
 
@@ -13,9 +15,9 @@
 namespace ui {
 
 DocumentView::DocumentView(
+    pdf::PDFDocument &document,
     core::HistoryManager &file_history,
     core::BookmarkManager &bookmark_manager,
-    pdf::PDFDocument &document,
     core::RenderScheduler &scheduler,
     core::EventBus &event_bus,
     const core::Config &config
@@ -32,14 +34,6 @@ DocumentView::DocumentView(
   update_recolor_ = false;
   selecting_ = false;
   focus_update_ = false;
-
-  right_click_pos_ = {0.f, 0.f};
-  right_click_on_page_ = -1;
-
-  layout_manager_.setAnchorPage(0);
-  layout_manager_.setFrontPage(0);
-  layout_manager_.setBackPage(0);
-  layout_manager_.setPageWithMaxWidth(0);
 
   registerKeybindings();
   registerEvents();
@@ -90,8 +84,6 @@ void DocumentView::update() {
   }
 
   layout_manager_.updatePagePositions(view_state);
-  for (std::size_t i = front_page; i <= back_page; i++)
-    pages_[i].syncPageShapePos();
 
   if (search_controller_.isSearchPosDirty() && pages_[anchor_page].hasTexture()) {
     centerOnSearchResult(anchor_page, front_page, back_page, view_state);
@@ -104,6 +96,14 @@ void DocumentView::update() {
   if (layout_manager_.anchorPageChanged()) {
     requestPage(anchor_page, view_state.zoom, view_state.rotate, recolor_);
     event_bus_.emit("statusbar.page_state", std::make_pair(anchor_page + 1, document_.pageCount()));
+  }
+
+  if (selection_controller_.isSelectionDirty())
+    selection_controller_.createSelection();
+
+  for (std::size_t i = front_page; i <= back_page; i++) {
+    pages_[i].syncPageShapePos();
+    pages_[i].syncPageShape();
   }
 
   front_page = layout_manager_.getFrontPage();
@@ -145,11 +145,6 @@ void DocumentView::handleEvent(const sf::Event &event) {
 
       for (std::size_t i = front_page; i <= back_page; i++) {
         if (pages_[i].containsMouse(mouse->position)) {
-          right_click_pos_ = pages_[i].getReferenceShape().getInverseTransform().transformPoint(
-              sf::Vector2f(mouse->position)
-          );
-          right_click_on_page_ = i;
-
           selection_controller_.setSelectionStart(i, mouse->position);
           break;
         }
@@ -160,34 +155,53 @@ void DocumentView::handleEvent(const sf::Event &event) {
   }
 
   if (const auto *move = event.getIf<sf::Event::MouseMoved>()) {
-    right_click_on_page_ = -1;
     auto cursor = ui::CursorType::Arrow;
     for (std::size_t i = front_page; i <= back_page; i++) {
-      if (!document_.getPage(i).isContentLoaded())
-        document_.loadPageContent(i);
+      document_.loadPageContent(i);
+
+      if (!pages_[i].containsMouse(move->position))
+        continue;
+
+      if (selecting_)
+        selection_controller_.setSelectionEnd(i, move->position);
 
       const auto point = pages_[i].getReferenceShape().getInverseTransform().transformPoint(
           sf::Vector2f(move->position)
       );
 
-      if (pages_[i].containsMouse(move->position) && document_.getPage(i).mouseInGlyph(point)) {
+      if (document_.getPage(i).mouseInLink(point))
+        cursor = ui::CursorType::Hand;
+      else if (document_.getPage(i).mouseInImage(point))
+        cursor = ui::CursorType::Hand;
+      else if (document_.getPage(i).mouseInText(point))
         cursor = ui::CursorType::Text;
-        break;
-      }
-    }
-    event_bus_.emit("ui.cursor_type", cursor);
 
-    if (selecting_) {
-      for (std::size_t i = front_page; i <= back_page; i++) {
-        if (pages_[i].containsMouse(move->position)) {
-          selection_controller_.setSelectionEnd(i, move->position);
-          break;
-        }
-      }
+      break;
     }
+
+    event_bus_.emit("ui.cursor_type", cursor);
   }
 
   if (const auto *mouse = event.getIf<sf::Event::MouseButtonReleased>()) {
+    const auto location = selection_controller_.getSelectionStart();
+
+    if (selection_controller_.isSelectionEmpty()) {
+      const auto link = document_.getPage(location.first).mouseInLink(location.second);
+      const auto img = document_.getPage(location.first).mouseInImage(location.second);
+
+      if (link) {
+        if (link->type == pdf::PDFLinkType::INTERNAL)
+          onSwitchPage(link->target_page);
+        else
+          std::println("clicked on link external");
+      }
+
+      if (img) {
+        selection_controller_.setSelectedImage(img);
+        event_bus_.emit("notification.msg", std::string("Image has been selected"));
+      }
+    }
+
     if (mouse->button == sf::Mouse::Button::Left)
       selecting_ = false;
   }
@@ -360,11 +374,22 @@ void DocumentView::stepSearch(bool forward) {
 void DocumentView::copySelection() {
   if (!selection_controller_.isShowingSelection())
     return;
-  const std::string text = selection_controller_.copySelection();
-  if (!text.empty()) {
-    sf::Clipboard::setString(sf::String::fromUtf8(text.begin(), text.end()));
-    event_bus_.emit("notification.msg", std::string("Copied selected text to clipboard"));
+
+  if (selection_controller_.isSelectionEmpty()) {
+    fz_image *img = selection_controller_.getSelectedImage();
+    if (img) {
+      const bool ok = utils::copyImageToClipboard(document_.cloneContext().get(), img);
+      event_bus_
+          .emit("notification.msg", std::string(ok ? "Copied image to clipboard" : "Failed to copy image"));
+    }
+  } else {
+    const std::string text = selection_controller_.copySelection();
+    if (!text.empty()) {
+      clip::set_text(text);
+      event_bus_.emit("notification.msg", std::string("Copied selected text to clipboard"));
+    }
   }
+
   selection_controller_.reset();
 }
 
@@ -397,11 +422,12 @@ void DocumentView::addAnnotation(enum pdf_annot_type type, int color_index) {
 }
 
 void DocumentView::removeAnnotation() {
-  if (right_click_on_page_ == -1)
+  if (!selection_controller_.isSelectionEmpty())
     return;
 
-  if (document_.removeAnnotations(right_click_on_page_, right_click_pos_))
-    onAnnotate({static_cast<std::size_t>(right_click_on_page_)});
+  const auto location = selection_controller_.getSelectionStart();
+  if (document_.removeAnnotations(location.first, location.second))
+    onAnnotate({location.first});
 }
 
 void DocumentView::onResize(const sf::Vector2f &size) {
@@ -607,7 +633,9 @@ void DocumentView::registerKeybindings() {
 
   input_handler_.bind({{Key::N}}, DocumentAction::SearchNext);
   input_handler_.bind({{Key::N, false, true}}, DocumentAction::SearchPrev);
+
   input_handler_.bind({{Key::Y}}, DocumentAction::CopySelection);
+  input_handler_.bind({{Key::C, true, false}}, DocumentAction::CopySelection);
 
   for (int i = 0; i <= 4; ++i) {
     const auto digit = static_cast<Key>(static_cast<int>(Key::Num1) + i);
@@ -637,8 +665,6 @@ void DocumentView::centerOnSearchResult(
   sf::Vector2f delta = window_center - pos;
   layout_manager_.panCurrentPage(delta);
   layout_manager_.updatePagePositions(view_state);
-  for (std::size_t i = front_page; i <= back_page; i++)
-    pages_[i].syncPageShapePos();
 }
 
 void DocumentView::renderRequestedPages() {
@@ -650,7 +676,6 @@ void DocumentView::renderRequestedPages() {
 
     if (pages_[i].hasTexture() && pages_[i].getKey() == target_key) {
       pages_[i].setScale({1.f, 1.f});
-      pages_[i].syncPageShape(view_state.rotate);
       continue;
     }
 

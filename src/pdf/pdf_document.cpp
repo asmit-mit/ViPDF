@@ -104,8 +104,7 @@ std::vector<fz_rect> PDFDocument::searchPage(std::size_t page_idx, const std::st
     return rects;
 
   PDFPage &page = pages_[page_idx];
-  if (!page.isContentLoaded())
-    loadPageContent(page_idx);
+  loadPageContent(page_idx);
 
   const std::vector<fz_quad> quads = page.searchText(ctx_, needle);
   rects.reserve(quads.size());
@@ -125,8 +124,7 @@ const std::vector<fz_quad> *PDFDocument::getSelectionBoxesFromPage(
     return nullptr;
 
   PDFPage &page = pages_[page_idx];
-  if (!page.isContentLoaded())
-    loadPageContent(page_idx);
+  loadPageContent(page_idx);
 
   const auto pts = selectionPoints(page_idx, direction, mouse_pos1, mouse_pos2);
   if (!pts)
@@ -145,8 +143,7 @@ std::string PDFDocument::copySelectionFromPage(
     return {};
 
   PDFPage &page = pages_[page_idx];
-  if (!page.isContentLoaded())
-    loadPageContent(page_idx);
+  loadPageContent(page_idx);
 
   const auto pts = selectionPoints(page_idx, direction, mouse_pos1, mouse_pos2);
   if (!pts)
@@ -171,13 +168,34 @@ bool PDFDocument::hasChanges() const {
 }
 
 void PDFDocument::loadPageContent(std::size_t idx) {
-  fz_stext_page *raw = nullptr;
-  fz_var(raw);
+  if (pages_[idx].isContentLoaded())
+    return;
 
-  fz_try(ctx_) raw = fz_new_stext_page_from_page_number(ctx_, doc_, idx, nullptr);
+  fz_stext_options opts = {0};
+  opts.flags = FZ_STEXT_PRESERVE_IMAGES;
+
+  fz_page *page = nullptr;
+  fz_stext_page *stext = nullptr;
+  fz_link *links = nullptr;
+
+  fz_var(page);
+  fz_var(stext);
+  fz_var(links);
+
+  fz_try(ctx_) {
+    page = fz_load_page(ctx_, doc_, idx);
+    stext = fz_new_stext_page_from_page(ctx_, page, &opts);
+    links = fz_load_links(ctx_, page);
+
+    pages_[idx].loadContent(ctx_, doc_, FzStextPagePtr(stext, FzStextDeleter{ctx_}), links);
+  }
+  fz_always(ctx_) {
+    if (page)
+      fz_drop_page(ctx_, page);
+    if (links)
+      fz_drop_link(ctx_, links);
+  }
   fz_catch(ctx_) throw std::runtime_error("Failed to load text from page");
-
-  pages_[idx].loadContent(FzStextPagePtr(raw, FzStextDeleter{ctx_}));
 }
 
 void PDFDocument::saveChanges(const std::filesystem::path &path) {
@@ -277,6 +295,7 @@ void PDFDocument::loadPages() {
   for (std::size_t i = 0; i < page_count_; ++i) {
     fz_page *page = nullptr;
 
+    fz_var(page);
     fz_try(ctx_) {
       page = fz_load_page(ctx_, doc_, static_cast<int>(i));
 
@@ -291,7 +310,7 @@ void PDFDocument::loadPages() {
 
       pages_.emplace_back(i, bounds);
     }
-    fz_always(ctx_) fz_drop_page(ctx_, page);
+    fz_always(ctx_) if (page) fz_drop_page(ctx_, page);
     fz_catch(ctx_) throw std::runtime_error("Failed to open PDF page");
   }
 }
@@ -441,18 +460,16 @@ bool PDFDocument::removeAnnotationsInPage(std::size_t page_idx, const fz_point &
       if (!fz_is_point_inside_rect(p, fz_expand_rect(bounds, 1.0f)))
         continue;
 
-      bool hit = false;
       const int qn = pdf_annot_quad_point_count(ctx_, a);
       if (!qn)
         continue;
 
+      bool hit = false;
       for (int k = 0; k < qn && !hit; ++k)
         hit = fz_is_point_inside_quad(p, pdf_annot_quad_point(ctx_, a, k));
 
-      if (hit) {
+      if (hit)
         target = a;
-        break;
-      }
     }
 
     if (target) {

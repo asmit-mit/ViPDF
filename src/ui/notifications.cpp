@@ -67,6 +67,7 @@ void Notifications::handleEvent(const sf::Event &event) {
   if (const auto *mouse = event.getIf<sf::Event::MouseButtonPressed>()) {
     if (mouse->button == sf::Mouse::Button::Left &&
         display_area_.getGlobalBounds().contains(sf::Vector2f(mouse->position))) {
+      hovered_ = false;
       visible_ = false;
     }
   }

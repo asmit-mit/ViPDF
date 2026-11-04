@@ -43,9 +43,9 @@ App::App()
           config_reader_.getConfig()
       ),
       document_view_(
+          document_,
           file_history_,
           bookmark_manager_,
-          document_,
           render_scheduler_,
           event_bus_,
           config_reader_.getConfig()
@@ -59,7 +59,8 @@ App::App()
           event_bus_,
           config_reader_.getConfig()
       ),
-      arrow_cursor_(sf::Cursor::Type::Arrow), text_cursor_(sf::Cursor::Type::Text) {
+      hand_cursor_(sf::Cursor::Type::Hand), arrow_cursor_(sf::Cursor::Type::Arrow),
+      text_cursor_(sf::Cursor::Type::Text) {
   font_regular_.setSmooth(false);
   font_bold_.setSmooth(false);
   font_italic_.setSmooth(false);
@@ -147,6 +148,8 @@ void App::registerEvents() {
       window_.setMouseCursor(arrow_cursor_);
     else if (type == ui::CursorType::Text)
       window_.setMouseCursor(text_cursor_);
+    else if (type == ui::CursorType::Hand)
+      window_.setMouseCursor(hand_cursor_);
   });
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {

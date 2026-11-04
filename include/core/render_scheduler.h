@@ -8,6 +8,7 @@
 #include <condition_variable>
 #include <deque>
 #include <mutex>
+#include <stop_token>
 #include <thread>
 #include <unordered_set>
 #include <vector>
@@ -21,9 +22,9 @@ public:
 
   void request(const pdf::PDFRenderKey &key);
   void refreshPages(const std::vector<size_t> &pages);
-  bool isReady(const pdf::PDFRenderKey &key);
+  bool isReady(const pdf::PDFRenderKey &key) const;
   sf::Texture *getTexture(const pdf::PDFRenderKey &key);
-  const sf::Vector2u getPageSize(const pdf::PDFRenderKey &key);
+  sf::Vector2u getPageSize(const pdf::PDFRenderKey &key) const;
   void clearCache();
 
   void quiesce();
@@ -38,7 +39,7 @@ private:
   };
 
   void requestLocked(const pdf::PDFRenderKey &key);
-  void workerLoop(std::size_t idx);
+  void workerLoop(std::stop_token st, std::size_t idx);
   void clearCacheLocked();
 
 private:
@@ -48,7 +49,6 @@ private:
   pdf::PDFDocument &document_;
   pdf::PDFRenderer &renderer_;
 
-  std::vector<std::thread> workers_;
   std::vector<WorkerSlot> slots_;
 
   ImageCache image_cache_;
@@ -57,8 +57,8 @@ private:
 
   std::deque<pdf::PDFRenderKey> job_queue_;
 
-  std::mutex lock_;
-  std::condition_variable cv_work_;
+  mutable std::mutex lock_;
+  std::condition_variable_any cv_work_;
   std::condition_variable cv_idle_;
 
   std::size_t worker_count_;
@@ -66,7 +66,8 @@ private:
 
   std::size_t active_jobs_;
   bool quiescing_;
-  bool stop_;
+
+  std::vector<std::jthread> workers_;
 };
 
 } // namespace core

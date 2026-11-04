@@ -11,9 +11,18 @@ class PDFSelectionController {
 public:
   PDFSelectionController(PDFDocument &document, std::vector<ui::PageView> &pages);
 
-  bool isSelecting() const;
+  bool isSelectionDirty() const;
+  bool isSelectionEmpty() const;
+
+  void setSelectedImage(fz_image *img);
+  fz_image *getSelectedImage() const;
   void setSelectionStart(std::size_t page_idx, const sf::Vector2i &screen_pos);
   void setSelectionEnd(std::size_t page_idx, const sf::Vector2i &screen_pos);
+  std::pair<std::size_t, sf::Vector2f> getSelectionStart() const;
+  std::pair<std::size_t, sf::Vector2f> getSelectionEnd() const;
+
+  void createSelection();
+
   std::string copySelection();
 
   void showSelection();
@@ -27,10 +36,12 @@ private:
   PDFDocument &document_;
 
   bool selection_visible_;
+  bool selection_dirty_;
   std::size_t start_page_;
   std::size_t end_page_;
   sf::Vector2f start_point_;
   sf::Vector2f end_point_;
+  fz_image *selected_image_;
 };
 
 } // namespace pdf

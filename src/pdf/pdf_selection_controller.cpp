@@ -1,6 +1,5 @@
 #include "pdf/pdf_selection_controller.h"
 
-#include <SFML/Graphics/VertexArray.hpp>
 #include <algorithm>
 #include <optional>
 
@@ -15,8 +14,20 @@ PDFSelectionController::PDFSelectionController(
   reset();
 }
 
-bool PDFSelectionController::isSelecting() const {
-  return start_page_ != kNone;
+bool PDFSelectionController::isSelectionDirty() const {
+  return selection_dirty_;
+}
+
+bool PDFSelectionController::isSelectionEmpty() const {
+  return start_page_ != kNone && start_page_ == end_page_ && start_point_ == end_point_;
+}
+
+void PDFSelectionController::setSelectedImage(fz_image *img) {
+  selected_image_ = img;
+}
+
+fz_image *PDFSelectionController::getSelectedImage() const {
+  return selected_image_;
 }
 
 void PDFSelectionController::setSelectionStart(
@@ -24,8 +35,7 @@ void PDFSelectionController::setSelectionStart(
 ) {
   if (page_idx >= pages_.size())
     return;
-  if (!document_.getPage(page_idx).isContentLoaded())
-    document_.loadPageContent(page_idx);
+  document_.loadPageContent(page_idx);
 
   const sf::Vector2f point =
       pages_[page_idx].getReferenceShape().getInverseTransform().transformPoint(
@@ -39,15 +49,29 @@ void PDFSelectionController::setSelectionStart(
 }
 
 void PDFSelectionController::setSelectionEnd(std::size_t page_idx, const sf::Vector2i &screen_pos) {
-  if (start_page_ == kNone || page_idx >= pages_.size())
+  if (page_idx >= pages_.size())
     return;
-  if (!document_.getPage(page_idx).isContentLoaded())
-    document_.loadPageContent(page_idx);
+  document_.loadPageContent(page_idx);
 
   end_page_ = page_idx;
   end_point_ = pages_[page_idx].getReferenceShape().getInverseTransform().transformPoint(
       sf::Vector2f(screen_pos)
   );
+
+  selection_dirty_ = true;
+}
+
+std::pair<std::size_t, sf::Vector2f> PDFSelectionController::getSelectionStart() const {
+  return {start_page_, start_point_};
+}
+
+std::pair<std::size_t, sf::Vector2f> PDFSelectionController::getSelectionEnd() const {
+  return {end_page_, end_point_};
+}
+
+void PDFSelectionController::createSelection() {
+  if (isSelectionEmpty())
+    return;
 
   std::size_t first_page = start_page_;
   std::size_t last_page = end_page_;
@@ -80,6 +104,8 @@ void PDFSelectionController::setSelectionEnd(std::size_t page_idx, const sf::Vec
     else
       pages_[i].setSelections(document_.getSelectionBoxesFromPage(i, PDFSelectionDirection::ALL));
   }
+
+  selection_dirty_ = false;
 }
 
 std::string PDFSelectionController::copySelection() {
@@ -124,15 +150,17 @@ void PDFSelectionController::showSelection() {
 bool PDFSelectionController::isShowingSelection() const {
   if (!selection_visible_ || start_page_ == kNone)
     return false;
-  return start_point_ != end_point_ || start_page_ != end_page_;
+  return selected_image_ || start_point_ != end_point_ || start_page_ != end_page_;
 }
 
 void PDFSelectionController::reset() {
   selection_visible_ = false;
+  selection_dirty_ = false;
   start_page_ = kNone;
   end_page_ = kNone;
   start_point_ = {0.f, 0.f};
   end_point_ = {0.f, 0.f};
+  selected_image_ = nullptr;
   for (auto &page : pages_)
     page.clearSelections();
   document_.clearSelections();

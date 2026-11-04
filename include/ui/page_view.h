@@ -59,7 +59,7 @@ public:
 
   void setPageShapeSize(sf::Vector2f size);
   void syncPageShapePos();
-  void syncPageShape(int rot);
+  void syncPageShape();
 
   bool hasTexture() const;
   bool isInView(const sf::Vector2f &window_size) const;

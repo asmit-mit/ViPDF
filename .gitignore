@@ -3,3 +3,4 @@ subprojects/*
 !subprojects/*.wrap
 !subprojects/harfbuzz
 subprojects/sqlite3.wrap
+/subprojects/harfbuzz

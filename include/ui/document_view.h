@@ -49,9 +49,9 @@ enum class DocumentAction {
 class DocumentView {
 public:
   explicit DocumentView(
+      pdf::PDFDocument &document,
       core::HistoryManager &file_history,
       core::BookmarkManager &bookmark_manager,
-      pdf::PDFDocument &document,
       core::RenderScheduler &scheduler,
       core::EventBus &event_bus,
       const core::Config &config
@@ -122,8 +122,6 @@ private:
   bool selecting_;
 
   sf::Vector2f window_size_;
-  sf::Vector2f right_click_pos_;
-  int right_click_on_page_;
 
   const sf::Color selection_box_color_;
   const sf::Color search_box_color_;

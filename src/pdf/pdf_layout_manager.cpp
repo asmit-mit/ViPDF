@@ -258,7 +258,6 @@ void PDFLayoutManager::reset() {
   anchor_page_pos_before_scroll_ = {0.f, 0.f};
   anchor_page_changed_ = false;
   need_initial_pos_ = false;
-  layout_pending_ = true;
   scrolled_ = false;
 }
 
