@@ -64,6 +64,20 @@ public:
   void onResize(const sf::Vector2f &size);
 
 private:
+  struct PageRange {
+    int front;
+    int back;
+
+    bool contains(int i) const {
+      return i >= front && i <= back;
+    }
+
+    int size() const {
+      return back - front + 1;
+    }
+  };
+
+private:
   void onOpenDocument(const std::string &filepath);
   void onCloseDocument();
   void onSwitchPage(int page_idx);
@@ -82,7 +96,13 @@ private:
       const ui::VisualInfo &view_state
   );
   void renderRequestedPages();
+
   void requestVisiblePages(std::size_t page_idx, float zoom, int rotate, bool recolor);
+  PageRange computeVisibleRange(std::size_t anchor, float zoom, int rotate) const;
+  PageRange computeRetainedRange(PageRange visible) const;
+  void
+  releaseOutOfWindowPages(PageRange visible, PageRange retained, const pdf::PDFRenderKey &target);
+
   void resetView();
 
   void execute(const core::InputCmd<DocumentAction> &cmd);
@@ -128,8 +148,10 @@ private:
   const sf::Color selected_search_box_color_;
 
   std::optional<int> pending_page_swtich_;
+  std::optional<PageRange> kept_range_;
 
   static constexpr float scroll_dist_ = 40.f;
+  static constexpr int prefetch_count_ = 3;
 };
 
 } // namespace ui

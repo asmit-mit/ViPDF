@@ -699,60 +699,104 @@ void DocumentView::renderRequestedPages() {
   }
 }
 
-void DocumentView::requestVisiblePages(std::size_t page_idx, float zoom, int rotate, bool recolor) {
+void DocumentView::requestVisiblePages(std::size_t anchor, float zoom, int rotate, bool recolor) {
   if (!canWorkWithDocument())
     return;
 
-  pdf::PDFRenderKey center_key{page_idx, zoom, rotate, 0};
-  const sf::Vector2u page_dims = scheduler_.getPageSize(center_key);
+  const PageRange visible = computeVisibleRange(anchor, zoom, rotate);
+  const PageRange retained = computeRetainedRange(visible);
 
-  int total_height = static_cast<int>(page_dims.y);
-  int front = static_cast<int>(page_idx);
-  int back = static_cast<int>(page_idx);
+  releaseOutOfWindowPages(visible, retained, {anchor, zoom, rotate, recolor});
+  kept_range_ = retained;
 
-  while (total_height <= window_size_.y) {
-    bool expanded = false;
-
-    if (back + 1 < static_cast<int>(document_.pageCount())) {
-      back++;
-      pdf::PDFRenderKey key{static_cast<size_t>(back), zoom, rotate, 0};
-      total_height += scheduler_.getPageSize(key).y;
-      expanded = true;
-    }
-
-    if (front > 0) {
-      --front;
-      pdf::PDFRenderKey key{static_cast<size_t>(front), zoom, rotate, 0};
-      total_height += scheduler_.getPageSize(key).y;
-      expanded = true;
-    }
-
-    if (!expanded)
-      break;
-  }
-
-  for (int i = 0; i < 3; i++) {
-    if (back + 1 < static_cast<int>(document_.pageCount()))
-      ++back;
-
-    if (front > 0)
-      --front;
-  }
-
-  for (std::size_t i = layout_manager_.getFrontPage(); i <= layout_manager_.getBackPage(); ++i) {
-    if (static_cast<int>(i) < front || static_cast<int>(i) > back)
-      pages_[i].reset();
-  }
-
-  for (int i = front; i <= back; ++i) {
-    pdf::PDFRenderKey key{static_cast<std::size_t>(i), zoom, rotate, recolor};
+  for (int i = visible.front; i <= visible.back; ++i) {
+    const pdf::PDFRenderKey key{static_cast<std::size_t>(i), zoom, rotate, recolor};
     if (pages_[i].hasTexture() && pages_[i].getKey() == key)
       continue;
     scheduler_.request(key);
   }
 
-  layout_manager_.setFrontPage(static_cast<std::size_t>(front));
-  layout_manager_.setBackPage(static_cast<std::size_t>(back));
+  layout_manager_.setFrontPage(static_cast<std::size_t>(visible.front));
+  layout_manager_.setBackPage(static_cast<std::size_t>(visible.back));
+}
+
+DocumentView::PageRange
+DocumentView::computeVisibleRange(std::size_t anchor, float zoom, int rotate) const {
+  const int page_count = static_cast<int>(document_.pageCount());
+
+  auto heightOf = [&](int page) {
+    return static_cast<int>(
+        scheduler_.getPageSize({static_cast<std::size_t>(page), zoom, rotate, false}).y
+    );
+  };
+
+  PageRange range{static_cast<int>(anchor), static_cast<int>(anchor)};
+  int total_height = heightOf(range.front);
+
+  while (total_height <= window_size_.y) {
+    bool expanded = false;
+
+    if (range.back + 1 < page_count) {
+      total_height += heightOf(++range.back);
+      expanded = true;
+    }
+    if (range.front > 0) {
+      total_height += heightOf(--range.front);
+      expanded = true;
+    }
+    if (!expanded)
+      break;
+  }
+
+  range.back = std::min(range.back + prefetch_count_, page_count - 1);
+  range.front = std::max(range.front - prefetch_count_, 0);
+  return range;
+}
+
+DocumentView::PageRange DocumentView::computeRetainedRange(PageRange visible) const {
+  const int page_count = static_cast<int>(document_.pageCount());
+  const int budget = static_cast<int>(std::max<std::size_t>(config_.page_cache_size, 1));
+
+  PageRange range = visible;
+  while (range.size() < budget) {
+    bool expanded = false;
+
+    if (range.back + 1 < page_count) {
+      ++range.back;
+      expanded = true;
+    }
+    if (range.front > 0 && range.size() < budget) {
+      --range.front;
+      expanded = true;
+    }
+    if (!expanded)
+      break;
+  }
+  return range;
+}
+
+void DocumentView::releaseOutOfWindowPages(
+    PageRange visible, PageRange retained, const pdf::PDFRenderKey &target
+) {
+  if (!kept_range_)
+    return;
+
+  const int lo = std::max(kept_range_->front, 0);
+  const int hi = std::min(kept_range_->back, static_cast<int>(pages_.size()) - 1);
+
+  for (int i = lo; i <= hi; ++i) {
+    auto &page = pages_[i];
+
+    if (!retained.contains(i)) {
+      page.reset();
+      continue;
+    }
+
+    const pdf::PDFRenderKey
+        key{static_cast<std::size_t>(i), target.zoom, target.rotate, target.recolor};
+    if (!visible.contains(i) && page.hasTexture() && !(page.getKey() == key))
+      page.reset();
+  }
 }
 
 void DocumentView::resetView() {
