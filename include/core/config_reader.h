@@ -78,8 +78,13 @@ private:
 
   bool lookup(const std::string &section, const std::string &key, std::string &out) const;
 
+private:
   ini::IniFile ini_;
   Config config_;
+
+  static constexpr std::size_t MIN_CACHE_SIZE = 8;
+  static constexpr std::size_t MIN_THREADS = 1;
+  const std::size_t MAX_THREADS;
 };
 
 } // namespace core

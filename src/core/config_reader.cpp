@@ -4,6 +4,7 @@
 #include <cctype>
 #include <exception>
 #include <iostream>
+#include <thread>
 
 namespace core {
 
@@ -34,7 +35,8 @@ bool parse_color(std::string s, uint32_t &out) {
 
 } // namespace
 
-ConfigReader::ConfigReader(const fs::path &path) {
+ConfigReader::ConfigReader(const fs::path &path)
+    : MAX_THREADS(std::thread::hardware_concurrency()) {
   if (!fs::exists(path))
     return;
 
@@ -102,8 +104,7 @@ void ConfigReader::loadConfig() {
 
   config_.selection_highlight_color =
       get_color("highlights", "selection", config_.selection_highlight_color);
-  config_.search_highlight_color =
-      get_color("highlights", "search", config_.search_highlight_color);
+  config_.search_highlight_color = get_color("highlights", "search", config_.search_highlight_color);
   config_.search_box_color = get_color("highlights", "search_box", config_.search_box_color);
   config_.highlight_color_1 = get_color("highlights", "color_1", config_.highlight_color_1);
   config_.highlight_color_2 = get_color("highlights", "color_2", config_.highlight_color_2);
@@ -116,8 +117,10 @@ void ConfigReader::loadConfig() {
   config_.recolor_dark = get_color("recolor", "dark", config_.recolor_dark);
 
   config_.delta_zoom = get_float("general", "delta_zoom", config_.delta_zoom);
-  config_.page_cache_size = get_size("general", "page_cache_size", config_.page_cache_size);
-  config_.thread_count = get_size("general", "thread_count", config_.thread_count);
+  config_.page_cache_size =
+      std::max(MIN_CACHE_SIZE, get_size("general", "page_cache_size", config_.page_cache_size));
+  config_.thread_count =
+      std::clamp(get_size("general", "thread_count", config_.thread_count), MIN_THREADS, MAX_THREADS);
 }
 
 bool ConfigReader::lookup(

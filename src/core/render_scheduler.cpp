@@ -1,3 +1,4 @@
+#include <iostream>
 #include <stdexcept>
 
 #include "core/render_scheduler.h"
@@ -22,14 +23,12 @@ RenderScheduler::RenderScheduler(
 }
 
 RenderScheduler::~RenderScheduler() {
-  {
-    std::lock_guard lock(lock_);
-    clearCacheLocked();
-  }
-
   for (auto &worker : workers_)
     worker.request_stop();
   workers_.clear();
+
+  std::lock_guard lock(lock_);
+  clearCacheLocked();
 }
 
 void RenderScheduler::request(const pdf::PDFRenderKey &key) {
@@ -52,6 +51,10 @@ void RenderScheduler::refreshPages(const std::vector<size_t> &pages) {
     for (auto page : pages)
       renderer_.invalidatePage(page);
 
+    for (auto &slot : slots_)
+      if (slot.current && targets.contains(slot.current->page_idx))
+        slot.stale = true;
+
     std::vector<pdf::PDFRenderKey> stale;
     for (const auto &entry : texture_cache_)
       if (targets.contains(entry.key.page_idx))
@@ -71,44 +74,49 @@ void RenderScheduler::refreshPages(const std::vector<size_t> &pages) {
 }
 
 sf::Vector2u RenderScheduler::getPageSize(const pdf::PDFRenderKey &key) const {
-  std::lock_guard lock(lock_);
+  {
+    std::lock_guard lock(lock_);
 
-  if (quiescing_)
-    throw std::runtime_error("Scheduler is quiescing; no document is currently valid");
+    if (quiescing_)
+      throw std::runtime_error("Scheduler is quiescing; no document is currently valid");
 
-  if (key.page_idx >= document_.pageCount())
-    throw std::out_of_range("Page index out of range");
+    if (key.page_idx >= document_.pageCount())
+      throw std::out_of_range("Page index out of range");
+  }
 
   return renderer_.getPageSize(document_.getPage(key.page_idx).getPageBounds(), key);
 }
 
-bool RenderScheduler::isReady(const pdf::PDFRenderKey &key) const {
-  std::lock_guard lock(lock_);
-  return texture_cache_.contains(key) || image_cache_.contains(key);
-}
+std::shared_ptr<sf::Texture> RenderScheduler::getTexture(const pdf::PDFRenderKey &key) {
+  sf::Image image;
 
-sf::Texture *RenderScheduler::getTexture(const pdf::PDFRenderKey &key) {
-  std::lock_guard lock(lock_);
+  {
+    std::lock_guard lock(lock_);
 
-  if (auto *texture = texture_cache_.get(key))
-    return texture;
+    if (auto *texture = texture_cache_.get(key))
+      return *texture;
 
-  auto *image = image_cache_.get(key);
-  if (!image)
-    return nullptr;
+    auto *cached_image = image_cache_.get(key);
+    if (!cached_image)
+      return nullptr;
 
-  sf::Texture texture;
-  if (!texture.loadFromImage(*image))
+    image = std::move(*cached_image);
+    image_cache_.erase(key);
+  }
+
+  auto texture = std::make_shared<sf::Texture>();
+  if (!texture->loadFromImage(image))
     throw std::runtime_error("Failed to load image into texture");
 
-  texture_cache_.put(key, std::move(texture));
-  image_cache_.erase(key);
-
-  return texture_cache_.get(key);
+  std::lock_guard lock(lock_);
+  texture_cache_.put(key, texture);
+  return texture;
 }
 
 void RenderScheduler::clearCache() {
   std::lock_guard lock(lock_);
+  if (!quiescing_)
+    throw std::runtime_error("Tried to clear cache during active jobs");
   clearCacheLocked();
 }
 
@@ -140,7 +148,7 @@ void RenderScheduler::requestLocked(const pdf::PDFRenderKey &key) {
   if (!pending_.insert(key).second)
     return;
 
-  if (job_queue_.size() >= texture_cache_.capacity()) {
+  if (job_queue_.size() >= 64) {
     pending_.erase(job_queue_.front());
     job_queue_.pop_front();
   }
@@ -149,34 +157,67 @@ void RenderScheduler::requestLocked(const pdf::PDFRenderKey &key) {
 }
 
 void RenderScheduler::workerLoop(std::stop_token st, std::size_t idx) {
+  WorkerSlot &slot = slots_[idx];
+
   while (true) {
     std::unique_lock lock(lock_);
 
     if (!cv_work_.wait(lock, st, [&] { return !job_queue_.empty(); }))
       return;
 
+    if (st.stop_requested())
+      return;
+
     pdf::PDFRenderKey key = job_queue_.front();
     job_queue_.pop_front();
     active_jobs_++;
 
-    fz_context *ctx = slots_[idx].ctx.get();
+    slot.current = key;
+    slot.stale = false;
+    fz_context *ctx = slot.ctx.get();
     lock.unlock();
 
     bool ok = true;
     try {
-      renderer_.render(ctx, document_.getDoc(), key, slots_[idx].rgba, slots_[idx].image);
+      renderer_.render(ctx, document_.getDoc(), key, slot.rgba, slot.image);
     } catch (...) {
-      ok = false; 
+      ok = false;
     }
 
     lock.lock();
-    if (ok)
-      image_cache_.put(key, std::move(slots_[idx].image));
-    pending_.erase(key);
+
+    const bool stale = slot.stale;
+    slot.current.reset();
+    slot.stale = false;
+
+    bool requeue = false;
+    if (!quiescing_) {
+      pending_.erase(key);
+
+      if (ok) {
+        if (stale)
+          requeue = true;
+        else
+          image_cache_.put(key, std::move(slot.image));
+      }
+
+      if (requeue) {
+        try {
+          requestLocked(key);
+        } catch (...) {
+          std::cerr << "Error requesting page in scheduler's worker loop\n";
+        }
+      }
+    }
 
     active_jobs_--;
     if (active_jobs_ == 0)
       cv_idle_.notify_all();
+
+    if (requeue) {
+      lock.unlock();
+      cv_work_.notify_one();
+    }
   }
 }
 

@@ -66,12 +66,12 @@ void DocumentView::update() {
 
   if (update_recolor_) {
     recolor_ = !recolor_;
-    requestPage(layout_manager_.getAnchorPage(), view_state.zoom, view_state.rotate, recolor_);
+    requestVisiblePages(layout_manager_.getAnchorPage(), view_state.zoom, view_state.rotate, recolor_);
     update_recolor_ = false;
   }
 
   if (canWorkWithDocument() && view_controller_.canUpdatePages()) {
-    requestPage(layout_manager_.getAnchorPage(), view_state.zoom, view_state.rotate, recolor_);
+    requestVisiblePages(layout_manager_.getAnchorPage(), view_state.zoom, view_state.rotate, recolor_);
     view_controller_.clearPendingUpdates();
   }
 
@@ -94,7 +94,7 @@ void DocumentView::update() {
   anchor_page = layout_manager_.getAnchorPage();
 
   if (layout_manager_.anchorPageChanged()) {
-    requestPage(anchor_page, view_state.zoom, view_state.rotate, recolor_);
+    requestVisiblePages(anchor_page, view_state.zoom, view_state.rotate, recolor_);
     event_bus_.emit("statusbar.page_state", std::make_pair(anchor_page + 1, document_.pageCount()));
   }
 
@@ -437,12 +437,11 @@ void DocumentView::onResize(const sf::Vector2f &size) {
 }
 
 void DocumentView::onOpenDocument(const std::string &filepath) {
+  std::string absolute_path = utils::resolvePath(filepath);
+  scheduler_.quiesce();
   try {
-    std::string absolute_path = utils::resolvePath(filepath);
-    scheduler_.quiesce();
     document_.openDocument(absolute_path);
     scheduler_.clearCache();
-    scheduler_.resume();
 
     resetView();
     pending_page_swtich_ = 0;
@@ -453,9 +452,12 @@ void DocumentView::onOpenDocument(const std::string &filepath) {
     file_history_.add(absolute_path);
     bookmark_manager_.setDocumentPath(absolute_path);
   } catch (const std::runtime_error &e) {
+    scheduler_.resume();
     onCloseDocument();
     event_bus_.emit("notification.msg", std::string(e.what()));
   }
+
+  scheduler_.resume();
 }
 
 void DocumentView::onCloseDocument() {
@@ -483,7 +485,7 @@ void DocumentView::onSwitchPage(int page_idx) {
 
   std::size_t anchor_page = static_cast<std::size_t>(page_idx);
   VisualInfo view_state = view_controller_.getState();
-  requestPage(anchor_page, view_state.zoom, view_state.rotate, recolor_);
+  requestVisiblePages(anchor_page, view_state.zoom, view_state.rotate, recolor_);
   layout_manager_.setAnchorPage(anchor_page);
   event_bus_.emit("statusbar.page_state", std::make_pair(anchor_page + 1, document_.pageCount()));
 }
@@ -539,8 +541,11 @@ void DocumentView::registerEvents() {
       return;
     }
 
+    const auto view_state = view_controller_.getState();
     std::size_t curr_page = layout_manager_.getAnchorPage();
     onOpenDocument(document_.getFilePath());
+    view_controller_.setZoom(view_state.zoom);
+    view_controller_.setRotate(view_state.rotate);
     pending_page_swtich_ = curr_page;
     event_bus_.emit("statusbar.document_edited", document_.hasChanges());
   });
@@ -671,15 +676,19 @@ void DocumentView::renderRequestedPages() {
   const VisualInfo view_state = view_controller_.getState();
   for (std::size_t i = layout_manager_.getFrontPage(); i <= layout_manager_.getBackPage(); i++) {
     pdf::PDFRenderKey target_key = {i, view_state.zoom, view_state.rotate, recolor_};
-    if (!scheduler_.isReady(target_key))
-      continue;
-
     if (pages_[i].hasTexture() && pages_[i].getKey() == target_key) {
       pages_[i].setScale({1.f, 1.f});
       continue;
     }
 
-    pages_[i].setTexture(*scheduler_.getTexture(target_key));
+    auto texture = scheduler_.getTexture(target_key);
+    if (!texture) {
+      if (!view_controller_.isUpdatePending())
+        scheduler_.request(target_key);
+      continue;
+    }
+
+    pages_[i].setTexture(std::move(texture));
     pages_[i].setKey(target_key);
 
     pages_[i].setScale({1.f, 1.f});
@@ -690,7 +699,7 @@ void DocumentView::renderRequestedPages() {
   }
 }
 
-void DocumentView::requestPage(std::size_t page_idx, float zoom, int rotate, bool recolor) {
+void DocumentView::requestVisiblePages(std::size_t page_idx, float zoom, int rotate, bool recolor) {
   if (!canWorkWithDocument())
     return;
 
@@ -739,7 +748,6 @@ void DocumentView::requestPage(std::size_t page_idx, float zoom, int rotate, boo
     pdf::PDFRenderKey key{static_cast<std::size_t>(i), zoom, rotate, recolor};
     if (pages_[i].hasTexture() && pages_[i].getKey() == key)
       continue;
-
     scheduler_.request(key);
   }
 

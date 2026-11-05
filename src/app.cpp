@@ -25,7 +25,11 @@ App::App()
       cmd_loader_(utils::ensureParent(asset_dir_ / utils::DEFAULT_COMMANDS)),
       cmd_processor_(event_bus_, cmd_loader_, cmd_history_),
       cmd_autocomplete_(cmd_loader_, file_history_, bookmark_manager_), document_(),
-      renderer_(config_reader_.getConfig().recolor_dark, config_reader_.getConfig().recolor_light),
+      renderer_(
+          document_.cloneContext(),
+          config_reader_.getConfig().recolor_dark,
+          config_reader_.getConfig().recolor_light
+      ),
       render_scheduler_(document_, renderer_, config_reader_.getConfig()),
       password_dialog_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
       cmdline_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),

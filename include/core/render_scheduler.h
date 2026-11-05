@@ -6,8 +6,11 @@
 #include "utils/lru_cache.h"
 
 #include <condition_variable>
+#include <cstdint>
 #include <deque>
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <stop_token>
 #include <thread>
 #include <unordered_set>
@@ -22,8 +25,8 @@ public:
 
   void request(const pdf::PDFRenderKey &key);
   void refreshPages(const std::vector<size_t> &pages);
-  bool isReady(const pdf::PDFRenderKey &key) const;
-  sf::Texture *getTexture(const pdf::PDFRenderKey &key);
+
+  std::shared_ptr<sf::Texture> getTexture(const pdf::PDFRenderKey &key);
   sf::Vector2u getPageSize(const pdf::PDFRenderKey &key) const;
   void clearCache();
 
@@ -36,6 +39,8 @@ private:
     pdf::FzContextPtr ctx;
     std::vector<uint8_t> rgba;
     sf::Image image;
+    std::optional<pdf::PDFRenderKey> current;
+    bool stale = false;
   };
 
   void requestLocked(const pdf::PDFRenderKey &key);
@@ -43,7 +48,8 @@ private:
   void clearCacheLocked();
 
 private:
-  using TextureCache = utils::LRUCache<pdf::PDFRenderKey, sf::Texture, pdf::PDFRenderKeyHash>;
+  using TextureCache =
+      utils::LRUCache<pdf::PDFRenderKey, std::shared_ptr<sf::Texture>, pdf::PDFRenderKeyHash>;
   using ImageCache = utils::LRUCache<pdf::PDFRenderKey, sf::Image, pdf::PDFRenderKeyHash>;
 
   pdf::PDFDocument &document_;

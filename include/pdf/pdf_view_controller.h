@@ -25,6 +25,9 @@ public:
   ui::VisualInfo getState() const;
 
   bool isSyncDirty() const;
+  bool isUpdatePending() const {
+    return pending_page_update_;
+  }
   bool canUpdatePages() const;
 
   void syncWithTargetState(std::size_t front, std::size_t anchor, std::size_t back);

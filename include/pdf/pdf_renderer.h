@@ -5,7 +5,7 @@
 
 #include <mutex>
 
-#include "core/config_reader.h"
+#include "pdf/pdf_document.h"
 #include "utils/lru_cache.h"
 
 namespace pdf {
@@ -92,7 +92,7 @@ private:
 
 class PDFRenderer {
 public:
-  explicit PDFRenderer(int32_t recolor_dark, int32_t recolor_light);
+  explicit PDFRenderer(FzContextPtr ctx, int32_t recolor_dark, int32_t recolor_light);
 
   void render(
       fz_context *ctx,
@@ -106,15 +106,20 @@ public:
   void clearCache();
 
 private:
-  fz_display_list *getPageDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc);
+  fz_display_list *
+  getPageDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc) const;
   fz_display_list *getOrLoadDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc);
-  fz_pixmap *getPixmapFromDisplayList(fz_context *ctx, fz_display_list *list, float zoom, int rot);
-  void
-  rastarizeToBitmap(fz_context *ctx, fz_pixmap *pix, std::vector<uint8_t> &rgba, sf::Image &image);
+  fz_pixmap *
+  getPixmapFromDisplayList(fz_context *ctx, fz_display_list *list, float zoom, int rot) const;
+  void rastarizeToBitmap(
+      fz_context *ctx, fz_pixmap *pix, std::vector<uint8_t> &rgba, sf::Image &image
+  ) const;
 
 private:
   using PDFPageDisplayListCache = utils::LRUCache<std::size_t, pdf::PDFPageDisplayList>;
   using FzRectCache = utils::LRUCache<FzRectKey, sf::Vector2u, FzRectHash>;
+
+  FzContextPtr drop_ctx_;
 
   PDFPageDisplayListCache display_list_cache_;
   FzRectCache fz_rect_cache_;

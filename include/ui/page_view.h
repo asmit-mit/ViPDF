@@ -44,7 +44,7 @@ public:
   void setKey(const pdf::PDFRenderKey &key);
   pdf::PDFRenderKey getKey() const;
 
-  void setTexture(const sf::Texture &texture);
+  void setTexture(std::shared_ptr<sf::Texture> texture);
   void reset();
 
   const PDFSearchResult &getSearchResults();
@@ -70,6 +70,7 @@ private:
   sf::VertexArray search_boxes_{sf::PrimitiveType::Triangles};
   sf::VertexArray selection_boxes_{sf::PrimitiveType::Triangles};
 
+  std::shared_ptr<sf::Texture> texture_;
   sf::RectangleShape original_shape_;
   sf::Sprite sprite_;
   pdf::PDFRenderKey key_;

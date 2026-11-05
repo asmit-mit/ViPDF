@@ -82,7 +82,7 @@ private:
       const ui::VisualInfo &view_state
   );
   void renderRequestedPages();
-  void requestPage(std::size_t page_idx, float zoom, int rotate, bool recolor);
+  void requestVisiblePages(std::size_t page_idx, float zoom, int rotate, bool recolor);
   void resetView();
 
   void execute(const core::InputCmd<DocumentAction> &cmd);

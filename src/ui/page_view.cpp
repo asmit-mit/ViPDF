@@ -98,14 +98,16 @@ pdf::PDFRenderKey PageView::getKey() const {
   return key_;
 }
 
-void PageView::setTexture(const sf::Texture &texture) {
-  sprite_.setTexture(texture, true);
+void PageView::setTexture(std::shared_ptr<sf::Texture> texture) {
+  texture_ = std::move(texture);
+  sprite_.setTexture(*texture_, true);
   const auto bounds = sprite_.getLocalBounds();
   sprite_.setOrigin({bounds.size.x * 0.5f, bounds.size.y * 0.5f});
   active_ = true;
 }
 
 void PageView::reset() {
+  texture_.reset();
   active_ = false;
 }
 

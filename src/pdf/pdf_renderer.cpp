@@ -41,8 +41,8 @@ void PDFPageDisplayList::reset() {
   }
 }
 
-PDFRenderer::PDFRenderer(int32_t recolor_dark, int32_t recolor_light)
-    : display_list_cache_(utils::DISPLAY_LIST_CACHE_SIZE),
+PDFRenderer::PDFRenderer(FzContextPtr ctx, int32_t recolor_dark, int32_t recolor_light)
+    : drop_ctx_(std::move(ctx)), display_list_cache_(utils::DISPLAY_LIST_CACHE_SIZE),
       fz_rect_cache_(utils::DISPLAY_LIST_CACHE_SIZE), recolor_dark_(recolor_dark),
       recolor_light_(recolor_light) {}
 
@@ -95,7 +95,7 @@ PDFRenderer::getOrLoadDisplayList(std::size_t page_idx, fz_context *ctx, fz_docu
 
   if (!display_list_cache_.contains(page_idx)) {
     fz_display_list *list = getPageDisplayList(page_idx, ctx, doc);
-    display_list_cache_.put(page_idx, pdf::PDFPageDisplayList(ctx, list));
+    display_list_cache_.put(page_idx, pdf::PDFPageDisplayList(drop_ctx_.get(), list));
     return list;
   }
 
@@ -103,7 +103,7 @@ PDFRenderer::getOrLoadDisplayList(std::size_t page_idx, fz_context *ctx, fz_docu
 }
 
 fz_display_list *
-PDFRenderer::getPageDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc) {
+PDFRenderer::getPageDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc) const {
   fz_page *page = nullptr;
   fz_var(page);
 
@@ -128,8 +128,9 @@ PDFRenderer::getPageDisplayList(std::size_t page_idx, fz_context *ctx, fz_docume
   return list;
 }
 
-fz_pixmap *
-PDFRenderer::getPixmapFromDisplayList(fz_context *ctx, fz_display_list *list, float zoom, int rot) {
+fz_pixmap *PDFRenderer::getPixmapFromDisplayList(
+    fz_context *ctx, fz_display_list *list, float zoom, int rot
+) const {
   fz_matrix ctm = fz_scale(zoom, zoom);
   ctm = fz_pre_rotate(ctm, rot * 90.f);
 
@@ -165,7 +166,7 @@ PDFRenderer::getPixmapFromDisplayList(fz_context *ctx, fz_display_list *list, fl
 
 void PDFRenderer::rastarizeToBitmap(
     fz_context *ctx, fz_pixmap *pix, std::vector<uint8_t> &rgba, sf::Image &image
-) {
+) const {
   const int width = fz_pixmap_width(ctx, pix);
   const int height = fz_pixmap_height(ctx, pix);
   const int stride = fz_pixmap_stride(ctx, pix);
