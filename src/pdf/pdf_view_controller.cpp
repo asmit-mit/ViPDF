@@ -9,25 +9,27 @@ PDFViewController::PDFViewController(
   reset();
 }
 
-void PDFViewController::setZoom(float zoom) {
+void PDFViewController::setZoom(float zoom, bool wait) {
   const float clamped = std::clamp(zoom, min_zoom_, max_zoom_);
   if (clamped == target_state_.zoom)
     return;
 
   target_state_.zoom = clamped;
-  scale_rot_update_timer_.restart();
+  if (wait)
+    scale_rot_update_timer_.restart();
 
   pending_page_update_ = true;
   sync_state_dirty_ = true;
 }
 
-void PDFViewController::setRotate(int rotate) {
+void PDFViewController::setRotate(int rotate, bool wait) {
   const int clamped = ((rotate % 4) + 4) % 4;
   if (clamped == target_state_.rotate)
     return;
 
   target_state_.rotate = clamped;
-  scale_rot_update_timer_.restart();
+  if (wait)
+    scale_rot_update_timer_.restart();
 
   pending_page_update_ = true;
   sync_state_dirty_ = true;
@@ -39,6 +41,10 @@ void PDFViewController::setSyncDirty() {
 
 void PDFViewController::setWindowSize(sf::Vector2f window_size) {
   window_size_ = window_size;
+}
+
+bool PDFViewController::isUpdatePending() const {
+  return pending_page_update_;
 }
 
 bool PDFViewController::isSyncDirty() const {

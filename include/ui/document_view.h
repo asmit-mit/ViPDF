@@ -148,6 +148,8 @@ private:
   const sf::Color selected_search_box_color_;
 
   std::optional<int> pending_page_swtich_;
+  std::optional<float> pending_zoom_update_;
+  std::optional<int> pending_rotate_update_;
   std::optional<PageRange> kept_range_;
 
   static constexpr float scroll_dist_ = 40.f;

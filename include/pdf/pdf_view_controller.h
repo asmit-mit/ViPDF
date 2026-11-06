@@ -11,8 +11,8 @@ class PDFViewController {
 public:
   PDFViewController(core::RenderScheduler &scheduler, std::vector<ui::PageView> &pages);
 
-  void setZoom(float zoom);
-  void setRotate(int rotate);
+  void setZoom(float zoom, bool wait = true);
+  void setRotate(int rotate, bool wait = true);
   void setSyncDirty();
 
   void clearPendingUpdates();
@@ -25,9 +25,7 @@ public:
   ui::VisualInfo getState() const;
 
   bool isSyncDirty() const;
-  bool isUpdatePending() const {
-    return pending_page_update_;
-  }
+  bool isUpdatePending() const;
   bool canUpdatePages() const;
 
   void syncWithTargetState(std::size_t front, std::size_t anchor, std::size_t back);

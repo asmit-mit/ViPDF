@@ -54,11 +54,6 @@ void DocumentView::update() {
   if (!canWorkWithDocument())
     return;
 
-  if (pending_page_swtich_) {
-    onSwitchPage(*pending_page_swtich_);
-    pending_page_swtich_.reset();
-  }
-
   std::size_t front_page = layout_manager_.getFrontPage();
   std::size_t anchor_page = layout_manager_.getAnchorPage();
   std::size_t back_page = layout_manager_.getBackPage();
@@ -70,12 +65,19 @@ void DocumentView::update() {
     update_recolor_ = false;
   }
 
-  if (canWorkWithDocument() && view_controller_.canUpdatePages()) {
+  if (view_controller_.canUpdatePages()) {
     requestVisiblePages(layout_manager_.getAnchorPage(), view_state.zoom, view_state.rotate, recolor_);
+    event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
     view_controller_.clearPendingUpdates();
   }
 
   renderRequestedPages();
+
+  if (pending_page_swtich_) {
+    onSwitchPage(*pending_page_swtich_);
+    pending_page_swtich_.reset();
+  }
+
   layout_manager_.setInitialPagePos();
 
   if (view_controller_.isSyncDirty()) {
@@ -544,8 +546,8 @@ void DocumentView::registerEvents() {
     const auto view_state = view_controller_.getState();
     std::size_t curr_page = layout_manager_.getAnchorPage();
     onOpenDocument(document_.getFilePath());
-    view_controller_.setZoom(view_state.zoom);
-    view_controller_.setRotate(view_state.rotate);
+    view_controller_.setRotate(view_state.rotate % 4, false);
+    view_controller_.setZoom(view_state.zoom, false);
     pending_page_swtich_ = curr_page;
     event_bus_.emit("statusbar.document_edited", document_.hasChanges());
   });
