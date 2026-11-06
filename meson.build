@@ -5,7 +5,7 @@ project(
   meson_version: '>= 0.58.0',
   default_options: [
     'cpp_std=c++23',
-    'buildtype=release',
+    'buildtype=debugoptimized',
     'sqlite3:default_library=static',
   ],
 )
@@ -35,7 +35,6 @@ harfbuzz_dep = hb_proj.get_variable('libharfbuzz_dep')
 harfbuzz_raster_dep = hb_proj.get_variable('libharfbuzz_raster_dep')
 
 systemd_dep = dependency('libsystemd', required: true)
-
 
 # dbus library
 sdbus_opts = cmake.subproject_options()
@@ -68,7 +67,6 @@ clip_dep = clip_proj.dependency('clip')
 
 png_dep = dependency('libpng', required: true)
 xcb_dep = dependency('xcb', required: true)
-
 
 # sqlitecpp library
 sqlitecpp_dep = dependency(
@@ -105,6 +103,8 @@ sources = files(
   'src/core/config_reader.cpp',
   'src/core/history_manager.cpp',
   'src/core/render_scheduler.cpp',
+  'src/dbus/link_opener.cpp',
+  'src/dbus/portal.cpp',
   'src/graphics/font_library.cpp',
   'src/graphics/glyph_atlas.cpp',
   'src/graphics/rich_text.cpp',

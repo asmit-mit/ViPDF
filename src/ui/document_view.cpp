@@ -195,7 +195,7 @@ void DocumentView::handleEvent(const sf::Event &event) {
         if (link->type == pdf::PDFLinkType::INTERNAL)
           onSwitchPage(link->target_page);
         else
-          std::println("clicked on link external");
+          event_bus_.emit("dbus.open_link", link->url);
       }
 
       if (img) {

@@ -1,8 +1,8 @@
 #include "app.h"
 
-#include "core/config_reader.h"
-#include "ui/password_dialog.h"
 #include "utils/utils.h"
+
+#include <print>
 
 namespace fs = std::filesystem;
 
@@ -30,7 +30,8 @@ App::App()
           config_reader_.getConfig().recolor_dark,
           config_reader_.getConfig().recolor_light
       ),
-      render_scheduler_(document_, renderer_, config_reader_.getConfig()),
+      render_scheduler_(document_, renderer_, config_reader_.getConfig()), portal_(),
+      link_opener_(portal_),
       password_dialog_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
       cmdline_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
       cmdline_completions_(font_library_, glyph_atlas_, font_regular_, font_italic_, utils::TEXT_SIZE),
@@ -158,6 +159,10 @@ void App::registerEvents() {
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
     focus_ = focus;
+  });
+
+  event_bus_.subscribe<const std::string &>("dbus.open_link", [this](const std::string &url) {
+    link_opener_.openLink(url);
   });
 }
 

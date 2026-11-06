@@ -11,6 +11,8 @@
 #include "core/event_bus.h"
 #include "core/history_manager.h"
 #include "core/render_scheduler.h"
+#include "dbus/link_opener.h"
+#include "dbus/portal.h"
 #include "graphics/font_library.h"
 #include "graphics/glyph_atlas.h"
 #include "ui/cmdline.h"
@@ -63,6 +65,9 @@ private:
   pdf::PDFDocument document_;
   pdf::PDFRenderer renderer_;
   core::RenderScheduler render_scheduler_;
+
+  dbus::Portal portal_;
+  dbus::LinkOpener link_opener_;
 
   ui::Textbox password_dialog_textbox_;
   ui::Textbox cmdline_textbox_;
