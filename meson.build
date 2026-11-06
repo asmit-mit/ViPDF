@@ -5,7 +5,7 @@ project(
   meson_version: '>= 0.58.0',
   default_options: [
     'cpp_std=c++23',
-    'buildtype=debugoptimized',
+    'buildtype=release',
     'sqlite3:default_library=static',
   ],
 )

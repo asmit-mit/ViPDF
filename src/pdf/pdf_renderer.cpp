@@ -5,42 +5,6 @@
 
 namespace pdf {
 
-PDFPageDisplayList::PDFPageDisplayList(fz_context *ctx, fz_display_list *display_list)
-    : ctx_(ctx), display_list_(display_list) {}
-
-PDFPageDisplayList::~PDFPageDisplayList() {
-  reset();
-}
-
-PDFPageDisplayList::PDFPageDisplayList(PDFPageDisplayList &&other) noexcept {
-  *this = std::move(other);
-}
-
-PDFPageDisplayList &PDFPageDisplayList::operator=(PDFPageDisplayList &&other) noexcept {
-  if (this != &other) {
-    reset();
-
-    ctx_ = other.ctx_;
-    display_list_ = other.display_list_;
-
-    other.ctx_ = nullptr;
-    other.display_list_ = nullptr;
-  }
-
-  return *this;
-}
-
-fz_display_list *PDFPageDisplayList::displayList() const {
-  return display_list_;
-}
-
-void PDFPageDisplayList::reset() {
-  if (display_list_) {
-    fz_drop_display_list(ctx_, display_list_);
-    display_list_ = nullptr;
-  }
-}
-
 PDFRenderer::PDFRenderer(FzContextPtr ctx, int32_t recolor_dark, int32_t recolor_light)
     : drop_ctx_(std::move(ctx)), display_list_cache_(utils::DISPLAY_LIST_CACHE_SIZE),
       fz_rect_cache_(utils::DISPLAY_LIST_CACHE_SIZE), recolor_dark_(recolor_dark),
@@ -53,18 +17,24 @@ void PDFRenderer::render(
     std::vector<uint8_t> &rgba,
     sf::Image &image
 ) {
-  fz_display_list *list = getOrLoadDisplayList(key.page_idx, ctx, doc);
-  fz_pixmap *pix = getPixmapFromDisplayList(ctx, list, key.zoom, key.rotate);
+  FzDisplayList list = getOrLoadDisplayList(key.page_idx, ctx, doc);
+  FzPixmap pix =
+      FzPixmap(getPixmapFromDisplayList(ctx, list.get(), key.zoom, key.rotate), FzPixmapDeleter{ctx});
 
-  if (key.recolor)
-    fz_tint_pixmap(ctx, pix, recolor_dark_, recolor_light_);
-  rastarizeToBitmap(ctx, pix, rgba, image);
+  if (key.recolor) {
+    fz_try(ctx) fz_tint_pixmap(ctx, pix.get(), recolor_dark_, recolor_light_);
+    fz_catch(ctx) throw std::runtime_error("Failed to recolor page");
+  }
+  rastarizeToBitmap(ctx, pix.get(), rgba, image);
 }
 
 sf::Vector2u PDFRenderer::getPageSize(const fz_rect &bounds, const PDFRenderKey &key) {
   FzRectKey fz_rect_key{bounds, key};
-  if (auto *cached = fz_rect_cache_.get(fz_rect_key))
-    return *cached;
+  {
+    std::lock_guard lock(rect_mutex_);
+    if (auto *cached = fz_rect_cache_.get(fz_rect_key))
+      return *cached;
+  }
 
   fz_matrix ctm = fz_scale(key.zoom, key.zoom);
   ctm = fz_pre_rotate(ctm, key.rotate * 90.f);
@@ -74,54 +44,60 @@ sf::Vector2u PDFRenderer::getPageSize(const fz_rect &bounds, const PDFRenderKey 
 
   sf::Vector2u
       size{static_cast<unsigned>(bbox.x1 - bbox.x0), static_cast<unsigned>(bbox.y1 - bbox.y0)};
-  fz_rect_cache_.put(fz_rect_key, size);
 
+  std::lock_guard lock(rect_mutex_);
+  fz_rect_cache_.put(fz_rect_key, size);
   return size;
 }
 
 void PDFRenderer::invalidatePage(std::size_t page_idx) {
-  std::lock_guard lock(display_mutex_);
+  std::lock_guard lock(display_list_mutex_);
   display_list_cache_.erase(page_idx);
 }
 
 void PDFRenderer::clearCache() {
-  std::lock_guard lock(display_mutex_);
+  std::lock_guard lock(display_list_mutex_);
   display_list_cache_.clear();
 }
 
-fz_display_list *
+FzDisplayList
 PDFRenderer::getOrLoadDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc) {
-  std::lock_guard lock(display_mutex_);
+  std::lock_guard lock(display_list_mutex_);
 
-  if (!display_list_cache_.contains(page_idx)) {
-    fz_display_list *list = getPageDisplayList(page_idx, ctx, doc);
-    display_list_cache_.put(page_idx, pdf::PDFPageDisplayList(drop_ctx_.get(), list));
-    return list;
-  }
+  if (auto *cached = display_list_cache_.get(page_idx))
+    return *cached;
 
-  return display_list_cache_.get(page_idx)->displayList();
+  FzDisplayList
+      list(getPageDisplayList(page_idx, ctx, doc), FzDisplayListDeleter{drop_ctx_.get(), &drop_mutex_});
+  display_list_cache_.put(page_idx, list);
+  return list;
 }
 
 fz_display_list *
 PDFRenderer::getPageDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc) const {
   fz_page *page = nullptr;
+  fz_display_list *list = nullptr;
+  fz_device *dev = nullptr;
   fz_var(page);
+  fz_var(list);
+  fz_var(dev);
 
-  fz_try(ctx) page = fz_load_page(ctx, doc, page_idx);
-  fz_catch(ctx) throw std::runtime_error("Failed to load page");
-
-  fz_rect bounds = fz_bound_page(ctx, page);
-  fz_display_list *list = fz_new_display_list(ctx, bounds);
-  fz_device *dev = fz_new_list_device(ctx, list);
-
-  fz_try(ctx) fz_run_page(ctx, page, dev, fz_identity, nullptr);
-  fz_always(ctx) {
+  fz_try(ctx) {
+    page = fz_load_page(ctx, doc, static_cast<int>(page_idx));
+    list = fz_new_display_list(ctx, fz_bound_page(ctx, page));
+    dev = fz_new_list_device(ctx, list);
+    fz_run_page(ctx, page, dev, fz_identity, nullptr);
     fz_close_device(ctx, dev);
-    fz_drop_device(ctx, dev);
-    fz_drop_page(ctx, page);
+  }
+  fz_always(ctx) {
+    if (dev)
+      fz_drop_device(ctx, dev);
+    if (page)
+      fz_drop_page(ctx, page);
   }
   fz_catch(ctx) {
-    fz_drop_display_list(ctx, list);
+    if (list)
+      fz_drop_display_list(ctx, list);
     throw std::runtime_error("Failed to build display list");
   }
 
@@ -184,8 +160,6 @@ void PDFRenderer::rastarizeToBitmap(
   }
 
   image = sf::Image({static_cast<unsigned>(width), static_cast<unsigned>(height)}, rgba.data());
-
-  fz_drop_pixmap(ctx, pix);
 }
 
 } // namespace pdf

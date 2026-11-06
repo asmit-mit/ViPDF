@@ -70,25 +70,29 @@ struct FzRectHash {
   }
 };
 
-class PDFPageDisplayList {
-public:
-  PDFPageDisplayList() = default;
-  PDFPageDisplayList(fz_context *ctx, fz_display_list *display_list);
-  ~PDFPageDisplayList();
-  PDFPageDisplayList(const PDFPageDisplayList &) = delete;
-  PDFPageDisplayList &operator=(const PDFPageDisplayList &) = delete;
-  PDFPageDisplayList(PDFPageDisplayList &&other) noexcept;
-  PDFPageDisplayList &operator=(PDFPageDisplayList &&other) noexcept;
-
-  fz_display_list *displayList() const;
-
-private:
-  void reset();
-
-private:
-  fz_context *ctx_ = nullptr;
-  fz_display_list *display_list_ = nullptr;
+struct FzPixmapDeleter {
+  fz_context *ctx;
+  void operator()(fz_pixmap *pixmap) const noexcept {
+    if (pixmap)
+      fz_drop_pixmap(ctx, pixmap);
+  }
 };
+
+using FzPixmap = std::unique_ptr<fz_pixmap, FzPixmapDeleter>;
+
+struct FzDisplayListDeleter {
+  fz_context *ctx;
+  std::mutex *mtx;
+
+  void operator()(fz_display_list *list) const noexcept {
+    if (!list)
+      return;
+    std::lock_guard lock(*mtx);
+    fz_drop_display_list(ctx, list);
+  }
+};
+
+using FzDisplayList = std::shared_ptr<fz_display_list>;
 
 class PDFRenderer {
 public:
@@ -108,7 +112,7 @@ public:
 private:
   fz_display_list *
   getPageDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc) const;
-  fz_display_list *getOrLoadDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc);
+  FzDisplayList getOrLoadDisplayList(std::size_t page_idx, fz_context *ctx, fz_document *doc);
   fz_pixmap *
   getPixmapFromDisplayList(fz_context *ctx, fz_display_list *list, float zoom, int rot) const;
   void rastarizeToBitmap(
@@ -116,14 +120,16 @@ private:
   ) const;
 
 private:
-  using PDFPageDisplayListCache = utils::LRUCache<std::size_t, pdf::PDFPageDisplayList>;
+  using FzDisplayListCache = utils::LRUCache<std::size_t, FzDisplayList>;
   using FzRectCache = utils::LRUCache<FzRectKey, sf::Vector2u, FzRectHash>;
 
   FzContextPtr drop_ctx_;
+  std::mutex drop_mutex_;
 
-  PDFPageDisplayListCache display_list_cache_;
+  FzDisplayListCache display_list_cache_;
   FzRectCache fz_rect_cache_;
-  std::mutex display_mutex_;
+  std::mutex display_list_mutex_;
+  std::mutex rect_mutex_;
 
   int32_t recolor_dark_;
   int32_t recolor_light_;
