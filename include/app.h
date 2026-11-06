@@ -11,6 +11,7 @@
 #include "core/event_bus.h"
 #include "core/history_manager.h"
 #include "core/render_scheduler.h"
+#include "dbus/file_printer.h"
 #include "dbus/link_opener.h"
 #include "dbus/portal.h"
 #include "graphics/font_library.h"
@@ -68,6 +69,7 @@ private:
 
   dbus::Portal portal_;
   dbus::LinkOpener link_opener_;
+  dbus::FilePrinter file_printer_;
 
   ui::Textbox password_dialog_textbox_;
   ui::Textbox cmdline_textbox_;

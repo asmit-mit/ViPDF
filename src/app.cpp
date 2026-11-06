@@ -2,8 +2,6 @@
 
 #include "utils/utils.h"
 
-#include <print>
-
 namespace fs = std::filesystem;
 
 App::App()
@@ -31,7 +29,7 @@ App::App()
           config_reader_.getConfig().recolor_light
       ),
       render_scheduler_(document_, renderer_, config_reader_.getConfig()), portal_(),
-      link_opener_(portal_),
+      link_opener_(portal_), file_printer_(portal_),
       password_dialog_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
       cmdline_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
       cmdline_completions_(font_library_, glyph_atlas_, font_regular_, font_italic_, utils::TEXT_SIZE),
@@ -159,6 +157,19 @@ void App::registerEvents() {
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
     focus_ = focus;
+  });
+
+  event_bus_.subscribe<bool>("dbus.print_file", [this](bool) {
+    if (!document_.isOpen()) {
+      event_bus_.emit("notification.msg", std::string("No document open to print"));
+      return;
+    }
+    if (document_.needsAuth()) {
+      event_bus_.emit("notification.msg", std::string("Unlock the document before printing it"));
+      return;
+    }
+    if (!file_printer_.printFile(document_.getFilePath()))
+      event_bus_.emit("notification.msg", std::string("A print is already in progress"));
   });
 
   event_bus_.subscribe<const std::string &>("dbus.open_link", [this](const std::string &url) {

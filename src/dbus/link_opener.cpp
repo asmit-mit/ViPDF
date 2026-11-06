@@ -1,17 +1,26 @@
 #include "dbus/link_opener.h"
 
+#include <iostream>
+
 namespace dbus {
 
 LinkOpener::LinkOpener(Portal &portal)
-    : interface_name_(INTERFACE_NAME), method_name_(METHOD_NAME), portal_(portal) {}
+    : interface_(INTERFACE_NAME), method_(METHOD_NAME), portal_(portal) {}
 
 void LinkOpener::openLink(const std::string &url) {
-  auto call = portal_.getProxy().createMethodCall(interface_name_, method_name_);
+  Portal::Results options;
+  Portal::Callback callback = [url](std::uint32_t code, const Portal::Results &) {
+    if (code)
+      std::cerr << "Failed to open link " << url << "with error code: " << code << "\n";
+  };
 
-  std::map<std::string, sdbus::Variant> options;
-  call << std::string{""} << url << options;
-
-  portal_.getProxy().callMethod(call);
+  portal_.request(
+      interface_,
+      method_,
+      std::move(options),
+      [&](sdbus::MethodCall &call) { call << std::string{""} << url; },
+      std::move(callback)
+  );
 }
 
 } // namespace dbus

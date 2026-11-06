@@ -17,8 +17,8 @@ private:
   static constexpr char INTERFACE_NAME[] = "org.freedesktop.portal.OpenURI";
   static constexpr char METHOD_NAME[] = "OpenURI";
 
-  const sdbus::InterfaceName interface_name_;
-  const sdbus::MethodName method_name_;
+  const sdbus::InterfaceName interface_;
+  const sdbus::MethodName method_;
 
   Portal &portal_;
 };

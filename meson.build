@@ -5,7 +5,7 @@ project(
   meson_version: '>= 0.58.0',
   default_options: [
     'cpp_std=c++23',
-    'buildtype=debugoptimized',
+    'buildtype=release',
     'sqlite3:default_library=static',
   ],
 )
@@ -103,6 +103,7 @@ sources = files(
   'src/core/config_reader.cpp',
   'src/core/history_manager.cpp',
   'src/core/render_scheduler.cpp',
+  'src/dbus/file_printer.cpp',
   'src/dbus/link_opener.cpp',
   'src/dbus/portal.cpp',
   'src/graphics/font_library.cpp',

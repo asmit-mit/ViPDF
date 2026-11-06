@@ -86,5 +86,11 @@
         "cmp_type": "bookmark"
       }
     ]
+  },
+  {
+    "name": "print",
+    "args": 1,
+    "event": "dbus.print_file",
+    "description": "Print file"
   }
 ]

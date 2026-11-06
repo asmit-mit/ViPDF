@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <clip.h>
-#include <print>
 #include <stdexcept>
 #include <utf8.h>
 
