@@ -121,6 +121,10 @@ void ConfigReader::loadConfig() {
       std::max(MIN_CACHE_SIZE, get_size("general", "page_cache_size", config_.page_cache_size));
   config_.thread_count =
       std::clamp(get_size("general", "thread_count", config_.thread_count), MIN_THREADS, MAX_THREADS);
+
+  config_.cmd_history_count = get_color("history", "cmd", config_.cmd_history_count);
+  config_.file_history_count = get_color("history", "files", config_.file_history_count);
+  config_.search_history_count = get_color("history", "search", config_.search_history_count);
 }
 
 bool ConfigReader::lookup(

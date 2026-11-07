@@ -57,6 +57,10 @@ struct Config {
   float delta_zoom = 0.1f;
   std::size_t page_cache_size = 15;
   std::size_t thread_count = 5;
+
+  std::size_t cmd_history_count = 1000;
+  std::size_t file_history_count = 10;
+  std::size_t search_history_count = 1000;
 };
 
 class ConfigReader {

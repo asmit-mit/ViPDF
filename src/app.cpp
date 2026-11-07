@@ -15,11 +15,17 @@ App::App()
           {graphics::FontType::CJK, (asset_dir_ / utils::FONT_CJK).c_str()},
           {graphics::FontType::Emoji, (asset_dir_ / utils::FONT_EMOJI).c_str()},
       }),
-      cmd_history_(utils::ensureParent(state_dir_ / utils::CMD_HISTORY)),
-      search_history_(utils::ensureParent(state_dir_ / utils::SEARCH_HISTORY)),
-      file_history_(utils::ensureParent(state_dir_ / utils::RECENT_FILES)),
-      bookmark_manager_(utils::ensureParent(state_dir_ / utils::BOOKMARKS_DB)),
       config_reader_(utils::configPath()),
+      cmd_history_(utils::ensureParent(state_dir_ / utils::CMD_HISTORY), config_reader_.getConfig().cmd_history_count),
+      search_history_(
+          utils::ensureParent(state_dir_ / utils::SEARCH_HISTORY),
+          config_reader_.getConfig().search_history_count
+      ),
+      file_history_(
+          utils::ensureParent(state_dir_ / utils::RECENT_FILES),
+          config_reader_.getConfig().file_history_count
+      ),
+      bookmark_manager_(utils::ensureParent(state_dir_ / utils::BOOKMARKS_DB)),
       cmd_loader_(utils::ensureParent(asset_dir_ / utils::DEFAULT_COMMANDS)),
       cmd_processor_(event_bus_, cmd_loader_, cmd_history_),
       cmd_autocomplete_(cmd_loader_, file_history_, bookmark_manager_), document_(),

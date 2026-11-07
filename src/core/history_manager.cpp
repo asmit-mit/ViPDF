@@ -1,30 +1,45 @@
 #include "core/history_manager.h"
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <unordered_set>
 #include <utf8.h>
 
 namespace core {
 
-HistoryManager::HistoryManager(const std::filesystem::path path) {
+HistoryManager::HistoryManager(const std::filesystem::path path, std::size_t capacity)
+    : capacity_(capacity), history_file_(path) {
+  curr_idx_ = 0;
+  save_unique_ = false;
+
   std::ifstream file(path);
 
   std::string line;
   while (std::getline(file, line)) {
-    if (line.empty())
-      continue;
-
-    std::string cmd = line;
-
-    if (save_unique_)
-      history_set_.insert(cmd);
-    else
-      history_.push_back(cmd);
+    if (!line.empty())
+      history_.push_back(line);
   }
 
+  trim();
   reset();
+}
 
-  history_file_ = std::move(path);
+void HistoryManager::trim() {
+  while (history_.size() > capacity_)
+    history_.pop_front();
+}
+
+void HistoryManager::dedupe() {
+  std::unordered_set<std::string> seen;
+  std::deque<std::string> result;
+
+  for (auto it = history_.rbegin(); it != history_.rend(); ++it) {
+    if (seen.insert(*it).second)
+      result.push_front(*it);
+  }
+
+  history_ = std::move(result);
 }
 
 void HistoryManager::setSaveUnique(bool unique) {
@@ -34,15 +49,8 @@ void HistoryManager::setSaveUnique(bool unique) {
   save_unique_ = unique;
 
   if (save_unique_) {
-    history_set_.clear();
-    for (const auto &cmd : history_)
-      history_set_.insert(cmd);
-    history_.clear();
-  } else {
-    history_.clear();
-    for (const auto &cmd : history_set_)
-      history_.push_back(cmd);
-    history_set_.clear();
+    dedupe();
+    trim();
   }
 
   reset();
@@ -51,14 +59,12 @@ void HistoryManager::setSaveUnique(bool unique) {
 
 void HistoryManager::clear() {
   history_.clear();
-  history_set_.clear();
-
   reset();
   save();
 }
 
 void HistoryManager::reset() {
-  curr_idx_ = save_unique_ ? history_set_.size() : history_.size();
+  curr_idx_ = history_.size();
 }
 
 void HistoryManager::add(const std::string &cmd) {
@@ -66,29 +72,20 @@ void HistoryManager::add(const std::string &cmd) {
     return;
 
   if (save_unique_) {
-    if (history_set_.size() >= max_size_)
-      return;
-
-    auto [it, inserted] = history_set_.insert(cmd);
-
-    if (!inserted)
-      return;
-  } else {
-    if (history_.empty() || history_.back() != cmd)
-      history_.push_back(cmd);
-
-    if (history_.size() > max_size_)
-      history_.pop_front();
+    history_.erase(std::remove(history_.begin(), history_.end(), cmd), history_.end());
+  } else if (!history_.empty() && history_.back() == cmd) {
+    reset();
+    return;
   }
+
+  history_.push_back(cmd);
+  trim();
 
   reset();
   save();
 }
 
 std::string HistoryManager::getNext() {
-  if (save_unique_)
-    return "";
-
   if (history_.empty())
     return "";
 
@@ -102,9 +99,6 @@ std::string HistoryManager::getNext() {
 }
 
 std::string HistoryManager::getPrevious() {
-  if (save_unique_)
-    return "";
-
   if (history_.empty())
     return "";
 
@@ -115,22 +109,23 @@ std::string HistoryManager::getPrevious() {
 }
 
 std::vector<std::string> HistoryManager::getAll() const {
-  if (save_unique_)
-    return {history_set_.begin(), history_set_.end()};
-
   return {history_.begin(), history_.end()};
 }
 
 std::vector<std::string> HistoryManager::getAllUnique() const {
   if (save_unique_)
-    return {history_set_.begin(), history_set_.end()};
+    return getAll();
 
-  std::unordered_set<std::string> unique;
+  std::unordered_set<std::string> seen;
+  std::vector<std::string> result;
 
-  for (const auto &cmd : history_)
-    unique.insert(cmd);
+  for (auto it = history_.rbegin(); it != history_.rend(); ++it) {
+    if (seen.insert(*it).second)
+      result.push_back(*it);
+  }
+  std::reverse(result.begin(), result.end());
 
-  return {unique.begin(), unique.end()};
+  return result;
 }
 
 void HistoryManager::save() {
@@ -141,15 +136,8 @@ void HistoryManager::save() {
     return;
   }
 
-  if (save_unique_) {
-    for (const auto &cmd : history_set_) {
-      file << cmd << '\n';
-    }
-  } else {
-    for (const auto &cmd : history_) {
-      file << cmd << '\n';
-    }
-  }
+  for (const auto &cmd : history_)
+    file << cmd << '\n';
 }
 
 } // namespace core

@@ -273,6 +273,11 @@ dark = 0xebdbb2
 delta_zoom = 0.1
 page_cache_size = 15
 thread_count = 5
+
+[history]
+cmd = 1000
+files = 10
+search = 1000
 ```
 
 ### Option reference
@@ -292,6 +297,9 @@ thread_count = 5
 | `[general]`         | `delta_zoom`                                                                 | Zoom increase/decrease per zoom action                                               |
 | `[general]`         | `page_cache_size`                                                            | Number of rendered pages kept in memory (increasing this will increase memory usage) |
 | `[general]`         | `thread_count`                                                               | Number of rendering threads                                                          |
+| `[history]`         | `cmd`                                                                        | Maximum number of command line entries to keep in history                            |
+| `[history]`         | `files`                                                                      | Maximum number of recently opened files to keep in history                           |
+| `[history]`         | `search`                                                                     | Maximum number of search queries to keep in history                                  |
 
 ## Acknowledgements
 

@@ -3,14 +3,13 @@
 #include <deque>
 #include <filesystem>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 namespace core {
 
 class HistoryManager {
 public:
-  HistoryManager(const std::filesystem::path path);
+  HistoryManager(const std::filesystem::path path, std::size_t capacity);
 
   void setSaveUnique(bool unique);
   void reset();
@@ -26,16 +25,17 @@ public:
 
 private:
   void save();
+  void trim();
+  void dedupe();
 
 private:
   std::deque<std::string> history_;
-  std::unordered_set<std::string> history_set_;
 
-  static constexpr std::size_t max_size_ = 100;
-  std::size_t curr_idx_ = 0;
+  std::size_t capacity_;
+  std::size_t curr_idx_;
 
   std::filesystem::path history_file_;
-  bool save_unique_ = false;
+  bool save_unique_;
 };
 
 } // namespace core
