@@ -1,6 +1,14 @@
 # ViPDF
 
-A keyboard-driven PDF reader with Vim-style motions. Built on [MuPDF](https://mupdf.com/) for rendering and [SFML](https://www.sfml-dev.org/) for the GUI.
+A keyboard-driven PDF reader with Vim-style motions. Built on [MuPDF](https://mupdf.com/) for rendering and [SFML](https://www.sfml-dev.org/) for the GUI. Its look and feel is inspired by [Zathura](https://pwmt.org/projects/zathura/).
+
+![Default document look](screenshots/default-document-look.png)
+
+![Recolored document](screenshots/recolor-document.png)
+
+![Annotations and search results](screenshots/annotations-and-search.png)
+
+![Default look and completion list](screenshots/completions.png)
 
 ## Features
 
