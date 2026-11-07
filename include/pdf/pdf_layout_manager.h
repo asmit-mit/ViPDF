@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include <optional>
 #include <vector>
 
 #include "core/render_scheduler.h"
@@ -26,7 +27,7 @@ public:
 
   void setPagePosDirty();
 
-  void setInitialPagePos();
+  void setInitialPagePos(std::optional<sf::Vector2f> delta = std::nullopt);
   void panCurrentPage(sf::Vector2f delta);
   void updatePagePositions(const ui::VisualInfo &visual_state);
 

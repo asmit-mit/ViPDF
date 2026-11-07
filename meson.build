@@ -141,6 +141,7 @@ sources = files(
   'src/ui/password_dialog.cpp',
   'src/ui/statusbar.cpp',
   'src/ui/textbox.cpp',
+  'src/utils/profiler.cpp',
   'src/utils/trie.cpp',
 )
 

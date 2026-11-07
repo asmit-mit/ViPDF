@@ -64,33 +64,40 @@ void DocumentView::update() {
     update_recolor_ = false;
   }
 
+  if (selection_controller_.isSelectionDirty())
+    selection_controller_.createSelection();
+
   if (view_controller_.canUpdatePages()) {
     requestVisiblePages(layout_manager_.getAnchorPage(), view_state.zoom, view_state.rotate, recolor_);
     event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
     view_controller_.clearPendingUpdates();
   }
 
-  renderRequestedPages();
-
   if (pending_page_swtich_) {
     onSwitchPage(*pending_page_swtich_);
     pending_page_swtich_.reset();
   }
 
-  layout_manager_.setInitialPagePos();
+  renderRequestedPages();
 
   if (view_controller_.isSyncDirty()) {
     view_controller_.syncWithTargetState(front_page, anchor_page, back_page);
     layout_manager_.setPagePosDirty();
   }
 
-  layout_manager_.updatePagePositions(view_state);
-
-  if (search_controller_.isSearchPosDirty() && pages_[anchor_page].hasTexture()) {
-    centerOnSearchResult(anchor_page, front_page, back_page, view_state);
+  const auto sel = search_controller_.getSelectedPage();
+  if (search_controller_.isSearchPosDirty() && sel && pages_[*sel].hasTexture()) {
+    const auto delta = searchResultOffsetFromCenter(*sel);
+    if (layout_manager_.needInitialPos())
+      layout_manager_.setInitialPagePos(delta);
+    else
+      layout_manager_.panCurrentPage(delta);
     search_controller_.clearSearchPosDirty();
+  } else {
+    layout_manager_.setInitialPagePos();
   }
 
+  layout_manager_.updatePagePositions(view_state);
   layout_manager_.updateAnchorPage();
   anchor_page = layout_manager_.getAnchorPage();
 
@@ -98,9 +105,6 @@ void DocumentView::update() {
     requestVisiblePages(anchor_page, view_state.zoom, view_state.rotate, recolor_);
     event_bus_.emit("statusbar.page_state", std::make_pair(anchor_page + 1, document_.pageCount()));
   }
-
-  if (selection_controller_.isSelectionDirty())
-    selection_controller_.createSelection();
 
   for (std::size_t i = front_page; i <= back_page; i++) {
     pages_[i].syncPageShapePos();
@@ -192,7 +196,7 @@ void DocumentView::handleEvent(const sf::Event &event) {
 
       if (link) {
         if (link->type == pdf::PDFLinkType::INTERNAL)
-          onSwitchPage(link->target_page);
+          pending_page_swtich_ = link->target_page;
         else
           event_bus_.emit("dbus.open_link", link->url);
       }
@@ -248,10 +252,10 @@ void DocumentView::execute(const core::InputCmd<DocumentAction> &cmd) {
     break;
 
   case DocumentAction::PrevPage:
-    onSwitchPage(anchor_page > times ? anchor_page - times : 0);
+    pending_page_swtich_ = anchor_page > times ? anchor_page - times : 0;
     break;
   case DocumentAction::NextPage:
-    onSwitchPage(std::min(last_page, anchor_page + times));
+    pending_page_swtich_ = std::min(last_page, anchor_page + times);
     break;
   case DocumentAction::FirstPage:
     gotoPage(cmd.count, 0);
@@ -356,11 +360,11 @@ void DocumentView::fitWidth() {
 
 void DocumentView::gotoPage(std::optional<std::size_t> one_based, std::size_t fallback) {
   if (!one_based) {
-    onSwitchPage(fallback);
+    pending_page_swtich_ = fallback;
     return;
   }
   const std::size_t index = *one_based > 0 ? *one_based - 1 : 0;
-  onSwitchPage(std::min(index, document_.pageCount() - 1));
+  pending_page_swtich_ = std::min(index, document_.pageCount() - 1);
 }
 
 void DocumentView::stepSearch(bool forward) {
@@ -368,7 +372,7 @@ void DocumentView::stepSearch(bool forward) {
   const auto page = forward ? search_controller_.goNext(anchor_page)
                             : search_controller_.goPrev(anchor_page);
   if (page)
-    onSwitchPage(*page);
+    pending_page_swtich_ = page;
   emitSearchState(1);
 }
 
@@ -508,7 +512,7 @@ void DocumentView::onSearchPage(const std::u32string &text) {
   }
 
   if (closest_page != static_cast<int>(layout_manager_.getAnchorPage()))
-    onSwitchPage(closest_page.value());
+    pending_page_swtich_ = (*closest_page);
 
   event_bus_.emit("statusbar.search_state", std::make_pair(curr + 1, total));
 }
@@ -554,7 +558,7 @@ void DocumentView::registerEvents() {
   event_bus_.subscribe<bool>("cmd.close_document", [this](bool) { onCloseDocument(); });
 
   event_bus_.subscribe<int>("cmd.switch_page", [this](int page_num) {
-    onSwitchPage(page_num - 1);
+    pending_page_swtich_ = page_num - 1;
   });
 
   event_bus_.subscribe<std::string>("password.submit", [this](std::string password) {
@@ -590,7 +594,7 @@ void DocumentView::registerEvents() {
 
     const auto bmark = bookmark_manager_.getBookmarkById(id);
     if (bmark)
-      onSwitchPage(bmark.value().page_number - 1);
+      pending_page_swtich_ = bmark->page_number - 1;
   });
 
   event_bus_.subscribe<const std::u32string &>("cmd.search", [this](const std::u32string &text) {
@@ -658,19 +662,12 @@ bool DocumentView::canWorkWithDocument() const {
   return document_.isOpen() && !document_.needsAuth();
 }
 
-void DocumentView::centerOnSearchResult(
-    std::size_t anchor_page,
-    std::size_t front_page,
-    std::size_t back_page,
-    const ui::VisualInfo &view_state
-) {
+sf::Vector2f DocumentView::searchResultOffsetFromCenter(std::size_t anchor_page) const {
   const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
   const sf::Vector2f pos = pages_[anchor_page].getSearchResultPosition(
       search_controller_.getLocalSearchResult()
   );
-  sf::Vector2f delta = window_center - pos;
-  layout_manager_.panCurrentPage(delta);
-  layout_manager_.updatePagePositions(view_state);
+  return window_center - pos;
 }
 
 void DocumentView::renderRequestedPages() {

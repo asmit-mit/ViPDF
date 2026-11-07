@@ -14,6 +14,7 @@ public:
 
   std::optional<std::size_t>
   search(const std::u32string &text, std::size_t anchor, pdf::PDFDocument &document);
+  std::optional<int> getSelectedPage() const;
   std::size_t getCurrSearchResult() const;
   std::size_t getLocalSearchResult() const;
   std::size_t getTotalSearchResult() const;

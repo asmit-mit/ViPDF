@@ -47,8 +47,8 @@ public:
   void setTexture(std::shared_ptr<sf::Texture> texture);
   void reset();
 
-  const PDFSearchResult &getSearchResults();
-  sf::Vector2f getSearchResultPosition(std::size_t idx);
+  const PDFSearchResult &getSearchResults() const;
+  sf::Vector2f getSearchResultPosition(std::size_t idx) const;
 
   void setSelectedSearchResult(std::size_t idx);
   void setSearchResults(PDFSearchResult search_results);

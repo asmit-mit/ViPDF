@@ -89,12 +89,7 @@ private:
   void registerKeybindings();
   bool canWorkWithDocument() const;
 
-  void centerOnSearchResult(
-      std::size_t anchor_page,
-      std::size_t front_page,
-      std::size_t back_page,
-      const ui::VisualInfo &view_state
-  );
+  sf::Vector2f searchResultOffsetFromCenter(std::size_t anchor_page) const;
   void renderRequestedPages();
 
   void requestVisiblePages(std::size_t page_idx, float zoom, int rotate, bool recolor);

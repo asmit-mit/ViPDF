@@ -74,6 +74,12 @@ std::optional<std::size_t> PDFSearchController::search(
   return closest_page;
 }
 
+std::optional<int> PDFSearchController::getSelectedPage() const {
+  if (selected_page_ >= 0 && selected_page_ < pages_.size())
+    return selected_page_;
+  return std::nullopt;
+}
+
 std::size_t PDFSearchController::getCurrSearchResult() const {
   return curr_search_result_;
 }

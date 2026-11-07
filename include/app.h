@@ -22,6 +22,7 @@
 #include "ui/password_dialog.h"
 #include "ui/statusbar.h"
 #include "ui/ui_elements.h"
+#include "utils/profiler.h"
 
 namespace fs = std::filesystem;
 
@@ -88,6 +89,7 @@ private:
   sf::Cursor text_cursor_;
 
   std::optional<std::string> pending_open_;
+  // utils::FrameProfiler profiler_;
 
   const unsigned int res_x_ = 640;
   const unsigned int res_y_ = 480;

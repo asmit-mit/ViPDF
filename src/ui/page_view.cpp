@@ -111,11 +111,11 @@ void PageView::reset() {
   active_ = false;
 }
 
-const PDFSearchResult &PageView::getSearchResults() {
+const PDFSearchResult &PageView::getSearchResults() const {
   return search_result_;
 }
 
-sf::Vector2f PageView::getSearchResultPosition(std::size_t idx) {
+sf::Vector2f PageView::getSearchResultPosition(std::size_t idx) const {
   const auto &boxes = search_result_.local_rects[idx];
   sf::Vector2f center = {(boxes.x0 + boxes.x1) * 0.5f, (boxes.y0 + boxes.y1) * 0.5f};
   return original_shape_.getTransform().transformPoint(center);
