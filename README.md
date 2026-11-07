@@ -13,14 +13,25 @@ A keyboard-driven PDF reader with Vim-style motions. Built on [MuPDF](https://mu
 
 ## Manual Dependencies
 
-The following dependencies must be installed manually, using your system's package manager or by building them from source:
+### Build tools
 
-| Dependency                         | Version            |
-| ---------------------------------- | ------------------ |
-| [SFML](https://www.sfml-dev.org/)  | 3.1.0+             |
-| [MuPDF](https://mupdf.com/)        | 1.28.2+            |
-| [FreeType2](https://freetype.org/) | any recent version |
-| [Meson](https://mesonbuild.com/)   | build system       |
+- C++23 compiler: GCC 13+ or Clang 17+
+- [Meson](https://mesonbuild.com/): 0.58+, plus Ninja
+- [CMake](https://cmake.org/) (needed to build `sfml`, `sdbus-cpp` and `clip` subprojects)
+- `pkg-config`
+- `git`
+
+### System libraries
+
+These must be installed with your package manager (development headers included):
+
+- [MuPDF](https://mupdf.com/): 1.28.2+
+- [FreeType2](https://freetype.org/)
+- libpng
+- libxcb
+- libsystemd (includes udev)
+- X11, Xrandr, Xcursor, Xi
+- OpenGL (Mesa or vendor driver)
 
 ### Optional Dependencies
 
@@ -38,13 +49,28 @@ Without a portal, ViPDF still works normally, but `:print` and link opening will
 
 ## Installation
 
+### 1. Install dependencies
+
+**Fedora**
+
+```sh
+sudo dnf install -y gcc-c++ meson ninja-build cmake git pkgconf-pkg-config \
+  mupdf-devel freetype-devel libpng-devel libxcb-devel systemd-devel \
+  libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-libGL-devel
+
+# optional: :print and link opening
+sudo dnf install -y xdg-desktop-portal xdg-desktop-portal-gtk
+```
+
+### 2. Build and install
+
 ```sh
 git clone https://github.com/asmit-mit/ViPDF.git
 cd ViPDF
 
 meson setup build --prefix=$HOME/.local
 meson compile -C build
-meson install -C build
+meson install -C build --skip-subprojects
 ```
 
 Make sure `~/.local/bin` is in your `PATH`.

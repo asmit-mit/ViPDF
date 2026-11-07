@@ -17,6 +17,7 @@ cmake = import('cmake')
 hb_proj = subproject(
   'harfbuzz',
   default_options: [
+    'buildtype=release',
     'default_library=static',
     'raster=enabled',
     'freetype=enabled',
@@ -75,8 +76,22 @@ sqlitecpp_dep = dependency(
   required: true,
 )
 
+# sfml library
+sfml_opts = cmake.subproject_options()
+sfml_opts.add_cmake_defines(
+  {
+    'BUILD_SHARED_LIBS': false,
+    'SFML_BUILD_AUDIO': false,
+    'SFML_BUILD_NETWORK': false,
+    'SFML_BUILD_EXAMPLES': false,
+    'SFML_BUILD_DOC': false,
+    'SFML_BUILD_TEST_SUITE': false,
+  },
+)
+sfml_proj = cmake.subproject('sfml', options: sfml_opts)
+sfml_dep = sfml_proj.dependency('sfml-graphics')
+
 # system libs
-sfml_dep = dependency('sfml-graphics', required: true)
 mupdf_dep = dependency('mupdf', required: true)
 freetype_dep = dependency('freetype2', required: true)
 
