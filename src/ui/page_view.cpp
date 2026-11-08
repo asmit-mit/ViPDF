@@ -19,7 +19,7 @@ void PageView::draw(sf::RenderTarget &window) const {
   if (!active_)
     return;
 
-  window.draw(original_shape_);
+  // window.draw(original_shape_);
   window.draw(sprite_);
 
   if (!search_result_.local_rects.empty())
