@@ -170,6 +170,6 @@ install_subdir('assets/fonts', install_dir: asset_install_dir)
 install_data('assets/commands.json', install_dir: asset_install_dir)
 
 install_data('assets/vipdf.desktop', install_dir: datadir / 'applications')
-install_data('assets/vipdf.svg', install_dir: datadir / 'icons/hicolor/scalable/apps')
+install_data('assets/vipdf.png', install_dir: datadir / 'icons/hicolor/scalable/apps')
 
 meson.add_devenv(environment({'VIPDF_ASSETS': meson.project_source_root() / 'assets'}))
