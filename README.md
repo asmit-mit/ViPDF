@@ -263,7 +263,7 @@ background = 0x282828
 text = 0xebdfc3
 
 [highlights]
-selection = 0xADFF2F50
+selection = 0x0078D74D
 search = 0xADFF2F66
 search_box = 0xFFD70050
 color_1 = 0xf5c211

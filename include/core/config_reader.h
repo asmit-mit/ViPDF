@@ -40,7 +40,7 @@ struct Config {
   uint32_t statusbar_background_colo = 0x282828; // #282828
   uint32_t statusbar_text_color = 0xebdfc3;      // #ebdfc3
 
-  uint32_t selection_highlight_color = 0xADFF2F50; // #ADFF2F
+  uint32_t selection_highlight_color = 0x0078D74D; // #0078d7
   uint32_t search_highlight_color = 0xADFF2F66;    // #ADFF2F
   uint32_t search_box_color = 0xFFD70050;          // #FFD700
 
