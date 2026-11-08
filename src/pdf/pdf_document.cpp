@@ -6,6 +6,7 @@
 namespace pdf {
 
 PDFDocument::PDFDocument() {
+  locks_ = {};
   locks_.user = this;
   locks_.lock = &PDFDocument::lockMutex;
   locks_.unlock = &PDFDocument::unlockMutex;
@@ -32,6 +33,7 @@ PDFDocument::PDFDocument() {
 void PDFDocument::openDocument(const std::string &filepath) {
   closeDocument();
 
+  fz_var(doc_);
   fz_try(ctx_) doc_ = fz_open_document(ctx_, filepath.c_str());
   fz_catch(ctx_) throw std::runtime_error("Failed to open document: " + filepath);
 

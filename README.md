@@ -35,6 +35,7 @@ These must be installed with your package manager (development headers included)
 
 - [MuPDF](https://mupdf.com/): 1.28.2+
 - [FreeType2](https://freetype.org/)
+- [HarfBuzz](https://harfbuzz.github.io/)
 - libpng
 - libxcb
 - libsystemd (includes udev)
@@ -63,8 +64,9 @@ Without a portal, ViPDF still works normally, but `:print` and link opening will
 
 ```sh
 sudo dnf install -y gcc-c++ meson ninja-build cmake git pkgconf-pkg-config \
-  mupdf-devel freetype-devel libpng-devel libxcb-devel systemd-devel \
-  libX11-devel libXrandr-devel libXcursor-devel libXi-devel mesa-libGL-devel
+  mupdf-devel freetype-devel harfbuzz-devel libpng-devel libxcb-devel \
+  systemd-devel libX11-devel libXrandr-devel libXcursor-devel libXi-devel \
+  mesa-libGL-devel
 
 # optional: :print and link opening
 sudo dnf install -y xdg-desktop-portal xdg-desktop-portal-gtk

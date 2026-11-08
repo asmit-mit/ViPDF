@@ -89,7 +89,9 @@ sfml_opts.add_cmake_defines(
   },
 )
 sfml_proj = cmake.subproject('sfml', options: sfml_opts)
-sfml_dep = sfml_proj.dependency('sfml-graphics')
+sfml_graphics_dep = sfml_proj.dependency('sfml-graphics')
+sfml_window_dep = sfml_proj.dependency('sfml-window')
+sfml_system_dep = sfml_proj.dependency('sfml-system')
 
 # system libs
 mupdf_dep = dependency('mupdf', required: true)
@@ -150,7 +152,9 @@ executable(
   sources,
   include_directories: [includes, utf8cpp_includes, json_includes, inicpp_includes],
   dependencies: [
-    sfml_dep,
+    sfml_graphics_dep,
+    sfml_window_dep,
+    sfml_system_dep,
     mupdf_dep,
     harfbuzz_dep,
     harfbuzz_raster_dep,

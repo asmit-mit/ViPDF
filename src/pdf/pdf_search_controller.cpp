@@ -75,7 +75,7 @@ std::optional<std::size_t> PDFSearchController::search(
 }
 
 std::optional<int> PDFSearchController::getSelectedPage() const {
-  if (selected_page_ >= 0 && selected_page_ < pages_.size())
+  if (selected_page_ >= 0 && static_cast<size_t>(selected_page_) < pages_.size())
     return selected_page_;
   return std::nullopt;
 }
