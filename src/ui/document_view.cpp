@@ -580,25 +580,39 @@ void DocumentView::registerEvents() {
       return;
     }
 
-    bookmark_manager_.addBookmark(layout_manager_.getAnchorPage() + 1, label);
+    const auto anchor = layout_manager_.getAnchorPage();
+    const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
+    const auto local_pos = pages_[anchor].getReferenceShape().getInverseTransform().transformPoint(
+        window_center
+    );
+
+    const std::string display_label = label.empty() ? "Page " + std::to_string(anchor + 1) : label;
+
+    auto res = bookmark_manager_.addBookmark(anchor + 1, local_pos.x, local_pos.y, display_label);
+
+    if (res == core::BmarkAddResult::DuplicateLabel)
+      event_bus_
+          .emit("notification.msg", std::format("Label with name \"{}\" already exists", display_label));
+    else if (res == core::BmarkAddResult::Ok)
+      event_bus_.emit("notification.msg", std::format("Bookmark \"{}\" added", display_label));
   });
 
-  event_bus_.subscribe<int>("bmark.del", [this](int id) {
+  event_bus_.subscribe<const std::string &>("bmark.del", [this](const std::string &label) {
     if (!canWorkWithDocument()) {
       event_bus_.emit("notification.msg", std::string("No document currently open"));
       return;
     }
 
-    bookmark_manager_.removeBookmark(id);
+    bookmark_manager_.removeBookmark(label);
   });
 
-  event_bus_.subscribe<int>("bmark.jump", [this](int id) {
+  event_bus_.subscribe<const std::string &>("bmark.jump", [this](const std::string &label) {
     if (!canWorkWithDocument()) {
       event_bus_.emit("notification.msg", std::string("No document currently open"));
       return;
     }
 
-    const auto bmark = bookmark_manager_.getBookmarkById(id);
+    const auto bmark = bookmark_manager_.getBookmarkByLabel(label);
     if (bmark)
       pending_page_swtich_ = bmark->page_number - 1;
   });

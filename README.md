@@ -187,20 +187,13 @@ Arguments that contain spaces must be wrapped in double quotes, for example:
 
 ### Bookmarks
 
-| Command             | Description                         |
-| ------------------- | ----------------------------------- |
-| `:bmark add <name>` | Save the current page as a bookmark |
-| `:bmark del <id>`   | Delete a bookmark                   |
-| `:bmark jump <id>`  | Jump to a bookmark                  |
+| Command              | Description                         |
+| -------------------- | ----------------------------------- |
+| `:bmark add <name>`  | Save the current page as a bookmark |
+| `:bmark del <name>`  | Delete a bookmark                   |
+| `:bmark jump <name>` | Jump to a bookmark                  |
 
-`:b` can be used in place of `:bmark`, for example `:b jump <id>`.
-
-Bookmarks are created with a name (use quotes if it contains spaces, e.g. `:bmark add "chapter 3"`), but `del` and `jump` work with a bookmark's id. You don't need to remember ids:
-
-1. Type `:bmark jump` followed by the name, or the beginning of it.
-2. Press `Tab`. If bookmark with that name exists, the command line will convert your argument to it's matching id.
-3. If multiple bookmarks with the same name exist, the completion list shows matching bookmarks by name. Move through the list with `Ctrl+j` / `Ctrl+k` or `Tab` / `Shift+Tab`, which switches the argument to the highlighted bookmark's id.
-4. Press `Enter` to run the command.
+`:b` can be used in place of `:bmark`, for example `:b jump <name>`.
 
 ### Completions
 

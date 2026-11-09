@@ -132,7 +132,7 @@ std::optional<int> PDFSearchController::goNext(std::size_t anchor) {
 
     search_pos_dirty_ = true;
     show_search_result_boxes_ = true;
-    return std::nullopt;
+    return static_cast<std::size_t>(page);
   }
 
   auto it =
@@ -167,7 +167,7 @@ std::optional<int> PDFSearchController::goPrev(std::size_t anchor) {
 
     search_pos_dirty_ = true;
     show_search_result_boxes_ = true;
-    return std::nullopt;
+    return static_cast<std::size_t>(page);
   }
 
   auto it =

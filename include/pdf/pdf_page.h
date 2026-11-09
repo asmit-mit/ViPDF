@@ -26,6 +26,7 @@ enum class PDFLinkType {
 struct PDFLinkInfo {
   PDFLinkType type;
   int target_page{-1};
+  float x, y;
   std::string url;
 };
 
@@ -85,7 +86,7 @@ private:
   };
 
 private:
-  int resolveLinkPage(fz_context *ctx, fz_document *doc, const char *uri);
+  void resolveLinkPage(fz_context *ctx, fz_document *doc, const char *uri, PDFLinkInfo &info);
 
 private:
   mutable std::mutex mutex_;

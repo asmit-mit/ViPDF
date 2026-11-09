@@ -201,7 +201,7 @@ void CmdAutocomplete::getBookmarkCmp(
   const auto bookmarks = bookmark_manager_.getBookmarks(typing);
 
   for (const auto &bmark : bookmarks) {
-    std::string full = scoped_key + " " + std::to_string(bmark.id);
+    std::string full = scoped_key + " \"" + bmark.label + "\"";
     std::replace(full.begin(), full.end(), '.', ' ');
     results.push_back({bmark.label, full + " ", "Page " + std::to_string(bmark.page_number)});
   }

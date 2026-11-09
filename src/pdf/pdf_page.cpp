@@ -88,7 +88,7 @@ void PDFPage::loadContent(fz_context *ctx, fz_document *doc, FzStextPagePtr stex
       info.url = l->uri;
     } else {
       info.type = PDFLinkType::INTERNAL;
-      info.target_page = resolveLinkPage(ctx, doc, l->uri);
+      resolveLinkPage(ctx, doc, l->uri, info);
       if (info.target_page < 0)
         continue;
     }
@@ -239,20 +239,19 @@ fz_image *PDFPage::mouseInImage(sf::Vector2f pos) const {
   return nullptr;
 }
 
-int PDFPage::resolveLinkPage(fz_context *ctx, fz_document *doc, const char *uri) {
+void PDFPage::resolveLinkPage(
+    fz_context *ctx, fz_document *doc, const char *uri, PDFLinkInfo &info
+) {
   int page = -1;
   fz_var(page);
 
   fz_try(ctx) {
-    float x = 0.f, y = 0.f;
-    fz_location loc = fz_resolve_link(ctx, doc, uri, &x, &y);
-    page = fz_page_number_from_location(ctx, doc, loc);
+    fz_location loc = fz_resolve_link(ctx, doc, uri, &info.x, &info.y);
+    info.target_page = fz_page_number_from_location(ctx, doc, loc);
   }
   fz_catch(ctx) {
-    page = -1;
+    info.target_page = -1;
   }
-
-  return page;
 }
 
 } // namespace pdf
