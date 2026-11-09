@@ -62,7 +62,7 @@ public:
   void syncPageShape();
 
   bool hasTexture() const;
-  bool isInView(const sf::Vector2f &window_size) const;
+  bool isInView(const sf::Vector2u &window_size) const;
   bool containsMouse(const sf::Vector2i &mouse_pos) const;
 
 private:

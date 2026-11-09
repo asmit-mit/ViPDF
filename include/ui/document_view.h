@@ -113,6 +113,8 @@ private:
   void removeAnnotation();
   void emitSearchState(std::size_t display_offset);
 
+  bool isPageSwitchAction(DocumentAction action);
+
 private:
   std::vector<PageView> pages_;
   pdf::PDFDocument &document_;
@@ -137,6 +139,8 @@ private:
   bool selecting_;
 
   sf::Vector2f window_size_;
+  sf::Clock page_switch_clock_;
+  sf::Time page_switch_delay_ = sf::milliseconds(20);
 
   const sf::Color selection_box_color_;
   const sf::Color search_box_color_;
@@ -148,7 +152,7 @@ private:
   std::optional<PageRange> kept_range_;
 
   static constexpr float scroll_dist_ = 40.f;
-  static constexpr int prefetch_count_ = 3;
+  static constexpr int prefetch_count_ = 2;
 };
 
 } // namespace ui

@@ -16,7 +16,7 @@ PageView::PageView(
 };
 
 void PageView::draw(sf::RenderTarget &window) const {
-  if (!active_)
+  if (!active_ || !isInView(window.getSize()))
     return;
 
   // window.draw(original_shape_);
@@ -208,7 +208,7 @@ bool PageView::hasTexture() const {
   return active_;
 }
 
-bool PageView::isInView(const sf::Vector2f &window_size) const {
+bool PageView::isInView(const sf::Vector2u &window_size) const {
   const auto bounds = sprite_.getGlobalBounds();
 
   float top = bounds.position.y;

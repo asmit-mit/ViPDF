@@ -1,4 +1,3 @@
-// portal.cpp
 #include "dbus/portal.h"
 
 namespace dbus {

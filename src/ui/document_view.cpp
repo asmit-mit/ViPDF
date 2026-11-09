@@ -132,8 +132,14 @@ void DocumentView::handleEvent(const sf::Event &event) {
   const std::size_t back_page = layout_manager_.getBackPage();
 
   if (should_take_input_) {
-    if (const auto cmd = input_handler_.handleEvent(event))
-      execute(*cmd);
+    if (const auto cmd = input_handler_.handleEvent(event)) {
+      if (!isPageSwitchAction(cmd->action)) {
+        execute(*cmd);
+      } else if (page_switch_clock_.getElapsedTime() >= page_switch_delay_) {
+        page_switch_clock_.restart();
+        execute(*cmd);
+      }
+    }
 
     if (event.is<sf::Event::KeyPressed>())
       event_bus_.emit("statusbar.pending_keys", input_handler_.pendingText());
@@ -701,17 +707,26 @@ void DocumentView::requestVisiblePages(std::size_t anchor, float zoom, int rotat
   if (!canWorkWithDocument())
     return;
 
+  scheduler_.request({anchor, zoom, rotate, recolor});
   const PageRange visible = computeVisibleRange(anchor, zoom, rotate);
   const PageRange retained = computeRetainedRange(visible);
 
   releaseOutOfWindowPages(visible, retained, {anchor, zoom, rotate, recolor});
   kept_range_ = retained;
 
-  for (int i = visible.front; i <= visible.back; ++i) {
+  auto requestIfStale = [&](int i) {
     const pdf::PDFRenderKey key{static_cast<std::size_t>(i), zoom, rotate, recolor};
     if (pages_[i].hasTexture() && pages_[i].getKey() == key)
-      continue;
+      return;
     scheduler_.request(key);
+  };
+
+  const int anchor_idx = static_cast<int>(anchor);
+  for (int d = 1; anchor_idx + d <= visible.back || anchor_idx - d >= visible.front; ++d) {
+    if (anchor_idx + d <= visible.back)
+      requestIfStale(anchor_idx + d);
+    if (anchor_idx - d >= visible.front)
+      requestIfStale(anchor_idx - d);
   }
 
   layout_manager_.setFrontPage(static_cast<std::size_t>(visible.front));
@@ -820,6 +835,20 @@ void DocumentView::resetView() {
 
   emitSearchState(0);
   event_bus_.emit("statusbar.pending_keys", std::string(""));
+}
+
+bool DocumentView::isPageSwitchAction(DocumentAction action) {
+  switch (action) {
+  case DocumentAction::NextPage:
+  case DocumentAction::PrevPage:
+  case DocumentAction::HalfPageUp:
+  case DocumentAction::HalfPageDown:
+  case DocumentAction::FirstPage:
+  case DocumentAction::LastPage:
+    return true;
+  default:
+    return false;
+  }
 }
 
 } // namespace ui
