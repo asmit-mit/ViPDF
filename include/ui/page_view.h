@@ -32,6 +32,9 @@ public:
   sf::Sprite &getSprite();
   sf::RectangleShape &getReferenceShape();
 
+  sf::Vector2f inverseTransformPos(const sf::Vector2f &pos) const;
+  sf::Vector2f transformPos(const sf::Vector2f &pos) const;
+
   void move(const sf::Vector2f &delta);
   void setPosition(const sf::Vector2f &position);
   sf::Vector2f getPosition() const;

@@ -77,6 +77,12 @@ private:
     }
   };
 
+  enum class ScrollTo {
+    LINK,
+    SEARCH,
+    BOOKMARK,
+  };
+
 private:
   void onOpenDocument(const std::string &filepath);
   void onCloseDocument();
@@ -89,7 +95,8 @@ private:
   void registerKeybindings();
   bool canWorkWithDocument() const;
 
-  sf::Vector2f searchResultOffsetFromCenter(std::size_t anchor_page) const;
+  sf::Vector2f getSearchResultPos(std::size_t anchor_page) const;
+  sf::Vector2f getPageOffsetFromCenter(const sf::Vector2f &pos) const;
   void renderRequestedPages();
 
   void requestVisiblePages(std::size_t page_idx, float zoom, int rotate, bool recolor);
@@ -147,9 +154,12 @@ private:
   const sf::Color selected_search_box_color_;
 
   std::optional<int> pending_page_swtich_;
+  std::optional<sf::Vector2f> pending_page_scroll_;
   std::optional<float> pending_zoom_update_;
   std::optional<int> pending_rotate_update_;
   std::optional<PageRange> kept_range_;
+
+  ScrollTo scroll_to_;
 
   static constexpr float scroll_dist_ = 40.f;
   static constexpr int prefetch_count_ = 2;

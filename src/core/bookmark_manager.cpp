@@ -52,16 +52,16 @@ Bookmark BookmarkManager::rowToBookmark(SQLite::Statement &q) const {
   return Bookmark{
       q.getColumn(0).getInt64(),
       q.getColumn(1).getInt(),
-      q.getColumn(2).getDouble(),
-      q.getColumn(3).getDouble(),
+      static_cast<float>(q.getColumn(2).getDouble()),
+      static_cast<float>(q.getColumn(3).getDouble()),
       q.getColumn(4).getString(),
   };
 }
 
-BmarkAddResult
+BookmarkManager::AddResult
 BookmarkManager::addBookmark(int page_number, double x, double y, const std::string &label) {
   if (!path_set_)
-    return BmarkAddResult::NoDocument;
+    return BookmarkManager::AddResult::NoDocument;
 
   const std::string final_label = label.empty() ? "Page " + std::to_string(page_number) : label;
 
@@ -85,12 +85,12 @@ BookmarkManager::addBookmark(int page_number, double x, double y, const std::str
     insert.exec();
   } catch (const SQLite::Exception &e) {
     if (e.getExtendedErrorCode() == SQLITE_CONSTRAINT_UNIQUE)
-      return BmarkAddResult::DuplicateLabel;
+      return BookmarkManager::AddResult::DuplicateLabel;
     throw;
   }
 
   tx.commit();
-  return BmarkAddResult::Ok;
+  return BookmarkManager::AddResult::Ok;
 }
 
 bool BookmarkManager::removeBookmark(const std::string &label) {

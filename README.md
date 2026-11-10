@@ -13,6 +13,7 @@ A keyboard-driven PDF reader with Vim-style motions. Built on [MuPDF](https://mu
 ## Features
 
 - **Vim-style navigation**: pan, scroll, and jump through documents without touching the mouse
+- **Lightweight**: very low RAM usage, so it stays responsive even on modest hardware
 - **Annotations**: highlight, underline, and strikethrough, each in five colors
 - **Bookmarks**: save, delete and jump to bookmarked pages within a document
 - **Fully themeable**: every UI element's color can be changed through a simple INI file
@@ -194,6 +195,8 @@ Arguments that contain spaces must be wrapped in double quotes, for example:
 | `:bmark jump <name>` | Jump to a bookmark                  |
 
 `:b` can be used in place of `:bmark`, for example `:b jump <name>`.
+
+Bookmark names must be unique within a document.
 
 ### Completions
 

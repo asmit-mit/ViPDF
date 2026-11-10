@@ -171,20 +171,16 @@ void PDFLayoutManager::updateAnchorPage() {
   scrolled_ = false;
 }
 
-void PDFLayoutManager::setInitialPagePos(std::optional<sf::Vector2f> delta) {
+void PDFLayoutManager::setInitialPagePos() {
   if (!need_initial_pos_ || pages_.empty() || !pages_[anchor_page_].hasTexture())
     return;
 
-  if (!delta) {
-    const auto size = scheduler_.getPageSize(pages_[anchor_page_].getKey());
-    float x = window_size_.x * 0.5f;
-    float y = size.y * 0.5f;
-    if (size.y <= (window_size_.y - utils::CMDLINE_HEIGHT))
-      y = (window_size_.y - utils::CMDLINE_HEIGHT) * 0.5;
-    pages_[anchor_page_].setPosition({x, y});
-  } else {
-    panCurrentPage(*delta);
-  }
+  const auto size = scheduler_.getPageSize(pages_[anchor_page_].getKey());
+  float x = window_size_.x * 0.5f;
+  float y = size.y * 0.5f;
+  if (size.y <= (window_size_.y - utils::CMDLINE_HEIGHT))
+    y = (window_size_.y - utils::CMDLINE_HEIGHT) * 0.5;
+  pages_[anchor_page_].setPosition({x, y});
 
   need_initial_pos_ = false;
   page_positions_dirty_ = true;

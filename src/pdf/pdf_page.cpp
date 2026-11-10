@@ -1,5 +1,7 @@
 #include "pdf/pdf_page.h"
 
+#include <algorithm>
+
 namespace pdf {
 
 PDFPage::PDFPage(std::size_t idx, fz_rect bounds) : page_idx_(idx), page_bounds_(bounds) {}
@@ -135,6 +137,13 @@ std::vector<fz_quad> PDFPage::searchText(fz_context *ctx, const std::string &nee
   fz_catch(ctx) return {};
 
   hits.resize(static_cast<std::size_t>(n));
+
+  std::sort(hits.begin(), hits.end(), [](const fz_quad &a, const fz_quad &b) {
+    if (a.ul.y != b.ul.y)
+      return a.ul.y < b.ul.y;
+    return a.ul.x < b.ul.x;
+  });
+
   return hits;
 }
 

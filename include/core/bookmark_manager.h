@@ -12,18 +12,19 @@ namespace core {
 struct Bookmark {
   std::int64_t id;
   int page_number;
-  double x;
-  double y;
+  float x;
+  float y;
   std::string label;
 };
 
-enum class BmarkAddResult { Ok, NoDocument, DuplicateLabel };
-
 class BookmarkManager {
+public:
+  enum class AddResult { Ok, NoDocument, DuplicateLabel };
+
 public:
   explicit BookmarkManager(const std::string &db_path_);
 
-  BmarkAddResult addBookmark(int page_number, double x, double y, const std::string &label = "");
+  AddResult addBookmark(int page_number, double x, double y, const std::string &label = "");
   bool removeBookmark(const std::string &label);
 
   void setDocumentPath(const std::string &doc_path);

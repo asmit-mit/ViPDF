@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <clip.h>
+#include <cmath>
 #include <stdexcept>
 #include <utf8.h>
 
@@ -58,54 +59,85 @@ void DocumentView::update() {
   std::size_t back_page = layout_manager_.getBackPage();
   const VisualInfo view_state = view_controller_.getState();
 
+  // instantly update colors
   if (update_recolor_) {
     recolor_ = !recolor_;
     requestVisiblePages(layout_manager_.getAnchorPage(), view_state.zoom, view_state.rotate, recolor_);
     update_recolor_ = false;
   }
 
+  // make new selections
   if (selection_controller_.isSelectionDirty())
     selection_controller_.createSelection();
 
+  // update zoom and rotation if timer up
   if (view_controller_.canUpdatePages()) {
     requestVisiblePages(layout_manager_.getAnchorPage(), view_state.zoom, view_state.rotate, recolor_);
     event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
     view_controller_.clearPendingUpdates();
   }
 
+  // change page if user updated in previous frames
   if (pending_page_swtich_) {
     onSwitchPage(*pending_page_swtich_);
     pending_page_swtich_.reset();
   }
 
+  // render requested pages
   renderRequestedPages();
 
+  // visually change page sprite shape and size via setScale and setRotate
+  // before requesting for page texture with higher resolution and equivalent
+  // scale and rotation until timer runs out
+  anchor_page = layout_manager_.getAnchorPage();
   if (view_controller_.isSyncDirty()) {
     view_controller_.syncWithTargetState(front_page, anchor_page, back_page);
     layout_manager_.setPagePosDirty();
   }
 
-  const auto sel = search_controller_.getSelectedPage();
-  if (search_controller_.isSearchPosDirty() && sel && pages_[*sel].hasTexture()) {
-    const auto delta = searchResultOffsetFromCenter(*sel);
-    if (layout_manager_.needInitialPos())
-      layout_manager_.setInitialPagePos(delta);
-    else
-      layout_manager_.panCurrentPage(delta);
+  // set base positions for anchor pages and neighbors
+  layout_manager_.setInitialPagePos();
+  layout_manager_.updatePagePositions(view_state);
+
+  // request for page panning for new search result focus
+  if (search_controller_.isSearchPosDirty()) {
+    pending_page_scroll_ = getSearchResultPos(*search_controller_.getSelectedPage());
+    scroll_to_ = ScrollTo::SEARCH;
     search_controller_.clearSearchPosDirty();
-  } else {
-    layout_manager_.setInitialPagePos();
   }
 
-  layout_manager_.updatePagePositions(view_state);
+  // pan pages and update neighbors *after base positions are set*
+  if (pending_page_scroll_ && pages_[anchor_page].hasTexture()) {
+    pages_[anchor_page].syncPageShapePos();
+    pages_[anchor_page].syncPageShape();
+
+    switch (scroll_to_) {
+    case ScrollTo::BOOKMARK:
+    case ScrollTo::LINK:
+      layout_manager_.panCurrentPage(-pages_[anchor_page].transformPos(*pending_page_scroll_));
+      break;
+    case ScrollTo::SEARCH:
+      layout_manager_.panCurrentPage(
+          window_size_ * 0.5f - pages_[anchor_page].transformPos(*pending_page_scroll_)
+      );
+      break;
+    default:
+      break;
+    }
+    layout_manager_.updatePagePositions(view_state);
+    pending_page_scroll_.reset();
+  }
+
+  // update anchor page and request for
+  // new pages if anchor page is changed due to scrolling
   layout_manager_.updateAnchorPage();
   anchor_page = layout_manager_.getAnchorPage();
-
   if (layout_manager_.anchorPageChanged()) {
     requestVisiblePages(anchor_page, view_state.zoom, view_state.rotate, recolor_);
     event_bus_.emit("statusbar.page_state", std::make_pair(anchor_page + 1, document_.pageCount()));
   }
 
+  // update shape and position of anchor page sprits's reference shape
   for (std::size_t i = front_page; i <= back_page; i++) {
     pages_[i].syncPageShapePos();
     pages_[i].syncPageShape();
@@ -176,9 +208,7 @@ void DocumentView::handleEvent(const sf::Event &event) {
       if (selecting_)
         selection_controller_.setSelectionEnd(i, move->position);
 
-      const auto point = pages_[i].getReferenceShape().getInverseTransform().transformPoint(
-          sf::Vector2f(move->position)
-      );
+      const auto point = pages_[i].inverseTransformPos(sf::Vector2f(move->position));
 
       if (document_.getPage(i).mouseInLink(point))
         cursor = ui::CursorType::Hand;
@@ -201,10 +231,15 @@ void DocumentView::handleEvent(const sf::Event &event) {
       const auto img = document_.getPage(location.first).mouseInImage(location.second);
 
       if (link) {
-        if (link->type == pdf::PDFLinkType::INTERNAL)
+        if (link->type == pdf::PDFLinkType::INTERNAL) {
           pending_page_swtich_ = link->target_page;
-        else
+          if (!std::isnan(link->x) && !std::isnan(link->y)) {
+            pending_page_scroll_ = {link->x, link->y};
+            scroll_to_ = ScrollTo::LINK;
+          }
+        } else {
           event_bus_.emit("dbus.open_link", link->url);
+        }
       }
 
       if (img) {
@@ -581,19 +616,16 @@ void DocumentView::registerEvents() {
     }
 
     const auto anchor = layout_manager_.getAnchorPage();
-    const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
-    const auto local_pos = pages_[anchor].getReferenceShape().getInverseTransform().transformPoint(
-        window_center
-    );
+    const auto local_pos = pages_[anchor].inverseTransformPos({0.f, 0.f});
 
     const std::string display_label = label.empty() ? "Page " + std::to_string(anchor + 1) : label;
 
     auto res = bookmark_manager_.addBookmark(anchor + 1, local_pos.x, local_pos.y, display_label);
 
-    if (res == core::BmarkAddResult::DuplicateLabel)
+    if (res == core::BookmarkManager::AddResult::DuplicateLabel)
       event_bus_
           .emit("notification.msg", std::format("Label with name \"{}\" already exists", display_label));
-    else if (res == core::BmarkAddResult::Ok)
+    else if (res == core::BookmarkManager::AddResult::Ok)
       event_bus_.emit("notification.msg", std::format("Bookmark \"{}\" added", display_label));
   });
 
@@ -613,8 +645,11 @@ void DocumentView::registerEvents() {
     }
 
     const auto bmark = bookmark_manager_.getBookmarkByLabel(label);
-    if (bmark)
+    if (bmark) {
       pending_page_swtich_ = bmark->page_number - 1;
+      pending_page_scroll_ = {bmark->x, bmark->y};
+      scroll_to_ = ScrollTo::BOOKMARK;
+    }
   });
 
   event_bus_.subscribe<const std::u32string &>("cmd.search", [this](const std::u32string &text) {
@@ -682,12 +717,15 @@ bool DocumentView::canWorkWithDocument() const {
   return document_.isOpen() && !document_.needsAuth();
 }
 
-sf::Vector2f DocumentView::searchResultOffsetFromCenter(std::size_t anchor_page) const {
-  const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
+sf::Vector2f DocumentView::getSearchResultPos(std::size_t anchor_page) const {
   const sf::Vector2f pos = pages_[anchor_page].getSearchResultPosition(
       search_controller_.getLocalSearchResult()
   );
-  return window_center - pos;
+  return pos;
+}
+
+sf::Vector2f DocumentView::getPageOffsetFromCenter(const sf::Vector2f &pos) const {
+  return (window_size_ * 0.5f) - pos;
 }
 
 void DocumentView::renderRequestedPages() {

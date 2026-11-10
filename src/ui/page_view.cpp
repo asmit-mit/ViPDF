@@ -62,6 +62,13 @@ sf::RectangleShape &PageView::getReferenceShape() {
   return original_shape_;
 }
 
+sf::Vector2f PageView::inverseTransformPos(const sf::Vector2f &pos) const {
+  return original_shape_.getInverseTransform().transformPoint(pos);
+}
+sf::Vector2f PageView::transformPos(const sf::Vector2f &pos) const {
+  return original_shape_.getTransform().transformPoint(pos);
+}
+
 void PageView::move(const sf::Vector2f &delta) {
   sprite_.move(delta);
 }
@@ -118,7 +125,7 @@ const PDFSearchResult &PageView::getSearchResults() const {
 sf::Vector2f PageView::getSearchResultPosition(std::size_t idx) const {
   const auto &boxes = search_result_.local_rects[idx];
   sf::Vector2f center = {(boxes.x0 + boxes.x1) * 0.5f, (boxes.y0 + boxes.y1) * 0.5f};
-  return sprite_.getTransform().transformPoint(center);
+  return center;
 }
 
 void PageView::setSelectedSearchResult(std::size_t idx) {
