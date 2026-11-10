@@ -18,6 +18,7 @@ Notifications::Notifications(
       display_msg_(font_lib, glyph_atlas, utils::TEXT_SIZE) {
   visible_ = false;
   hovered_ = false;
+  blinking_ = false;
 
   display_msg_.setFillColor(utils::hexToRGB(config.notification_msg_text_color));
   display_header_.setFillColor(utils::hexToRGB(config.notification_heading_text_color));
@@ -34,6 +35,15 @@ Notifications::Notifications(
 }
 
 void Notifications::update() {
+  if (blinking_) {
+    if (blink_timer_.getElapsedTime().asSeconds() >= blink_duration_) {
+      blinking_ = false;
+      applyMessage(pending_msg_);
+      pending_msg_.clear();
+    }
+    return;
+  }
+
   if (!visible_)
     return;
 
@@ -49,7 +59,7 @@ void Notifications::update() {
 }
 
 void Notifications::draw(sf::RenderTarget &window) const {
-  if (!visible_)
+  if (!visible_ || blinking_)
     return;
 
   window.draw(display_area_);
@@ -58,7 +68,7 @@ void Notifications::draw(sf::RenderTarget &window) const {
 }
 
 void Notifications::handleEvent(const sf::Event &event) {
-  if (!visible_)
+  if (!visible_ || blinking_)
     return;
 
   if (const auto *mouse = event.getIf<sf::Event::MouseMoved>())
@@ -174,6 +184,17 @@ std::string Notifications::wrapText(
 }
 
 void Notifications::show(const std::string &msg) {
+  if (visible_) {
+    pending_msg_ = msg;
+    blinking_ = true;
+    blink_timer_.restart();
+    return;
+  }
+
+  applyMessage(msg);
+}
+
+void Notifications::applyMessage(const std::string &msg) {
   const float inner_width = max_width_ - 2.f * padding_;
   std::string wrapped = wrapText(msg, font_normal_, utils::TEXT_SIZE, inner_width);
 

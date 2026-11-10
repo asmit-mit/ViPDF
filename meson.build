@@ -96,6 +96,7 @@ sfml_system_dep = sfml_proj.dependency('sfml-system')
 # system libs
 mupdf_dep = dependency('mupdf', required: true)
 freetype_dep = dependency('freetype2', required: true)
+fontconfig_dep = dependency('fontconfig', required: true)
 
 # header only libs
 utf8cpp_includes = include_directories('thirdparty/utfcpp')
@@ -155,6 +156,7 @@ executable(
     sfml_graphics_dep,
     sfml_window_dep,
     sfml_system_dep,
+    fontconfig_dep,
     mupdf_dep,
     harfbuzz_dep,
     harfbuzz_raster_dep,

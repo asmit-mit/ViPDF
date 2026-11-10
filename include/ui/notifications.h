@@ -26,6 +26,7 @@ public:
 
 private:
   void show(const std::string &msg);
+  void applyMessage(const std::string &msg);
   void layout();
   std::string
   wrapText(const std::string &raw, const sf::Font &font, unsigned int char_size, float max_width);
@@ -37,9 +38,11 @@ private:
   const sf::Font &font_bold_;
 
   sf::Text display_header_;
+  std::string pending_msg_;
   graphics::RichText display_msg_;
   sf::RectangleShape display_area_;
   sf::Clock display_timer_;
+  sf::Clock blink_timer_;
   sf::Vector2f window_size_;
 
   sf::Color idle_color_;
@@ -47,10 +50,12 @@ private:
 
   bool visible_;
   bool hovered_;
+  bool blinking_;
 
   static constexpr float max_width_ = 400.f;
   static constexpr float padding_ = 10.f;
   static constexpr float timeout_ = 5.f;
+  static constexpr float blink_duration_ = 0.12f;
 };
 
 } // namespace ui
