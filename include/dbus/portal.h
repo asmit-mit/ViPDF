@@ -19,13 +19,19 @@ public:
 
   Portal();
 
-  void request(
+  bool available() const;
+  bool request(
       const sdbus::InterfaceName &interface,
       const sdbus::MethodName &method,
       Results options,
       const ArgWriter &write_args,
       Callback on_response
   );
+
+  static std::string errorReason(const Results &results);
+
+private:
+  void fail(const std::string &token, const std::string &msg, const Callback &onResponse);
 
 private:
   const std::string DEST_NAME = "org.freedesktop.portal.Desktop";

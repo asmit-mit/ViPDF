@@ -174,12 +174,25 @@ void App::registerEvents() {
       event_bus_.emit("notification.msg", std::string("Unlock the document before printing it"));
       return;
     }
-    if (!file_printer_.printFile(document_.getFilePath()))
+
+    switch (file_printer_.printFile(document_.getFilePath())) {
+    case dbus::FilePrinter::PrintStatus::Started:
+      break;
+    case dbus::FilePrinter::PrintStatus::Busy:
       event_bus_.emit("notification.msg", std::string("A print is already in progress"));
+      break;
+    case dbus::FilePrinter::PrintStatus::Unavailable:
+      event_bus_.emit("notification.msg", std::string("File printing is not available"));
+      break;
+    }
   });
 
   event_bus_.subscribe<const std::string &>("dbus.open_link", [this](const std::string &url) {
-    link_opener_.openLink(url);
+    if (link_opener_.openLink(url))
+      return;
+
+    sf::Clipboard::setString(sf::String::fromUtf8(url.begin(), url.end()));
+    event_bus_.emit("notification.msg", std::string("External link url copied to clipboard"));
   });
 }
 

@@ -11,7 +11,10 @@ class FilePrinter {
 public:
   explicit FilePrinter(Portal &portal);
 
-  bool printFile(const std::string &path);
+  enum class PrintStatus { Started, Busy, Unavailable };
+
+  bool available() const;
+  PrintStatus printFile(const std::string &path);
 
 private:
   static constexpr char INTERFACE_NAME[] = "org.freedesktop.portal.Print";

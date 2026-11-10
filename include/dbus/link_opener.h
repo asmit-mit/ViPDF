@@ -11,7 +11,8 @@ class LinkOpener {
 public:
   explicit LinkOpener(Portal &portal);
 
-  void openLink(const std::string &url);
+  bool available() const;
+  bool openLink(const std::string &url);
 
 private:
   static constexpr char INTERFACE_NAME[] = "org.freedesktop.portal.OpenURI";

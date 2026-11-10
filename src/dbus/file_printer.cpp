@@ -12,35 +12,47 @@ FilePrinter::FilePrinter(Portal &portal)
     : interface_(INTERFACE_NAME), print_method_(PRINT_METHOD),
       prepare_print_method_(PREPARE_PRINT_METHOD), portal_(portal) {}
 
-bool FilePrinter::printFile(const std::string &path) {
+bool FilePrinter::available() const {
+  return portal_.available();
+}
+
+FilePrinter::PrintStatus FilePrinter::printFile(const std::string &path) {
+  if (!available())
+    return PrintStatus::Unavailable;
+
   const std::string parent{""};
   const std::string title = std::filesystem::path(path).filename().string();
 
   bool expected = false;
   if (!busy_->compare_exchange_strong(expected, true))
-    return false;
+    return PrintStatus::Busy;
 
   std::shared_ptr<void> guard(nullptr, [busy = busy_](void *) { *busy = false; });
 
   Portal::Callback onPreparePrint =
       [this, guard, parent, title, path](std::uint32_t code, const Portal::Results &res) {
-        if (code) {
-          std::cerr << "Print dialog cancelled or failed with code: " << code << "\n";
+        if (code == 1)
+          return;
+        if (code != 0) {
+          std::cerr << "Failed to open print dialog for " << path << ": "
+                    << Portal::errorReason(res) << "\n";
           return;
         }
 
         const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
         if (fd < 0) {
-          std::perror("open");
+          std::cerr << "Failed to open " << path << ": " << std::strerror(errno) << "\n";
           return;
         }
 
         Portal::Results options;
 
-        Portal::Callback onPrint = [guard, title](std::uint32_t print_code, const Portal::Results &) {
-          if (print_code)
-            std::cerr << "Failed to print document with code: " << print_code << "\n";
-        };
+        Portal::Callback onPrint =
+            [guard, path](std::uint32_t print_code, const Portal::Results &print_res) {
+              if (print_code == 2)
+                std::cerr << "Failed to print " << path << ": " << Portal::errorReason(print_res)
+                          << "\n";
+            };
 
         try {
           portal_.request(
@@ -56,17 +68,18 @@ bool FilePrinter::printFile(const std::string &path) {
         ::close(fd);
       };
 
-  portal_.request(
-      interface_,
-      prepare_print_method_,
-      {},
-      [&](sdbus::MethodCall &call) {
-        call << parent << title << Portal::Results{} << Portal::Results{};
-      },
-      std::move(onPreparePrint)
-  );
+  if (!portal_.request(
+          interface_,
+          prepare_print_method_,
+          Portal::Results{},
+          [&](sdbus::MethodCall &call) {
+            call << parent << title << Portal::Results{} << Portal::Results{};
+          },
+          std::move(onPreparePrint)
+      ))
+    return PrintStatus::Unavailable;
 
-  return true;
+  return PrintStatus::Started;
 }
 
 } // namespace dbus
