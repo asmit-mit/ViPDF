@@ -162,8 +162,9 @@ void CmdAutocomplete::getFileCmp(
   std::replace(top_cmd.begin(), top_cmd.end(), '.', ' ');
 
   if (typing.empty()) {
-    for (const auto &file : file_history_.getAllUnique())
+    for (const auto &file : file_history_.getAll())
       results.push_back({file, top_cmd + " " + escapeSpaces(file), ""});
+    std::reverse(results.begin(), results.end());
     return;
   }
 
