@@ -2,7 +2,6 @@
 
 #include "ui/page_view.h"
 #include "utils/utils.h"
-#include <print>
 
 namespace pdf {
 
@@ -68,20 +67,15 @@ void PDFLayoutManager::panCurrentPage(sf::Vector2f delta) {
   page_positions_dirty_ = true;
 }
 
-void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
-  if (!page_positions_dirty_)
+void PDFLayoutManager::setInitialPagePos(const ui::VisualInfo &visual_state) {
+  if (pages_.empty())
     return;
 
-  if (!pages_[anchor_page_].hasTexture()) {
-    layout_pending_ = true;
-    return;
-  }
-
-  ui::PageView &curr = pages_[anchor_page_];
+  auto &curr = pages_[anchor_page_];
 
   if (window_size_changed_) {
     const sf::Vector2f new_center{window_size_.x * 0.5f, window_size_.y * 0.5f};
-    const sf::Vector2f curr_size = curr.getGlobalBounds().size;
+    const sf::Vector2f curr_size = pageSize(anchor_page_, visual_state);
 
     if (curr_size.x <= window_size_.x) {
       curr.setPosition({new_center.x, curr.getPosition().y});
@@ -93,19 +87,35 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
     }
 
     window_size_changed_ = false;
+    page_positions_dirty_ = true;
   }
 
+  if (need_initial_pos_) {
+    const auto size = pageSize(anchor_page_, visual_state);
+    const float limit = window_size_.y - utils::CMDLINE_HEIGHT;
+
+    float x = window_size_.x * 0.5f;
+    float y = size.y <= limit ? limit * 0.5f : size.y * 0.5f;
+    curr.setPosition({x, y});
+
+    need_initial_pos_ = false;
+    page_positions_dirty_ = true;
+  }
+}
+
+void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
+  if (!page_positions_dirty_)
+    return;
+
+  ui::PageView &curr = pages_[anchor_page_];
+
+  clampPageVertically(visual_state);
   clampPageHorizontally(visual_state);
   discretizePosition(curr);
-  updateNeighbourPositions();
+  updateNeighbourPositions(visual_state);
 
-  for (std::size_t i = front_page_; i <= back_page_; ++i) {
-    if (!pages_[i].hasTexture())
-      return;
-  }
-
-  const sf::Vector2f front_size = pages_[front_page_].getGlobalBounds().size;
-  const sf::Vector2f back_size = pages_[back_page_].getGlobalBounds().size;
+  const sf::Vector2f front_size = pageSize(front_page_, visual_state);
+  const sf::Vector2f back_size = pageSize(back_page_, visual_state);
 
   const float front_top = pages_[front_page_].getPosition().y - front_size.y * 0.5f;
   const float back_bottom = pages_[back_page_].getPosition().y + back_size.y * 0.5f;
@@ -126,29 +136,15 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
   }
 
   discretizePosition(curr);
-  updateNeighbourPositions();
+  updateNeighbourPositions(visual_state);
 
   page_positions_dirty_ = false;
-  if (!need_initial_pos_)
-    layout_pending_ = false;
-}
-
-bool PDFLayoutManager::needInitialPos() const {
-  return need_initial_pos_;
-}
-
-bool PDFLayoutManager::isLayoutPending() const {
-  return need_initial_pos_ || layout_pending_;
-}
-
-bool PDFLayoutManager::anchorPageChanged() const {
-  return anchor_page_changed_;
 }
 
 void PDFLayoutManager::updateAnchorPage() {
   anchor_page_changed_ = false;
 
-  if (need_initial_pos_ || !pages_[anchor_page_].hasTexture())
+  if (need_initial_pos_)
     return;
 
   const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
@@ -157,8 +153,6 @@ void PDFLayoutManager::updateAnchorPage() {
   float closest_dist = std::numeric_limits<float>::max();
 
   for (std::size_t i = front_page_; i <= back_page_; i++) {
-    if (!pages_[i].hasTexture())
-      continue;
     const float page_center_y = pages_[i].getPosition().y;
     const float dist = std::abs(page_center_y - window_center.y);
     if (dist < closest_dist) {
@@ -174,23 +168,16 @@ void PDFLayoutManager::updateAnchorPage() {
   scrolled_ = false;
 }
 
-void PDFLayoutManager::setInitialPagePos(const ui::VisualInfo &visual_state) {
-  if (!need_initial_pos_ || pages_.empty() || !pages_[anchor_page_].hasTexture())
-    return;
+bool PDFLayoutManager::needInitialPos() const {
+  return need_initial_pos_;
+}
 
-  const auto key = pdf::PDFRenderKey{anchor_page_, visual_state.zoom, visual_state.rotate, 0};
+bool PDFLayoutManager::isLayoutPending() const {
+  return need_initial_pos_ || page_positions_dirty_;
+}
 
-  const auto size = scheduler_.getPageSize(key);
-  float x = window_size_.x * 0.5f;
-  float y = size.y * 0.5f;
-  if (size.y <= (window_size_.y - utils::CMDLINE_HEIGHT))
-    y = (window_size_.y - utils::CMDLINE_HEIGHT) * 0.5;
-  pages_[anchor_page_].setPosition({x, y});
-  clampPageVertically(visual_state);
-  clampPageHorizontally(visual_state);
-
-  need_initial_pos_ = false;
-  page_positions_dirty_ = true;
+bool PDFLayoutManager::anchorPageChanged() const {
+  return anchor_page_changed_;
 }
 
 void PDFLayoutManager::clampPageVertically(const ui::VisualInfo &visual_state) {
@@ -201,11 +188,7 @@ void PDFLayoutManager::clampPageVertically(const ui::VisualInfo &visual_state) {
     return;
 
   auto &page = pages_[anchor_page_];
-  if (!page.hasTexture())
-    return;
-
-  const auto key = pdf::PDFRenderKey{anchor_page_, visual_state.zoom, visual_state.rotate, 0};
-  const float h = scheduler_.getPageSize(key).y;
+  const float h = pageSize(anchor_page_, visual_state).y;
   const float y = page.getPosition().y;
   const float top = y - h * 0.5f;
   const float bottom = y + h * 0.5f;
@@ -245,12 +228,12 @@ void PDFLayoutManager::clampPageHorizontally(const ui::VisualInfo &visual_state)
   page.setPosition(pos);
 }
 
-void PDFLayoutManager::updateNeighbourPositions() {
+void PDFLayoutManager::updateNeighbourPositions(const ui::VisualInfo &visual_state) {
   if (anchor_page_ > front_page_) {
-    sf::Vector2f below_size = pages_[anchor_page_].getGlobalBounds().size;
+    sf::Vector2f below_size = pageSize(anchor_page_, visual_state);
     for (int i = static_cast<int>(anchor_page_) - 1; i >= static_cast<int>(front_page_); --i) {
       const auto below_pos = pages_[i + 1].getPosition();
-      const sf::Vector2f curr_size = pages_[i].getGlobalBounds().size;
+      const sf::Vector2f curr_size = pageSize(i, visual_state);
 
       pages_[i].setPosition(
           {below_pos.x, below_pos.y - below_size.y * 0.5f - gap_ - curr_size.y * 0.5f}
@@ -260,10 +243,10 @@ void PDFLayoutManager::updateNeighbourPositions() {
   }
 
   if (anchor_page_ < back_page_) {
-    sf::Vector2f above_size = pages_[anchor_page_].getGlobalBounds().size;
+    sf::Vector2f above_size = pageSize(anchor_page_, visual_state);
     for (std::size_t i = anchor_page_ + 1; i <= back_page_; ++i) {
       const auto above_pos = pages_[i - 1].getPosition();
-      const sf::Vector2f curr_size = pages_[i].getGlobalBounds().size;
+      const sf::Vector2f curr_size = pageSize(i, visual_state);
 
       pages_[i].setPosition(
           {above_pos.x, above_pos.y + above_size.y * 0.5f + gap_ + curr_size.y * 0.5f}
@@ -283,12 +266,17 @@ void PDFLayoutManager::discretizePosition(ui::PageView &page) {
   page.setPosition({x, y});
 }
 
+sf::Vector2f PDFLayoutManager::pageSize(std::size_t page_idx, const ui::VisualInfo &vs) const {
+  const auto key = pdf::PDFRenderKey{page_idx, vs.zoom, vs.rotate, 0};
+  const auto s = scheduler_.getPageSize(key);
+  return {static_cast<float>(s.x), static_cast<float>(s.y)};
+}
+
 void PDFLayoutManager::reset() {
   page_with_max_width_ = 0;
   front_page_ = 0;
   anchor_page_ = 0;
   back_page_ = 0;
-  layout_pending_ = true;
   page_positions_dirty_ = false;
   anchor_page_pos_before_scroll_ = {0.f, 0.f};
   anchor_page_changed_ = false;

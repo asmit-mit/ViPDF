@@ -21,27 +21,26 @@ public:
   std::size_t getBackPage() const;
 
   void setPageWithMaxWidth(std::size_t idx);
-
   void setWindowSize(sf::Vector2f window_size);
-
   void setPagePosDirty();
 
   void panCurrentPage(sf::Vector2f delta);
   void setInitialPagePos(const ui::VisualInfo &visual_state);
   void updatePagePositions(const ui::VisualInfo &visual_state);
-  void clampPageVertically(const ui::VisualInfo &visual_state);
-  void clampPageHorizontally(const ui::VisualInfo &visual_state);
+  void updateAnchorPage();
 
   bool needInitialPos() const;
   bool isLayoutPending() const;
   bool anchorPageChanged() const;
-  void updateAnchorPage();
 
   void reset();
 
 private:
-  void updateNeighbourPositions();
+  void clampPageVertically(const ui::VisualInfo &visual_state);
+  void clampPageHorizontally(const ui::VisualInfo &visual_state);
+  void updateNeighbourPositions(const ui::VisualInfo &visual_state);
   void discretizePosition(ui::PageView &page);
+  sf::Vector2f pageSize(std::size_t page_idx, const ui::VisualInfo &vs) const;
 
 private:
   core::RenderScheduler &scheduler_;
@@ -59,7 +58,6 @@ private:
 
   bool need_initial_pos_;
   bool anchor_page_changed_;
-  bool layout_pending_;
 
   sf::Vector2f window_size_;
   sf::Vector2f old_window_size_;

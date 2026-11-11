@@ -101,6 +101,7 @@ void DocumentView::update() {
   }
 
   // set base positions for anchor pages and neighbors
+  // (after page switching, or window size change)
   layout_manager_.setInitialPagePos(view_state);
 
   // request for page panning for new search result focus
@@ -129,12 +130,11 @@ void DocumentView::update() {
     default:
       break;
     }
-    layout_manager_.clampPageVertically(view_state);
-    layout_manager_.clampPageHorizontally(view_state);
     pending_page_scroll_.reset();
   }
 
-  // update neighboring page positions
+  // update all pages after initial page setup 
+  // (clamp, neighbor page positions etc...)
   layout_manager_.updatePagePositions(view_state);
 
   // update anchor page and request for
