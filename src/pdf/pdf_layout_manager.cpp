@@ -2,6 +2,7 @@
 
 #include "ui/page_view.h"
 #include "utils/utils.h"
+#include <print>
 
 namespace pdf {
 
@@ -71,8 +72,10 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
   if (!page_positions_dirty_)
     return;
 
-  if (!pages_[anchor_page_].hasTexture())
+  if (!pages_[anchor_page_].hasTexture()) {
+    layout_pending_ = true;
     return;
+  }
 
   ui::PageView &curr = pages_[anchor_page_];
 
@@ -92,7 +95,7 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
     window_size_changed_ = false;
   }
 
-  clampAnchorHorizontally(visual_state);
+  clampPageHorizontally(visual_state);
   discretizePosition(curr);
   updateNeighbourPositions();
 
@@ -171,19 +174,75 @@ void PDFLayoutManager::updateAnchorPage() {
   scrolled_ = false;
 }
 
-void PDFLayoutManager::setInitialPagePos() {
+void PDFLayoutManager::setInitialPagePos(const ui::VisualInfo &visual_state) {
   if (!need_initial_pos_ || pages_.empty() || !pages_[anchor_page_].hasTexture())
     return;
 
-  const auto size = scheduler_.getPageSize(pages_[anchor_page_].getKey());
+  const auto key = pdf::PDFRenderKey{anchor_page_, visual_state.zoom, visual_state.rotate, 0};
+
+  const auto size = scheduler_.getPageSize(key);
   float x = window_size_.x * 0.5f;
   float y = size.y * 0.5f;
   if (size.y <= (window_size_.y - utils::CMDLINE_HEIGHT))
     y = (window_size_.y - utils::CMDLINE_HEIGHT) * 0.5;
   pages_[anchor_page_].setPosition({x, y});
+  clampPageVertically(visual_state);
+  clampPageHorizontally(visual_state);
 
   need_initial_pos_ = false;
   page_positions_dirty_ = true;
+}
+
+void PDFLayoutManager::clampPageVertically(const ui::VisualInfo &visual_state) {
+  const bool is_first = anchor_page_ == 0;
+  const bool is_last = anchor_page_ + 1 >= pages_.size();
+
+  if (!is_first && !is_last)
+    return;
+
+  auto &page = pages_[anchor_page_];
+  if (!page.hasTexture())
+    return;
+
+  const auto key = pdf::PDFRenderKey{anchor_page_, visual_state.zoom, visual_state.rotate, 0};
+  const float h = scheduler_.getPageSize(key).y;
+  const float y = page.getPosition().y;
+  const float top = y - h * 0.5f;
+  const float bottom = y + h * 0.5f;
+  const float limit = window_size_.y - utils::CMDLINE_HEIGHT;
+
+  float dy = 0.f;
+  if (is_first && is_last && h < limit)
+    dy = limit * 0.5f - y;
+  else if (is_first && top > 0.f)
+    dy = -top;
+  else if (is_last && bottom < limit)
+    dy = limit - bottom;
+
+  if (dy != 0.f)
+    page.setPosition({page.getPosition().x, y + dy});
+}
+
+void PDFLayoutManager::clampPageHorizontally(const ui::VisualInfo &visual_state) {
+  auto &page = pages_[anchor_page_];
+  const auto key =
+      pdf::PDFRenderKey{page_with_max_width_, visual_state.zoom, visual_state.rotate, 0};
+
+  const float window_w = window_size_.x;
+  const float page_w = static_cast<float>(scheduler_.getPageSize(key).x);
+  const float half_w = page_w * 0.5f;
+
+  sf::Vector2f pos = page.getPosition();
+
+  if (page_w <= window_w) {
+    pos.x = window_w * 0.5f;
+  } else {
+    const float min_x = window_w - half_w;
+    const float max_x = half_w;
+    pos.x = std::clamp(pos.x, min_x, max_x);
+  }
+
+  page.setPosition(pos);
 }
 
 void PDFLayoutManager::updateNeighbourPositions() {
@@ -212,28 +271,6 @@ void PDFLayoutManager::updateNeighbourPositions() {
       above_size = curr_size;
     }
   }
-}
-
-void PDFLayoutManager::clampAnchorHorizontally(const ui::VisualInfo &visual_state) {
-  auto &page = pages_[anchor_page_];
-  const auto key =
-      pdf::PDFRenderKey{page_with_max_width_, visual_state.zoom, visual_state.rotate, 0};
-
-  const float window_w = window_size_.x;
-  const float page_w = static_cast<float>(scheduler_.getPageSize(key).x);
-  const float half_w = page_w * 0.5f;
-
-  sf::Vector2f pos = page.getPosition();
-
-  if (page_w <= window_w) {
-    pos.x = window_w * 0.5f;
-  } else {
-    const float min_x = window_w - half_w;
-    const float max_x = half_w;
-    pos.x = std::clamp(pos.x, min_x, max_x);
-  }
-
-  page.setPosition(pos);
 }
 
 void PDFLayoutManager::discretizePosition(ui::PageView &page) {

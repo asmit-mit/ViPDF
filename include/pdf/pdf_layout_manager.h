@@ -26,9 +26,11 @@ public:
 
   void setPagePosDirty();
 
-  void setInitialPagePos();
   void panCurrentPage(sf::Vector2f delta);
+  void setInitialPagePos(const ui::VisualInfo &visual_state);
   void updatePagePositions(const ui::VisualInfo &visual_state);
+  void clampPageVertically(const ui::VisualInfo &visual_state);
+  void clampPageHorizontally(const ui::VisualInfo &visual_state);
 
   bool needInitialPos() const;
   bool isLayoutPending() const;
@@ -39,8 +41,6 @@ public:
 
 private:
   void updateNeighbourPositions();
-  void clampAnchorHorizontally(const ui::VisualInfo &visual_info);
-
   void discretizePosition(ui::PageView &page);
 
 private:

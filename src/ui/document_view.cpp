@@ -43,11 +43,16 @@ void DocumentView::draw(sf::RenderTarget &window) const {
   if (!canWorkWithDocument())
     return;
 
-  if (layout_manager_.needInitialPos() || layout_manager_.isLayoutPending())
+  if (!layout_manager_.needInitialPos())
+    pages_[layout_manager_.getAnchorPage()].draw(window);
+
+  if (layout_manager_.isLayoutPending())
     return;
 
-  for (std::size_t i = layout_manager_.getFrontPage(); i <= layout_manager_.getBackPage(); i++)
-    pages_[i].draw(window);
+  for (std::size_t i = layout_manager_.getFrontPage(); i <= layout_manager_.getBackPage(); i++) {
+    if (i != layout_manager_.getAnchorPage())
+      pages_[i].draw(window);
+  }
 }
 
 void DocumentView::update() {
@@ -96,8 +101,7 @@ void DocumentView::update() {
   }
 
   // set base positions for anchor pages and neighbors
-  layout_manager_.setInitialPagePos();
-  layout_manager_.updatePagePositions(view_state);
+  layout_manager_.setInitialPagePos(view_state);
 
   // request for page panning for new search result focus
   if (search_controller_.isSearchPosDirty()) {
@@ -106,8 +110,9 @@ void DocumentView::update() {
     search_controller_.clearSearchPosDirty();
   }
 
-  // pan pages and update neighbors *after base positions are set*
-  if (pending_page_scroll_ && pages_[anchor_page].hasTexture()) {
+  // pan pages and update neighbors *only after base anchor position is set*
+  if (pending_page_scroll_ && pages_[anchor_page].hasTexture() &&
+      !layout_manager_.needInitialPos()) {
     pages_[anchor_page].syncPageShapePos();
     pages_[anchor_page].syncPageShape();
 
@@ -124,9 +129,13 @@ void DocumentView::update() {
     default:
       break;
     }
-    layout_manager_.updatePagePositions(view_state);
+    layout_manager_.clampPageVertically(view_state);
+    layout_manager_.clampPageHorizontally(view_state);
     pending_page_scroll_.reset();
   }
+
+  // update neighboring page positions
+  layout_manager_.updatePagePositions(view_state);
 
   // update anchor page and request for
   // new pages if anchor page is changed due to scrolling
