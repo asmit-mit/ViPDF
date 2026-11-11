@@ -58,13 +58,13 @@ CmdLoader::parseCmd(const json &obj, const std::vector<std::string> &parent_keys
   Cmd cmd;
   cmd.name = requireField<std::string>(obj, "name");
   cmd.description = requireField<std::string>(obj, "description");
-  cmd.args = requireField<int>(obj, "args");
 
-  if (auto it = obj.find("event"); it != obj.end() && it->is_string())
-    cmd.event = it->get<std::string>();
+  cmd.args = optionalField<int>(obj, "args");
+  cmd.event = optionalField<std::string>(obj, "event");
+  cmd.default_arg = optionalField<std::string>(obj, "default_arg");
 
-  if (auto it = obj.find("cmp_type"); it != obj.end() && it->is_string())
-    cmd.cmp_type = it->get<CmdCmpType>();
+  const auto cmp_type = optionalField<CmdCmpType>(obj, "cmp_type");
+  cmd.cmp_type = cmp_type ? *cmp_type : CmdCmpType::Subcommand;
 
   std::string alias;
   if (auto it = obj.find("alias"); it != obj.end() && it->is_string())

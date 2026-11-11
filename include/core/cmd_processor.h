@@ -14,6 +14,7 @@ public:
 
 private:
   void tokenize(const std::string &cmd, std::vector<std::string> &argv);
+  void emitCommand(const Cmd &cmd, const std::vector<std::string> &argv, std::size_t consumed);
 
 private:
   const CmdLoader &cmd_loader_;

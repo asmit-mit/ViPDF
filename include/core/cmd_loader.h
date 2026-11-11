@@ -1,11 +1,11 @@
 #pragma once
 
 #include <filesystem>
+#include <format>
 #include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <format>
 
 #include <json.hpp>
 
@@ -34,7 +34,8 @@ struct Cmd {
   std::optional<std::string> event;
   std::vector<size_t> children;
   CmdCmpType cmp_type = CmdCmpType::Subcommand;
-  int args;
+  std::optional<int> args;
+  std::optional<std::string> default_arg;
 };
 
 class CmdLoader {
@@ -53,6 +54,18 @@ private:
     auto it = obj.find(key);
     if (it == obj.end())
       throwJsonReadError(std::format("missing {} field", key));
+
+    try {
+      return it->get<T>();
+    } catch (const json::type_error &) {
+      throwJsonReadError(std::format("invalid type for {} field", key));
+    }
+  }
+
+  template <typename T> std::optional<T> optionalField(const json &obj, const char *key) {
+    auto it = obj.find(key);
+    if (it == obj.end())
+      return std::nullopt;
 
     try {
       return it->get<T>();

@@ -1,6 +1,7 @@
 #include "app.h"
 
 #include "utils/utils.h"
+#include <clip.h>
 
 namespace fs = std::filesystem;
 
@@ -191,7 +192,7 @@ void App::registerEvents() {
     if (link_opener_.openLink(url))
       return;
 
-    sf::Clipboard::setString(sf::String::fromUtf8(url.begin(), url.end()));
+    clip::set_text(url);
     event_bus_.emit("notification.msg", std::string("External link url copied to clipboard"));
   });
 }

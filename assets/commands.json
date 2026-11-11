@@ -21,24 +21,23 @@
   },
   {
     "name": "clear",
-    "args": 2,
     "description": "Clear file, command or search history",
     "children": [
       {
         "name": "files",
-        "args": 1,
+        "args": 2,
         "event": "cmd.clear_files",
         "description": "Clear file history"
       },
       {
         "name": "search",
-        "args": 1,
+        "args": 2,
         "event": "cmd.clear_search",
         "description": "Clear search history"
       },
       {
         "name": "commands",
-        "args": 1,
+        "args": 2,
         "event": "cmd.clear_commands",
         "description": "Clear command history"
       }
@@ -56,31 +55,32 @@
     "alias": "w",
     "event": "cmd.write",
     "args": 2,
+    "default_arg": "%",
     "description": "Save changes",
     "cmp_type": "file"
   },
   {
     "name": "bmark",
     "alias": "b",
-    "args": 3,
     "description": "Work with bookmarks",
     "children": [
       {
         "name": "add",
-        "args": 2,
+        "args": 3,
         "event": "bmark.add",
-        "description": "Save current page as bookmark"
+        "description": "Save current page as bookmark",
+        "default_arg": ""
       },
       {
         "name": "del",
-        "args": 2,
+        "args": 3,
         "event": "bmark.del",
         "description": "Delete specified bookmark",
         "cmp_type": "bookmark"
       },
       {
         "name": "jump",
-        "args": 2,
+        "args": 3,
         "event": "bmark.jump",
         "description": "Jump to specified bookmark",
         "cmp_type": "bookmark"

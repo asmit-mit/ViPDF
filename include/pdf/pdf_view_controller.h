@@ -44,7 +44,7 @@ private:
   bool pending_page_update_;
   bool sync_state_dirty_;
 
-  static constexpr float scale_rot_debounce_ms_ = 300.f;
+  static constexpr float scale_rot_debounce_ms_ = 200.f;
   static constexpr float min_zoom_ = 0.2f;
   static constexpr float max_zoom_ = 5.f;
 };

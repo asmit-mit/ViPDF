@@ -635,7 +635,8 @@ void DocumentView::registerEvents() {
       return;
     }
 
-    bookmark_manager_.removeBookmark(label);
+    if (bookmark_manager_.removeBookmark(label))
+      event_bus_.emit("notification.msg", std::format("Bookmark \"{}\" deleted", label));
   });
 
   event_bus_.subscribe<const std::string &>("bmark.jump", [this](const std::string &label) {

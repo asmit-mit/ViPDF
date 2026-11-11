@@ -18,53 +18,55 @@ void CmdProcessor::runCommand(const std::string &cmd) {
 
   std::vector<std::string> argv;
   tokenize(cmd, argv);
+  if (argv.empty())
+    return;
 
   if (utils::isNumber(argv[0])) {
     event_bus_.emit("cmd.switch_page", std::stoi(argv[0]));
     return;
   }
 
-  std::string arg = argv[0];
-  const Cmd *cmd_ptr = cmd_loader_.find(arg);
+  std::string name = argv[0];
+  const Cmd *cmd_ptr = cmd_loader_.find(name);
   if (!cmd_ptr)
-    throw std::runtime_error("Not a valid command: " + arg);
+    throw std::runtime_error("Not a valid command: " + name);
 
-  if (argv.size() < (size_t)cmd_ptr->args)
-    throw std::runtime_error(
-        "Provided " + std::to_string(argv.size() - 1) + " argument(s), but required " +
-        std::to_string(cmd_ptr->args - 1)
-    );
+  std::size_t consumed = 1;
+  while (!cmd_ptr->event) {
+    if (consumed >= argv.size())
+      throw std::runtime_error("Incomplete command: " + name);
 
-  if (cmd_ptr->event.has_value()) {
-    if (cmd_ptr->args == 1)
-      event_bus_.emit(cmd_ptr->event.value(), true);
-    else
-      event_bus_.emit(cmd_ptr->event.value(), argv.size() > 1 ? argv[1] : "");
-    return;
+    name += "." + argv[consumed++];
+    cmd_ptr = cmd_loader_.find(name);
+    if (!cmd_ptr)
+      throw std::runtime_error("Not a valid subcommand: " + name);
   }
 
-  for (std::size_t i = 1; i < argv.size(); i++) {
-    arg += "." + argv[i];
-    cmd_ptr = cmd_loader_.find(arg);
-    if (!cmd_ptr)
-      throw std::runtime_error("Not a valid subcommand: " + arg);
+  emitCommand(*cmd_ptr, argv, consumed);
+}
 
-    if (argv.size() < (size_t)cmd_ptr->args)
-      throw std::runtime_error(
-          "Provided " + std::to_string(argv.size() - 1) + " argument(s), but required " +
-          std::to_string(cmd_ptr->args - 1)
-      );
+void CmdProcessor::emitCommand(
+    const Cmd &cmd, const std::vector<std::string> &argv, std::size_t consumed
+) {
+  const std::string &event = cmd.event.value();
 
-    if (cmd_ptr->event) {
-      if ((i + 1) < (size_t)argv.size())
-        event_bus_.emit(cmd_ptr->event.value(), argv[i + 1]);
-      else
-        event_bus_.emit(cmd_ptr->event.value(), true);
+  if (argv.size() < (size_t)*cmd.args) {
+    if (cmd.default_arg) {
+      event_bus_.emit(event, *cmd.default_arg);
       return;
     }
+    throw std::runtime_error(
+        "Provided " + std::to_string(argv.size() - 1) + " argument(s), but required " +
+        std::to_string(*cmd.args - 1)
+    );
   }
 
-  throw std::runtime_error("Incomplete command: " + arg);
+  if (consumed < argv.size())
+    event_bus_.emit(event, argv[consumed]);
+  else if (consumed == 1 && cmd.args != 1)
+    event_bus_.emit(event, std::string{});
+  else
+    event_bus_.emit(event, true);
 }
 
 void CmdProcessor::tokenize(const std::string &input, std::vector<std::string> &argv) {

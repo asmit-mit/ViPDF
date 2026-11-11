@@ -6,7 +6,6 @@ enum class UIElements {
   Cmdline,
   PDFView,
   PasswordDialog,
-  PrintDialog,
   None,
 };
 
