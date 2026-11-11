@@ -59,6 +59,22 @@ void DocumentView::update() {
   if (!canWorkWithDocument())
     return;
 
+  // pending updates
+  if (pending_zoom_update_) {
+    view_controller_.setZoom(*pending_zoom_update_, false);
+    pending_zoom_update_.reset();
+  }
+
+  if (pending_rotate_update_) {
+    view_controller_.setRotate(*pending_rotate_update_, false);
+    pending_rotate_update_.reset();
+  }
+
+  if (pending_page_swtich_) {
+    onSwitchPage(*pending_page_swtich_);
+    pending_page_swtich_.reset();
+  }
+
   std::size_t front_page = layout_manager_.getFrontPage();
   std::size_t anchor_page = layout_manager_.getAnchorPage();
   std::size_t back_page = layout_manager_.getBackPage();
@@ -82,19 +98,12 @@ void DocumentView::update() {
     view_controller_.clearPendingUpdates();
   }
 
-  // change page if user updated in previous frames
-  if (pending_page_swtich_) {
-    onSwitchPage(*pending_page_swtich_);
-    pending_page_swtich_.reset();
-  }
-
   // render requested pages
   renderRequestedPages();
 
-  // visually change page sprite shape and size via setScale and setRotate
-  // before requesting for page texture with higher resolution and equivalent
-  // scale and rotation until timer runs out
-  anchor_page = layout_manager_.getAnchorPage();
+  // visually change page sprite shapEncrypt and protect PDF with a passwe and size via setScale and
+  // setRotate before requesting for page texture with higher resolution and equivalent scale and
+  // rotation until timer runs out
   if (view_controller_.isSyncDirty()) {
     view_controller_.syncWithTargetState(front_page, anchor_page, back_page);
     layout_manager_.setPagePosDirty();
@@ -133,7 +142,7 @@ void DocumentView::update() {
     pending_page_scroll_.reset();
   }
 
-  // update all pages after initial page setup 
+  // update all pages after initial page setup
   // (clamp, neighbor page positions etc...)
   layout_manager_.updatePagePositions(view_state);
 
@@ -499,6 +508,8 @@ void DocumentView::onOpenDocument(const std::string &filepath) {
     scheduler_.clearCache();
 
     resetView();
+    pending_zoom_update_.reset();
+    pending_rotate_update_.reset();
     pending_page_swtich_ = 0;
     event_bus_.emit("statusbar.pdf_path", absolute_path);
     event_bus_.emit("statusbar.page_state", std::make_pair(0, document_.pageCount()));
@@ -580,6 +591,7 @@ void DocumentView::onAnnotate(std::vector<std::size_t> pages) {
 
 void DocumentView::onAuthenticate() {
   resetView();
+
   event_bus_.emit("ui.focus", ui::UIElements::PDFView);
   event_bus_.emit("statusbar.page_state", std::make_pair(0, document_.pageCount()));
   event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
@@ -591,7 +603,7 @@ void DocumentView::registerEvents() {
   });
 
   event_bus_.subscribe<bool>("cmd.reload_document", [this](bool) {
-    if (!canWorkWithDocument()) {
+    if (!document_.isOpen()) {
       event_bus_.emit("notification.msg", std::string("No document open to reload"));
       return;
     }
@@ -599,8 +611,8 @@ void DocumentView::registerEvents() {
     const auto view_state = view_controller_.getState();
     std::size_t curr_page = layout_manager_.getAnchorPage();
     onOpenDocument(document_.getFilePath());
-    view_controller_.setRotate(view_state.rotate % 4, false);
-    view_controller_.setZoom(view_state.zoom, false);
+    pending_zoom_update_ = view_state.zoom;
+    pending_rotate_update_ = view_state.rotate % 4;
     pending_page_swtich_ = curr_page;
     event_bus_.emit("statusbar.document_edited", document_.hasChanges());
   });

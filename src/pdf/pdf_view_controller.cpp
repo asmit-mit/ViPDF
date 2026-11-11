@@ -43,6 +43,14 @@ void PDFViewController::setWindowSize(sf::Vector2f window_size) {
   window_size_ = window_size;
 }
 
+float PDFViewController::getZoom() const {
+  return target_state_.zoom;
+}
+
+int PDFViewController::getRotate() const {
+  return target_state_.rotate;
+}
+
 bool PDFViewController::isUpdatePending() const {
   return pending_page_update_;
 }
