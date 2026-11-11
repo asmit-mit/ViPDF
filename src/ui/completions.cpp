@@ -46,11 +46,13 @@ void Completions::update() {
   if (!visible_)
     return;
 
+  const std::size_t last = std::min(first_visible_ + max_list_items_, completions_.size());
+  const std::size_t count = last - first_visible_;
+
+  display_area_.setSize({window_size_.x, count * utils::CMDLINE_HEIGHT});
   display_area_.setPosition(
       {0, window_size_.y - display_area_.getSize().y - 2 * utils::CMDLINE_HEIGHT + 1.f}
   );
-
-  const std::size_t last = std::min(first_visible_ + max_list_items_, completions_.size());
 
   if (list_dirty_) {
     std::size_t row = 0;
@@ -73,7 +75,6 @@ void Completions::update() {
     );
     display_desc_list_[row].setFillColor(desc_fg_color_);
   }
-  display_area_.setSize({window_size_.x, row * utils::CMDLINE_HEIGHT});
 
   const std::size_t selected_row = selected_ - first_visible_;
   selected_cmd_area_.setPosition(
@@ -131,7 +132,7 @@ void Completions::setCompletionList(std::vector<core::CmdAutocompleteItem> list)
   clear();
   completions_ = std::move(list);
 
-  float height = std::min(max_list_items_, list.size()) * utils::CMDLINE_HEIGHT;
+  float height = std::min(max_list_items_, completions_.size()) * utils::CMDLINE_HEIGHT;
   display_area_.setSize({window_size_.x, height});
 
   list_dirty_ = true;

@@ -63,7 +63,7 @@ private:
   sf::Vector2f old_window_size_;
   sf::Vector2f anchor_page_pos_before_scroll_;
 
-  static constexpr float gap_ = 1.f;
+  static constexpr float gap_ = 3.f;
   static constexpr float epsilon_ = 1e-5f;
 };
 
