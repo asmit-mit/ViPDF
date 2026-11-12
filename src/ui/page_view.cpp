@@ -13,6 +13,7 @@ PageView::PageView(
   active_ = false;
   update_search_boxes_ = false;
   selected_search_result_ = -1;
+  show_search_results_ = false;
 };
 
 void PageView::draw(sf::RenderTarget &window) const {
@@ -22,7 +23,7 @@ void PageView::draw(sf::RenderTarget &window) const {
   // window.draw(original_shape_);
   window.draw(sprite_);
 
-  if (!search_result_.local_rects.empty())
+  if (show_search_results_ && !search_result_.local_rects.empty())
     window.draw(search_boxes_, sf::RenderStates(original_shape_.getTransform()));
 
   if (selection_boxes_.getVertexCount() != 0)
@@ -142,6 +143,14 @@ void PageView::clearSearchResults() {
   search_result_.local_rects.clear();
   update_search_boxes_ = true;
   selected_search_result_ = -1;
+}
+
+void PageView::showSearchResults() {
+  show_search_results_ = true;
+}
+
+void PageView::hideSearchResults() {
+  show_search_results_ = false;
 }
 
 void PageView::setSelections(const std::vector<fz_quad> *quads) {

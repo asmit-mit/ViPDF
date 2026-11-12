@@ -92,5 +92,19 @@
     "args": 1,
     "event": "dbus.print_file",
     "description": "Print file"
+  },
+  {
+    "name": "nohlsearch",
+    "alias": "nohl",
+    "args": 1,
+    "event": "cmd.nohl",
+    "description": "Remove highlights for current search results"
+  },
+  {
+    "name": "hlsearch",
+    "alias": "hl",
+    "args": 1,
+    "event": "cmd.hl",
+    "description": "Highlight current search results"
   }
 ]

@@ -20,8 +20,10 @@ public:
   std::size_t getTotalSearchResult() const;
 
   bool isShowingSearchResult() const;
-  bool isSearchPosDirty() const;
+  void showSearchResults();
+  void hideSearchResults();
 
+  bool isSearchPosDirty() const;
   void clearSearchPosDirty();
 
   void reset();

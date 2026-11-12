@@ -56,6 +56,8 @@ public:
   void setSelectedSearchResult(std::size_t idx);
   void setSearchResults(PDFSearchResult search_results);
   void clearSearchResults();
+  void showSearchResults();
+  void hideSearchResults();
 
   void setSelections(const std::vector<fz_quad> *quads);
   void clearSelections();
@@ -82,6 +84,7 @@ private:
 
   bool active_;
   bool update_search_boxes_;
+  bool show_search_results_;
 
   const sf::Color selection_color_;
   const sf::Color unselected_color_;

@@ -375,7 +375,7 @@ void DocumentView::execute(const core::InputCmd<DocumentAction> &cmd) {
 
   case DocumentAction::Cancel:
     selection_controller_.reset();
-    search_controller_.reset();
+    search_controller_.hideSearchResults();
     emitSearchState(0);
     event_bus_.emit("statusbar.pending_keys", std::string(""));
     break;
@@ -622,6 +622,9 @@ void DocumentView::registerEvents() {
   event_bus_.subscribe<int>("cmd.switch_page", [this](int page_num) {
     pending_page_swtich_ = page_num - 1;
   });
+
+  event_bus_.subscribe<bool>("cmd.hl", [this](bool) { search_controller_.showSearchResults(); });
+  event_bus_.subscribe<bool>("cmd.nohl", [this](bool) { search_controller_.hideSearchResults(); });
 
   event_bus_.subscribe<std::string>("password.submit", [this](std::string password) {
     if (document_.authenticate(password))
