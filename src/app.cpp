@@ -81,11 +81,28 @@ App::App()
   registerEvents();
 }
 
+void App::markActive() {
+  activity_clock_.restart();
+}
+
+bool App::needsContinuousFrames() const {
+  if (activity_clock_.getElapsedTime() < sf::milliseconds(active_grace_ms_))
+    return true;
+  return false;
+}
+
 void App::run() {
+  bool first_frame = true;
+
   while (window_.isOpen()) {
-    processEvents();
+    const bool busy = needsContinuousFrames();
+    const bool had_input = processEvents(busy ? sf::Time::Zero : sf::milliseconds(idle_wait_ms_));
+
+    if (!window_.isOpen())
+      break;
 
     if (pending_open_) {
+      markActive();
       event_bus_.emit("cmd.open_document", *pending_open_);
       pending_open_.reset();
     }
@@ -99,6 +116,14 @@ void App::run() {
     statusbar_.update();
     notifications_.update();
     password_dialog_.update();
+
+    const bool heartbeat = idle_redraw_clock_.getElapsedTime() >= sf::milliseconds(idle_redraw_ms_);
+
+    if (!(first_frame || had_input || busy || heartbeat))
+      continue;
+
+    first_frame = false;
+    idle_redraw_clock_.restart();
 
     window_.clear(app_bg_color_);
     window_.setView(view_);
@@ -115,6 +140,7 @@ void App::run() {
 
 void App::openDocument(std::string path) {
   pending_open_ = std::filesystem::absolute(path).string();
+  markActive();
 }
 
 void App::registerEvents() {
@@ -225,42 +251,55 @@ void App::initUI() {
   window_.setMouseCursor(arrow_cursor_);
 }
 
-void App::processEvents() {
-  while (const auto event = window_.pollEvent()) {
-    if (event->is<sf::Event::Closed>())
-      window_.close();
+bool App::processEvents(sf::Time wait) {
+  bool any = false;
+  auto event = wait > sf::Time::Zero ? window_.waitEvent(wait) : window_.pollEvent();
+  while (event) {
+    any = true;
+    handleEvent(*event);
+    event = window_.pollEvent();
+  }
 
-    if (event->is<sf::Event::Resized>()) {
-      auto window_size = window_.getSize();
-      view_.setSize({(float)window_size.x, (float)window_size.y});
-      auto view_size = view_.getSize();
-      view_.setCenter({view_size.x / 2, view_size.y / 2});
+  if (any)
+    markActive();
 
-      password_dialog_.onResize(view_.getSize());
-      cmdline_.onResize(view_.getSize());
-      statusbar_.onResize(view_.getSize());
-      document_view_.onResize(view_.getSize());
-      notifications_.onResize(view_.getSize());
-    }
+  return any;
+}
 
-    if (focus_ == ui::UIElements::PDFView) {
-      if (const auto *key = event->getIf<sf::Event::KeyPressed>()) {
-        if (key->code == sf::Keyboard::Key::Semicolon && key->shift &&
-            focus_ != ui::UIElements::Cmdline) {
-          event_bus_.emit("ui.focus", ui::UIElements::Cmdline);
-          cmdline_.setMode(ui::CmdlineMode::Cmd);
-        }
-        if (key->code == sf::Keyboard::Key::Slash && focus_ != ui::UIElements::Cmdline) {
-          event_bus_.emit("ui.focus", ui::UIElements::Cmdline);
-          cmdline_.setMode(ui::CmdlineMode::Search);
-        }
+void App::handleEvent(const sf::Event &event) {
+  if (event.is<sf::Event::Closed>())
+    window_.close();
+
+  if (event.is<sf::Event::Resized>()) {
+    auto window_size = window_.getSize();
+    view_.setSize({(float)window_size.x, (float)window_size.y});
+    auto view_size = view_.getSize();
+    view_.setCenter({view_size.x / 2, view_size.y / 2});
+
+    password_dialog_.onResize(view_.getSize());
+    cmdline_.onResize(view_.getSize());
+    statusbar_.onResize(view_.getSize());
+    document_view_.onResize(view_.getSize());
+    notifications_.onResize(view_.getSize());
+  }
+
+  if (focus_ == ui::UIElements::PDFView) {
+    if (const auto *key = event.getIf<sf::Event::KeyPressed>()) {
+      if (key->code == sf::Keyboard::Key::Semicolon && key->shift &&
+          focus_ != ui::UIElements::Cmdline) {
+        event_bus_.emit("ui.focus", ui::UIElements::Cmdline);
+        cmdline_.setMode(ui::CmdlineMode::Cmd);
+      }
+      if (key->code == sf::Keyboard::Key::Slash && focus_ != ui::UIElements::Cmdline) {
+        event_bus_.emit("ui.focus", ui::UIElements::Cmdline);
+        cmdline_.setMode(ui::CmdlineMode::Search);
       }
     }
-
-    cmdline_.handleEvent(*event);
-    statusbar_.handleEvent(*event);
-    document_view_.handleEvent(*event);
-    notifications_.handleEvent(*event);
-    password_dialog_.handleEvent(*event);
   }
+
+  cmdline_.handleEvent(event);
+  statusbar_.handleEvent(event);
+  document_view_.handleEvent(event);
+  notifications_.handleEvent(event);
+  password_dialog_.handleEvent(event);
 }

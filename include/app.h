@@ -36,7 +36,15 @@ public:
 private:
   void registerEvents();
   void initUI();
-  void processEvents();
+
+  // Waits up to `wait` for an event (or just polls if wait is zero), then drains
+  // the queue. Returns true if at least one event was handled.
+  bool processEvents(sf::Time wait);
+  void handleEvent(const sf::Event &event);
+
+  // True while frames should be produced back-to-back (recent input, animations).
+  bool needsContinuousFrames() const;
+  void markActive();
 
   static fs::path prepareState(const fs::path &assets);
 
@@ -91,6 +99,12 @@ private:
 
   std::optional<std::string> pending_open_;
   // utils::FrameProfiler profiler_;
+
+  sf::Clock activity_clock_;
+  sf::Clock idle_redraw_clock_;
+  static constexpr int active_grace_ms_ = 1500;
+  static constexpr int idle_wait_ms_ = 50;
+  static constexpr int idle_redraw_ms_ = 500;
 
   const unsigned int res_x_ = 640;
   const unsigned int res_y_ = 480;

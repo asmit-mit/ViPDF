@@ -230,8 +230,6 @@ void DocumentView::handleEvent(const sf::Event &event) {
 
       if (document_.getPage(i).mouseInLink(point))
         cursor = ui::CursorType::Hand;
-      else if (document_.getPage(i).mouseInImage(point))
-        cursor = ui::CursorType::Hand;
       else if (document_.getPage(i).mouseInText(point))
         cursor = ui::CursorType::Text;
 
