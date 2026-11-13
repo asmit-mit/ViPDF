@@ -120,7 +120,7 @@ std::vector<Bookmark> BookmarkManager::getBookmarks(const std::string &label_fil
     ORDER BY b.page, b.y, b.x, b.id
   )");
   query.bind(1, curr_document_path_);
-  query.bind(2, escapeLike(label_filter) + "%");
+  query.bind(2, "%" + escapeLike(label_filter) + "%");
 
   std::vector<Bookmark> result;
   while (query.executeStep())
