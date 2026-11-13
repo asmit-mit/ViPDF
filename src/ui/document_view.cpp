@@ -255,7 +255,8 @@ void DocumentView::handleEvent(const sf::Event &event) {
             scroll_to_ = ScrollTo::LINK;
           }
         } else {
-          event_bus_.emit("dbus.open_link", link->url);
+          event_bus_.emit("link.open_external", link->url);
+          event_bus_.emit("ui.focus", ui::UIElements::ExternalLinkDialog);
         }
       }
 

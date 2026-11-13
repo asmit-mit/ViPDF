@@ -14,23 +14,23 @@ PasswordDialog::PasswordDialog(
     : event_bus_(event_bus), label_(font, "Enter password:", 16), textbox_(textbox) {
   visible_ = false;
 
-  label_.setFillColor(utils::hexToRGB(config.password_dialog_text_color));
+  label_.setFillColor(utils::hexToRGB(config.dialog_heading_text_color));
 
-  display_area_.setFillColor(utils::hexToRGB(config.password_dialog_background_color));
-  display_area_.setOutlineColor(utils::hexToRGB(config.password_dialog_outline_color));
+  display_area_.setFillColor(utils::hexToRGB(config.dialog_background_color));
+  display_area_.setOutlineColor(utils::hexToRGB(config.dialog_outline_color));
   display_area_.setOutlineThickness(-utils::OUTLINE_THICKNESS);
   display_area_.setSize({dialog_width_, dialog_height_});
 
-  password_bg_.setFillColor(utils::hexToRGB(config.password_dialog_textbox_background_color));
-  password_bg_.setOutlineColor(utils::hexToRGB(config.password_dialog_textbox_outline_color));
+  password_bg_.setFillColor(utils::hexToRGB(config.dialog_textbox_background_color));
+  password_bg_.setOutlineColor(utils::hexToRGB(config.dialog_textbox_outline_color));
   password_bg_.setOutlineThickness(-utils::OUTLINE_THICKNESS);
   password_bg_.setSize({dialog_width_ - 2.f * outer_padding_, input_height_});
 
   textbox_.setCursorSize({2.f, 20.f});
   textbox_.setMask(true);
-  textbox_.setTextColor(utils::hexToRGB(config.password_dialog_text_color));
-  textbox_.setHighlightColor(utils::hexToRGB(config.password_dialog_textbox_highlight_color));
-  textbox_.setHighlightTextColor(utils::hexToRGB(config.password_dialog_highlight_text_color));
+  textbox_.setTextColor(utils::hexToRGB(config.dialog_heading_text_color));
+  textbox_.setHighlightColor(utils::hexToRGB(config.dialog_textbox_highlight_color));
+  textbox_.setHighlightTextColor(utils::hexToRGB(config.dialog_highlight_text_color));
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
     visible_ = focus == ui::UIElements::PasswordDialog;

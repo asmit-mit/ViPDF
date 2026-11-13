@@ -83,20 +83,20 @@ void ConfigReader::loadConfig() {
   config_.notification_msg_text_color =
       get_color("notification", "msg_text", config_.notification_msg_text_color);
 
-  config_.password_dialog_background_color =
-      get_color("password_dialog", "background", config_.password_dialog_background_color);
-  config_.password_dialog_outline_color =
-      get_color("password_dialog", "outline", config_.password_dialog_outline_color);
-  config_.password_dialog_textbox_background_color =
-      get_color("password_dialog", "textbox_background", config_.password_dialog_textbox_background_color);
-  config_.password_dialog_textbox_outline_color =
-      get_color("password_dialog", "textbox_outline", config_.password_dialog_textbox_outline_color);
-  config_.password_dialog_text_color =
-      get_color("password_dialog", "text", config_.password_dialog_text_color);
-  config_.password_dialog_textbox_highlight_color =
-      get_color("password_dialog", "textbox_highlight", config_.password_dialog_textbox_highlight_color);
-  config_.password_dialog_highlight_text_color =
-      get_color("password_dialog", "highlight_text", config_.password_dialog_highlight_text_color);
+  config_.dialog_background_color =
+      get_color("dialog", "background", config_.dialog_background_color);
+  config_.dialog_outline_color = get_color("dialog", "outline", config_.dialog_outline_color);
+  config_.dialog_textbox_background_color =
+      get_color("dialog", "textbox_background", config_.dialog_textbox_background_color);
+  config_.dialog_textbox_outline_color =
+      get_color("dialog", "textbox_outline", config_.dialog_textbox_outline_color);
+  config_.dialog_heading_text_color =
+      get_color("dialog", "heading_text", config_.dialog_heading_text_color);
+  config_.dialog_msg_text_color = get_color("dialog", "msg_text", config_.dialog_msg_text_color);
+  config_.dialog_textbox_highlight_color =
+      get_color("dialog", "textbox_highlight", config_.dialog_textbox_highlight_color);
+  config_.dialog_highlight_text_color =
+      get_color("dialog", "highlight_text", config_.dialog_highlight_text_color);
 
   config_.statusbar_background_colo =
       get_color("statusbar", "background", config_.statusbar_background_colo);

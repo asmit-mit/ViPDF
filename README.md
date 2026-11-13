@@ -247,12 +247,13 @@ outline = 0x5b554d
 heading_text = 0xebdfc3
 msg_text = 0xebdfc3
 
-[password_dialog]
+[dialog]
 background = 0x1d2021
 outline = 0x5b554d
 textbox_background = 0x282828
 textbox_outline = 0x5b554d
-text = 0xebdfc3
+heading_text = 0xebdfc3
+msg_text = 0xebdfc3
 textbox_highlight = 0x7daea3
 highlight_text = 0x3c3836
 

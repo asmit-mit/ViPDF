@@ -29,13 +29,14 @@ struct Config {
   uint32_t notification_heading_text_color = 0xebdfc3;     // #ebdfc3
   uint32_t notification_msg_text_color = 0xebdfc3;         // #ebdfc3
 
-  uint32_t password_dialog_background_color = 0x1d2021;         // #1d2021
-  uint32_t password_dialog_outline_color = 0x5b554d;            // #5b554d
-  uint32_t password_dialog_textbox_background_color = 0x282828; // #282828
-  uint32_t password_dialog_textbox_outline_color = 0x5b554d;    // #5b554d
-  uint32_t password_dialog_text_color = 0xebdfc3;               // #ebdfc3
-  uint32_t password_dialog_textbox_highlight_color = 0x7daea3;  // #7daea3
-  uint32_t password_dialog_highlight_text_color = 0x3c3836;     // #3c3836
+  uint32_t dialog_background_color = 0x1d2021;         // #1d2021
+  uint32_t dialog_outline_color = 0x5b554d;            // #5b554d
+  uint32_t dialog_textbox_background_color = 0x282828; // #282828
+  uint32_t dialog_textbox_outline_color = 0x5b554d;    // #5b554d
+  uint32_t dialog_heading_text_color = 0xebdfc3;       // #ebdfc3
+  uint32_t dialog_msg_text_color = 0xebdfc3;           // #ebdfc3
+  uint32_t dialog_textbox_highlight_color = 0x7daea3;  // #7daea3
+  uint32_t dialog_highlight_text_color = 0x3c3836;     // #3c3836
 
   uint32_t statusbar_background_colo = 0x282828; // #282828
   uint32_t statusbar_text_color = 0xebdfc3;      // #ebdfc3

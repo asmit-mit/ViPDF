@@ -18,6 +18,7 @@
 #include "graphics/glyph_atlas.h"
 #include "ui/cmdline.h"
 #include "ui/document_view.h"
+#include "ui/external_link_dialog.h"
 #include "ui/notifications.h"
 #include "ui/password_dialog.h"
 #include "ui/statusbar.h"
@@ -37,12 +38,9 @@ private:
   void registerEvents();
   void initUI();
 
-  // Waits up to `wait` for an event (or just polls if wait is zero), then drains
-  // the queue. Returns true if at least one event was handled.
   bool processEvents(sf::Time wait);
   void handleEvent(const sf::Event &event);
 
-  // True while frames should be produced back-to-back (recent input, animations).
   bool needsContinuousFrames() const;
   void markActive();
 
@@ -82,9 +80,11 @@ private:
   dbus::FilePrinter file_printer_;
 
   ui::Textbox password_dialog_textbox_;
+  ui::Textbox external_link_textbox_;
   ui::Textbox cmdline_textbox_;
   ui::Completions cmdline_completions_;
 
+  ui::ExternalLinkDialog external_link_dialog_;
   ui::PasswordDialog password_dialog_;
   ui::Cmdline cmdline_;
   ui::DocumentView document_view_;

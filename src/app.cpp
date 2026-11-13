@@ -1,5 +1,6 @@
 #include "app.h"
 
+#include "ui/external_link_dialog.h"
 #include "utils/utils.h"
 #include <clip.h>
 
@@ -38,8 +39,12 @@ App::App()
       render_scheduler_(document_, renderer_, config_reader_.getConfig()), portal_(),
       link_opener_(portal_), file_printer_(portal_),
       password_dialog_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
+      external_link_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
       cmdline_textbox_(font_library_, glyph_atlas_, utils::TEXT_SIZE, ""),
       cmdline_completions_(font_library_, glyph_atlas_, font_regular_, font_italic_, utils::TEXT_SIZE),
+      external_link_dialog_(
+          font_regular_, font_bold_, event_bus_, external_link_textbox_, config_reader_.getConfig()
+      ),
       password_dialog_(font_bold_, event_bus_, password_dialog_textbox_, config_reader_.getConfig()),
       cmdline_(
           font_regular_,
@@ -116,6 +121,7 @@ void App::run() {
     statusbar_.update();
     notifications_.update();
     password_dialog_.update();
+    external_link_dialog_.update();
 
     const bool heartbeat = idle_redraw_clock_.getElapsedTime() >= sf::milliseconds(idle_redraw_ms_);
 
@@ -133,6 +139,7 @@ void App::run() {
     statusbar_.draw(window_);
     notifications_.draw(window_);
     password_dialog_.draw(window_);
+    external_link_dialog_.draw(window_);
 
     window_.display();
   }
@@ -248,6 +255,7 @@ void App::initUI() {
   statusbar_.onResize(view_.getSize());
   document_view_.onResize(view_.getSize());
   password_dialog_.onResize(view_.getSize());
+  external_link_dialog_.onResize(view_.getSize());
   window_.setMouseCursor(arrow_cursor_);
 }
 
@@ -281,6 +289,7 @@ void App::handleEvent(const sf::Event &event) {
     statusbar_.onResize(view_.getSize());
     document_view_.onResize(view_.getSize());
     notifications_.onResize(view_.getSize());
+    external_link_dialog_.onResize(view_.getSize());
   }
 
   if (focus_ == ui::UIElements::PDFView) {
@@ -302,4 +311,5 @@ void App::handleEvent(const sf::Event &event) {
   document_view_.handleEvent(event);
   notifications_.handleEvent(event);
   password_dialog_.handleEvent(event);
+  external_link_dialog_.handleEvent(event);
 }
