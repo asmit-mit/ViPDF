@@ -583,7 +583,7 @@ void DocumentView::onAnnotate(std::vector<std::size_t> pages) {
     return;
 
   for (auto page : pages)
-    pages_[page].reset();
+    pages_[page].reset(false);
   scheduler_.refreshPages(pages);
   selection_controller_.reset();
   event_bus_.emit("statusbar.document_edited", document_.hasChanges());

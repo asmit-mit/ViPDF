@@ -17,7 +17,7 @@ PageView::PageView(
 };
 
 void PageView::draw(sf::RenderTarget &window) const {
-  if (!active_ || !isInView(window.getSize()))
+  if (!texture_ || !isInView(window.getSize()))
     return;
 
   // window.draw(original_shape_);
@@ -114,8 +114,9 @@ void PageView::setTexture(std::shared_ptr<sf::Texture> texture) {
   active_ = true;
 }
 
-void PageView::reset() {
-  texture_.reset();
+void PageView::reset(bool deep_reset) {
+  if (deep_reset)
+    texture_.reset();
   active_ = false;
 }
 

@@ -48,7 +48,7 @@ public:
   pdf::PDFRenderKey getKey() const;
 
   void setTexture(std::shared_ptr<sf::Texture> texture);
-  void reset();
+  void reset(bool deep_reset = true);
 
   const PDFSearchResult &getSearchResults() const;
   sf::Vector2f getSearchResultPosition(std::size_t idx) const;
