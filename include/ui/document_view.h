@@ -81,6 +81,7 @@ private:
     LINK,
     SEARCH,
     BOOKMARK,
+    RELOAD,
   };
 
 private:
@@ -96,7 +97,7 @@ private:
   bool canWorkWithDocument() const;
 
   sf::Vector2f getSearchResultPos(std::size_t anchor_page) const;
-  sf::Vector2f getPageOffsetFromCenter(const sf::Vector2f &pos) const;
+  sf::Vector2f getPageOffsetFromCenter(std::size_t page_idx) const;
   void renderRequestedPages();
 
   void requestVisiblePages(std::size_t page_idx, float zoom, int rotate, bool recolor);

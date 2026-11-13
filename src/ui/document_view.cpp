@@ -127,6 +127,7 @@ void DocumentView::update() {
     pages_[anchor_page].syncPageShape();
 
     switch (scroll_to_) {
+    case ScrollTo::RELOAD:
     case ScrollTo::BOOKMARK:
     case ScrollTo::LINK:
       layout_manager_.panCurrentPage(-pages_[anchor_page].transformPos(*pending_page_scroll_));
@@ -608,10 +609,13 @@ void DocumentView::registerEvents() {
 
     const auto view_state = view_controller_.getState();
     std::size_t curr_page = layout_manager_.getAnchorPage();
+    const auto scroll = getPageOffsetFromCenter(curr_page);
     onOpenDocument(document_.getFilePath());
     pending_zoom_update_ = view_state.zoom;
     pending_rotate_update_ = view_state.rotate % 4;
     pending_page_swtich_ = curr_page;
+    pending_page_scroll_ = scroll;
+    scroll_to_ = ScrollTo::RELOAD;
     event_bus_.emit("statusbar.document_edited", document_.hasChanges());
   });
 
@@ -747,8 +751,12 @@ sf::Vector2f DocumentView::getSearchResultPos(std::size_t anchor_page) const {
   return pos;
 }
 
-sf::Vector2f DocumentView::getPageOffsetFromCenter(const sf::Vector2f &pos) const {
-  return (window_size_ * 0.5f) - pos;
+sf::Vector2f DocumentView::getPageOffsetFromCenter(std::size_t page_idx) const {
+  const auto &page = pages_[page_idx];
+  if (!page.hasTexture())
+    return {0.f, 0.f};
+
+  return pages_[page_idx].inverseTransformPos({0.f, 0.f});
 }
 
 void DocumentView::renderRequestedPages() {
