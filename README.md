@@ -16,6 +16,7 @@ A keyboard-driven PDF reader with Vim-style motions. Built on [MuPDF](https://mu
 - **Lightweight**: very low RAM usage, so it stays responsive even on modest hardware
 - **Annotations**: highlight, underline, and strikethrough, each in five colors
 - **Bookmarks**: save, delete and jump to bookmarked pages within a document
+- **Global marks**: set marks that persist across documents, so you can jump between files as easily as between pages
 - **Fully themeable**: every UI element's color can be changed through a simple INI file
 - **Custom color inversion**: recolor pages with your own light and dark colors, not just a plain invert
 - **Fast**: multithreaded page rendering with a configurable page cache size
@@ -156,6 +157,17 @@ To copy an image, click on it to select it, then press `y` or `Ctrl+c`.
 
 To remove an annotation, click on it, then press `a d`.
 
+### Completions
+
+Press `Tab` to open completions for the current command, if it has any. Completions are available for file paths (`:open`, `:write`) and bookmark names (`:bmark del`, `:bmark jump`).
+
+| Key                     | Action                            |
+| ----------------------- | --------------------------------- |
+| `Ctrl+j` or `Tab`       | Cycle down in the completion list |
+| `Ctrl+k` or `Shift+Tab` | Cycle up in the completion list   |
+| `Enter`                 | Select the highlighted completion |
+| `Esc`                   | Close the completion list         |
+
 ### General
 
 | Key   | Action                                 |
@@ -188,26 +200,31 @@ Arguments that contain spaces must be wrapped in double quotes, for example:
 
 ### Bookmarks
 
-| Command              | Description                         |
-| -------------------- | ----------------------------------- |
-| `:bmark add <name>`  | Save the current page as a bookmark |
-| `:bmark del <name>`  | Delete a bookmark                   |
-| `:bmark jump <name>` | Jump to a bookmark                  |
+| Command              | Description                                 |
+| -------------------- | ------------------------------------------- |
+| `:bmark add <name>`  | Save the current page as a bookmark         |
+| `:bmark del <name>`  | Delete a bookmark                           |
+| `:bmark jump <name>` | Jump to a bookmark                          |
+| `:bmark clear`       | Clear all bookmarks in the current document |
 
 `:b` can be used in place of `:bmark`, for example `:b jump <name>`.
 
 Bookmark names must be unique within a document.
 
-### Completions
+### Global Marks
 
-Press `Tab` to open completions for the current command, if it has any. Completions are available for file paths (`:open`, `:write`) and bookmark names (`:bmark del`, `:bmark jump`).
+| Command             | Description                                             |
+| ------------------- | ------------------------------------------------------- |
+| `:mark add <name>`  | Save the current page of this document as a global mark |
+| `:mark del <name>`  | Delete a global mark                                    |
+| `:mark jump <name>` | Jump to a global mark, opening its document if needed   |
+| `:mark clear`       | Clear all global marks                                  |
 
-| Key                     | Action                            |
-| ----------------------- | --------------------------------- |
-| `Ctrl+j` or `Tab`       | Cycle down in the completion list |
-| `Ctrl+k` or `Shift+Tab` | Cycle up in the completion list   |
-| `Enter`                 | Select the highlighted completion |
-| `Esc`                   | Close the completion list         |
+`:m` can be used in place of `:mark`, for example `:m jump <name>`.
+
+Global mark names must be unique across all documents.
+
+> **Bookmarks vs. global marks:** bookmarks only jump between pages within a single document, while global marks can take you to a page in any document.
 
 ## Configuration
 
@@ -289,24 +306,24 @@ search = 1000
 
 ### Option reference
 
-| Section             | Key                                                                          | Description                                                                          |
-| ------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `[app]`             | `background`                                                                 | Window background behind pages                                                       |
-| `[cmdline]`         | `background`, `text`, `textbox_highlight`, `highlight_text`                  | Command line colors                                                                  |
-| `[completions]`     | `background`, `left_text`, `right_text`, `highlight`                         | Completion popup colors                                                              |
-| `[notification]`    | `background_idle`, `background_hover`, `outline`, `heading_text`, `msg_text` | Notification colors                                                                  |
-| `[password_dialog]` | `background`, `outline`, `textbox_*`, `text`, `highlight_text`               | Password prompt for encrypted PDFs                                                   |
-| `[statusbar]`       | `background`, `text`                                                         | Status bar colors                                                                    |
-| `[highlights]`      | `selection`, `search`, `search_box`                                          | Selection and search match colors (alpha supported)                                  |
-| `[highlights]`      | `color_1` ... `color_5`                                                      | Annotation palette                                                                   |
-| `[recolor]`         | `default_recolor`                                                            | Start with recolor enabled (`true` / `false`)                                        |
-| `[recolor]`         | `light`, `dark`                                                              | Colors that white and black are mapped to when recolor is on                         |
-| `[general]`         | `delta_zoom`                                                                 | Zoom increase/decrease per zoom action                                               |
-| `[general]`         | `page_cache_size`                                                            | Number of rendered pages kept in memory (increasing this will increase memory usage) |
-| `[general]`         | `thread_count`                                                               | Number of rendering threads                                                          |
-| `[history]`         | `cmd`                                                                        | Maximum number of command line entries to keep in history                            |
-| `[history]`         | `files`                                                                      | Maximum number of recently opened files to keep in history                           |
-| `[history]`         | `search`                                                                     | Maximum number of search queries to keep in history                                  |
+| Section          | Key                                                                                | Description                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `[app]`          | `background`                                                                       | Window background behind pages                                                       |
+| `[cmdline]`      | `background`, `text`, `textbox_highlight`, `highlight_text`                        | Command line colors                                                                  |
+| `[completions]`  | `background`, `left_text`, `right_text`, `highlight`                               | Completion popup colors                                                              |
+| `[notification]` | `background_idle`, `background_hover`, `outline`, `heading_text`, `msg_text`       | Notification colors                                                                  |
+| `[dialog]`       | `background`, `outline`, `textbox_*`, `heading_text`, `msg_text`, `highlight_text` | Dialog prompt for encrypted PDFs or opening external links                           |
+| `[statusbar]`    | `background`, `text`                                                               | Status bar colors                                                                    |
+| `[highlights]`   | `selection`, `search`, `search_box`                                                | Selection and search match colors (alpha supported)                                  |
+| `[highlights]`   | `color_1` ... `color_5`                                                            | Annotation palette                                                                   |
+| `[recolor]`      | `default_recolor`                                                                  | Start with recolor enabled (`true` / `false`)                                        |
+| `[recolor]`      | `light`, `dark`                                                                    | Colors that white and black are mapped to when recolor is on                         |
+| `[general]`      | `delta_zoom`                                                                       | Zoom increase/decrease per zoom action                                               |
+| `[general]`      | `page_cache_size`                                                                  | Number of rendered pages kept in memory (increasing this will increase memory usage) |
+| `[general]`      | `thread_count`                                                                     | Number of rendering threads                                                          |
+| `[history]`      | `cmd`                                                                              | Maximum number of command line entries to keep in history                            |
+| `[history]`      | `files`                                                                            | Maximum number of recently opened files to keep in history                           |
+| `[history]`      | `search`                                                                           | Maximum number of search queries to keep in history                                  |
 
 ## Acknowledgements
 
