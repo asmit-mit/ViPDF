@@ -107,6 +107,18 @@ bool BookmarkManager::removeBookmark(const std::string &label) {
   return del.exec() > 0;
 }
 
+int BookmarkManager::removeAllBookmarks() {
+  if (!path_set_)
+    return false;
+
+  SQLite::Statement del(db_, R"(
+    DELETE FROM bookmarks
+    WHERE doc_id = (SELECT id FROM documents WHERE path = ?)
+  )");
+  del.bind(1, curr_document_path_);
+  return del.exec();
+}
+
 std::vector<Bookmark> BookmarkManager::getBookmarks(const std::string &label_filter) const {
   if (!path_set_)
     return {};

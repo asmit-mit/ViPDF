@@ -84,6 +84,12 @@
         "event": "bmark.jump",
         "description": "Jump to specified bookmark",
         "cmp_type": "bookmark"
+      },
+      {
+        "name": "clear",
+        "args": 2,
+        "event": "bmark.clear",
+        "description": "Delete all bookmarks for current document"
       }
     ]
   },

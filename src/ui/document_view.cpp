@@ -664,6 +664,18 @@ void DocumentView::registerEvents() {
 
     if (bookmark_manager_.removeBookmark(label))
       event_bus_.emit("notification.msg", std::format("Bookmark \"{}\" deleted", label));
+    else
+      event_bus_.emit("notification.msg", std::format("Bookmark \"{}\" does not exist", label));
+  });
+
+  event_bus_.subscribe<bool>("bmark.clear", [this](bool) {
+    if (!canWorkWithDocument()) {
+      event_bus_.emit("notification.msg", std::string("No document currently open"));
+      return;
+    }
+
+    const int count = bookmark_manager_.removeAllBookmarks();
+    event_bus_.emit("notification.msg", std::format("Removed {} bookmarks from document", count));
   });
 
   event_bus_.subscribe<const std::string &>("bmark.jump", [this](const std::string &label) {

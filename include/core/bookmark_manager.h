@@ -26,6 +26,7 @@ public:
 
   AddResult addBookmark(int page_number, double x, double y, const std::string &label = "");
   bool removeBookmark(const std::string &label);
+  int removeAllBookmarks();
 
   void setDocumentPath(const std::string &doc_path);
   void resetPath();
