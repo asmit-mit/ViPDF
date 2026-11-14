@@ -180,16 +180,21 @@ void CmdAutocomplete::getFileCmp(
     prefix = resolved.substr(slash + 1);
   }
 
+  bool show_hidden = prefix.starts_with('.');
+
   for (const auto &entry : std::filesystem::directory_iterator(dir)) {
     std::string name = entry.path().filename().string();
-    if (name.starts_with(prefix)) {
-      if (entry.is_directory()) {
-        std::string file = dir + name + '/';
-        results.push_back({file, top_cmd + " " + escapeSpaces(file), ""});
-      } else if (entry.path().extension() == ".pdf") {
-        std::string file = dir + name;
-        results.push_back({file, top_cmd + " " + escapeSpaces(file), ""});
-      }
+    if (!show_hidden && name.starts_with('.'))
+      continue;
+    if (!name.starts_with(prefix))
+      continue;
+
+    if (entry.is_directory()) {
+      std::string file = dir + name + '/';
+      results.push_back({file, top_cmd + " " + escapeSpaces(file), ""});
+    } else if (entry.path().extension() == ".pdf") {
+      std::string file = dir + name;
+      results.push_back({file, top_cmd + " " + escapeSpaces(file), ""});
     }
   }
 }
