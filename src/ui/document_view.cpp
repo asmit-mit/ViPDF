@@ -11,7 +11,10 @@
 #include "pdf/pdf_renderer.h"
 #include "pdf/pdf_selection_controller.h"
 #include "ui/ui_elements.h"
-#include "utils/utils.h"
+#include "utils/constants.h"
+#include "utils/filesystem.h"
+#include "utils/general.h"
+#include "utils/render.h"
 
 namespace ui {
 

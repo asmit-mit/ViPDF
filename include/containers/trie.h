@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace utils {
+namespace containers {
 
 struct TrieNode {
   TrieNode *children[26];

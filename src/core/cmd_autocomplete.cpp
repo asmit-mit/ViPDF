@@ -5,7 +5,7 @@
 #include <utf8.h>
 
 #include "core/cmd_loader.h"
-#include "utils/utils.h"
+#include "utils/filesystem.h"
 
 namespace core {
 

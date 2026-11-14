@@ -5,8 +5,8 @@
 
 #include <mutex>
 
+#include "containers/lru_cache.h"
 #include "pdf/pdf_document.h"
-#include "utils/lru_cache.h"
 
 namespace pdf {
 
@@ -120,8 +120,8 @@ private:
   ) const;
 
 private:
-  using FzDisplayListCache = utils::LRUCache<std::size_t, FzDisplayList>;
-  using FzRectCache = utils::LRUCache<FzRectKey, sf::Vector2u, FzRectHash>;
+  using FzDisplayListCache = containers::LRUCache<std::size_t, FzDisplayList>;
+  using FzRectCache = containers::LRUCache<FzRectKey, sf::Vector2u, FzRectHash>;
 
   FzContextPtr drop_ctx_;
   std::mutex drop_mutex_;

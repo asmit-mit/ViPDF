@@ -1,18 +1,9 @@
 #include "core/global_marks.h"
+#include "utils/general.h"
 
 namespace core {
 
 namespace {
-
-std::string escapeLike(const std::string &s) {
-  std::string out;
-  for (char c : s) {
-    if (c == '%' || c == '_' || c == '\\')
-      out += '\\';
-    out += c;
-  }
-  return out;
-}
 
 } // namespace
 
@@ -63,7 +54,7 @@ std::optional<GlobalMark> GlobalMarks::getMark(const std::string &name) const {
 std::vector<GlobalMark> GlobalMarks::getMarks(const std::string &name_filter) const {
   SQLite::Statement
       query(storage_.db(), std::string(SELECT_MARKS) + " WHERE g.name LIKE ? ESCAPE '\\' ORDER BY g.name");
-  query.bind(1, "%" + escapeLike(name_filter) + "%");
+  query.bind(1, "%" + utils::escapeLike(name_filter) + "%");
 
   std::vector<GlobalMark> result;
   while (query.executeStep())

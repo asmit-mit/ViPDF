@@ -3,7 +3,7 @@
 #include "core/config_reader.h"
 #include "pdf/pdf_document.h"
 #include "pdf/pdf_renderer.h"
-#include "utils/lru_cache.h"
+#include "containers/lru_cache.h"
 
 #include <condition_variable>
 #include <cstdint>
@@ -49,8 +49,8 @@ private:
 
 private:
   using TextureCache =
-      utils::LRUCache<pdf::PDFRenderKey, std::shared_ptr<sf::Texture>, pdf::PDFRenderKeyHash>;
-  using ImageCache = utils::LRUCache<pdf::PDFRenderKey, sf::Image, pdf::PDFRenderKeyHash>;
+      containers::LRUCache<pdf::PDFRenderKey, std::shared_ptr<sf::Texture>, pdf::PDFRenderKeyHash>;
+  using ImageCache = containers::LRUCache<pdf::PDFRenderKey, sf::Image, pdf::PDFRenderKeyHash>;
 
   pdf::PDFDocument &document_;
   pdf::PDFRenderer &renderer_;

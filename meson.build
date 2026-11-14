@@ -114,6 +114,7 @@ includes = include_directories('include', '.')
 
 sources = files(
   'src/app.cpp',
+  'src/containers/trie.cpp',
   'src/core/bookmark_manager.cpp',
   'src/core/cmd_autocomplete.cpp',
   'src/core/cmd_loader.cpp',
@@ -148,7 +149,6 @@ sources = files(
   'src/ui/statusbar.cpp',
   'src/ui/textbox.cpp',
   'src/utils/profiler.cpp',
-  'src/utils/trie.cpp',
 )
 
 executable(

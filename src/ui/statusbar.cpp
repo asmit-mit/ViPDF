@@ -1,7 +1,9 @@
 #include "ui/statusbar.h"
 
 #include "ui/ui_elements.h"
-#include "utils/utils.h"
+#include "utils/constants.h"
+#include "utils/general.h"
+
 #include <cmath>
 #include <utf8.h>
 

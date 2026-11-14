@@ -1,4 +1,5 @@
 #include "core/bookmark_manager.h"
+#include "utils/general.h"
 
 namespace core {
 
@@ -8,16 +9,6 @@ namespace {
 #define SQLITE_CONSTRAINT 19
 #define SQLITE_CONSTRAINT_UNIQUE (SQLITE_CONSTRAINT | (8 << 8))
 #endif
-
-std::string escapeLike(const std::string &s) {
-  std::string out;
-  for (char c : s) {
-    if (c == '%' || c == '_' || c == '\\')
-      out += '\\';
-    out += c;
-  }
-  return out;
-}
 
 } // namespace
 
@@ -99,7 +90,7 @@ std::vector<Bookmark> BookmarkManager::getBookmarks(const std::string &label_fil
     ORDER BY b.page, b.y, b.x, b.id
   )");
   query.bind(1, curr_document_path_);
-  query.bind(2, "%" + escapeLike(label_filter) + "%");
+  query.bind(2, "%" + utils::escapeLike(label_filter) + "%");
 
   std::vector<Bookmark> result;
   while (query.executeStep())

@@ -1,6 +1,6 @@
-#include <utils/trie.h>
+#include "containers/trie.h"
 
-namespace utils {
+namespace containers {
 
 Trie::Trie() {
   head_ = new TrieNode();
@@ -64,4 +64,4 @@ void Trie::backtrack(TrieNode *node, std::string &curr, std::vector<std::string>
   }
 }
 
-} // namespace utils
+} // namespace containers

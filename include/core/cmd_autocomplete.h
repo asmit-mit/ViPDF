@@ -5,10 +5,10 @@
 #include <string>
 #include <vector>
 
+#include "containers/trie.h"
 #include "core/bookmark_manager.h"
 #include "core/global_marks.h"
 #include "core/history_manager.h"
-#include "utils/trie.h"
 
 namespace core {
 
@@ -58,7 +58,7 @@ private:
   );
 
 private:
-  utils::Trie trie_;
+  containers::Trie trie_;
   const CmdLoader &cmd_loader_;
   const HistoryManager &file_history_;
   const BookmarkManager &bookmark_manager_;

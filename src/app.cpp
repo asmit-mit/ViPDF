@@ -3,7 +3,9 @@
 #include "core/global_marks.h"
 #include "ui/document_view.h"
 #include "ui/external_link_dialog.h"
-#include "utils/utils.h"
+#include "utils/constants.h"
+#include "utils/filesystem.h"
+#include "utils/general.h"
 #include <clip.h>
 
 namespace fs = std::filesystem;

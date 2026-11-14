@@ -1,7 +1,8 @@
 #include <utf8.h>
 
 #include "ui/notifications.h"
-#include "utils/utils.h"
+#include "utils/constants.h"
+#include "utils/general.h"
 
 namespace ui {
 

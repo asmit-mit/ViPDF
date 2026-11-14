@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <utility>
 
-namespace utils {
+namespace containers {
 
 template <typename K, typename V, typename Hash = std::hash<K>> class LRUCache {
 public:
