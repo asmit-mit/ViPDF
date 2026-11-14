@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <utf8.h>
 
+#include "core/global_marks.h"
 #include "core/input_handler.h"
 #include "pdf/pdf_renderer.h"
 #include "pdf/pdf_selection_controller.h"
@@ -18,6 +19,7 @@ DocumentView::DocumentView(
     pdf::PDFDocument &document,
     core::HistoryManager &file_history,
     core::BookmarkManager &bookmark_manager,
+    core::GlobalMarks &global_marks,
     core::RenderScheduler &scheduler,
     core::EventBus &event_bus,
     const core::Config &config
@@ -25,7 +27,7 @@ DocumentView::DocumentView(
     : document_(document), layout_manager_(scheduler, pages_), view_controller_(scheduler, pages_),
       search_controller_(pages_), selection_controller_(document_, pages_), config_(config),
       event_bus_(event_bus), file_history_(file_history), bookmark_manager_(bookmark_manager),
-      scheduler_(scheduler),
+      global_marks_(global_marks), scheduler_(scheduler),
       selection_box_color_(utils::hexToRGBA(config.selection_highlight_color)),
       search_box_color_(utils::hexToRGBA(config.search_box_color)),
       selected_search_box_color_(utils::hexToRGBA(config.search_highlight_color)) {
@@ -511,6 +513,7 @@ void DocumentView::onOpenDocument(const std::string &filepath) {
     pending_zoom_update_.reset();
     pending_rotate_update_.reset();
     pending_page_swtich_ = 0;
+
     event_bus_.emit("statusbar.pdf_path", absolute_path);
     event_bus_.emit("statusbar.page_state", std::make_pair(0, document_.pageCount()));
     event_bus_.emit("statusbar.page_zoom", view_controller_.getState().zoom);
@@ -636,6 +639,58 @@ void DocumentView::registerEvents() {
       event_bus_.emit("ui.focus", ui::UIElements::PasswordDialog);
   });
 
+  event_bus_.subscribe<const std::string &>("mark.add", [this](const std::string &label) {
+    if (!canWorkWithDocument()) {
+      event_bus_.emit("notification.msg", std::string("No document currently open"));
+      return;
+    }
+
+    const auto anchor = layout_manager_.getAnchorPage();
+    const auto local_pos = pages_[anchor].inverseTransformPos({0.f, 0.f});
+
+    const auto state = view_controller_.getState();
+    const bool ok = global_marks_.addMark(
+        label, document_.getFilePath(), anchor + 1, local_pos.x, local_pos.y, state.zoom, state.rotate
+    );
+
+    if (ok)
+      event_bus_.emit("notification.msg", std::format("Global mark \"{}\" added", label));
+    else
+      event_bus_
+          .emit("notification.msg", std::format("Global mark with name \"{}\" already exists", label));
+  });
+
+  event_bus_.subscribe<const std::string &>("mark.del", [this](const std::string &name) {
+    const bool ok = global_marks_.remove(name);
+    if (ok)
+      event_bus_.emit("notification.msg", std::format("Global mark \"{}\" deleted", name));
+    else
+      event_bus_.emit("notification.msg", std::format("Global mark \"{}\" does not exist", name));
+  });
+
+  event_bus_.subscribe<const std::string &>("mark.jump", [this](const std::string &name) {
+    const auto mark = global_marks_.getMark(name);
+    if (!mark) {
+      event_bus_.emit("notification.msg", std::format("Global mark \"{}\" does not exist", name));
+      return;
+    }
+
+    if (document_.isOpen() && document_.getFilePath() == mark->doc_path) {
+      pending_page_swtich_ = mark->page - 1;
+      pending_page_scroll_ = {mark->x, mark->y};
+      scroll_to_ = ScrollTo::BOOKMARK;
+    } else {
+      onOpenDocument(mark->doc_path);
+      pending_zoom_update_ = mark->zoom;
+      pending_rotate_update_ = mark->rotate % 4;
+      pending_page_swtich_ = mark->page - 1;
+      pending_page_scroll_ = {mark->x, mark->y};
+      scroll_to_ = ScrollTo::BOOKMARK;
+    }
+  });
+
+  event_bus_.subscribe<bool>("mark.clear", [this](bool) { global_marks_.clear(); });
+
   event_bus_.subscribe<const std::string &>("bmark.add", [this](const std::string &label) {
     if (!canWorkWithDocument()) {
       event_bus_.emit("notification.msg", std::string("No document currently open"));
@@ -645,13 +700,16 @@ void DocumentView::registerEvents() {
     const auto anchor = layout_manager_.getAnchorPage();
     const auto local_pos = pages_[anchor].inverseTransformPos({0.f, 0.f});
 
+    const auto state = view_controller_.getState();
     const std::string display_label = label.empty() ? "Page " + std::to_string(anchor + 1) : label;
 
-    auto res = bookmark_manager_.addBookmark(anchor + 1, local_pos.x, local_pos.y, display_label);
+    auto res =
+        bookmark_manager_
+            .addBookmark(anchor + 1, local_pos.x, local_pos.y, state.zoom, state.rotate, display_label);
 
     if (res == core::BookmarkManager::AddResult::DuplicateLabel)
       event_bus_
-          .emit("notification.msg", std::format("Label with name \"{}\" already exists", display_label));
+          .emit("notification.msg", std::format("Bookmark with name \"{}\" already exists", display_label));
     else if (res == core::BookmarkManager::AddResult::Ok)
       event_bus_.emit("notification.msg", std::format("Bookmark \"{}\" added", display_label));
   });
@@ -685,11 +743,16 @@ void DocumentView::registerEvents() {
     }
 
     const auto bmark = bookmark_manager_.getBookmarkByLabel(label);
-    if (bmark) {
-      pending_page_swtich_ = bmark->page_number - 1;
-      pending_page_scroll_ = {bmark->x, bmark->y};
-      scroll_to_ = ScrollTo::BOOKMARK;
+    if (!bmark) {
+      event_bus_.emit("notification.msg", std::format("Bookmark \"{}\" does not exist", label));
+      return;
     }
+
+    pending_page_swtich_ = bmark->page - 1;
+    pending_page_scroll_ = {bmark->x, bmark->y};
+    pending_zoom_update_ = bmark->zoom;
+    pending_rotate_update_ = bmark->rotate;
+    scroll_to_ = ScrollTo::BOOKMARK;
   });
 
   event_bus_.subscribe<const std::u32string &>("cmd.search", [this](const std::u32string &text) {

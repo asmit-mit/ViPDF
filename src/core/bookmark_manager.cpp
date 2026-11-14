@@ -4,8 +4,10 @@ namespace core {
 
 namespace {
 
-#define SQLITE_CONSTRAINT 19 /* Abort due to constraint violation */
+#ifndef SQLITE_CONSTRAINT_UNIQUE
+#define SQLITE_CONSTRAINT 19
 #define SQLITE_CONSTRAINT_UNIQUE (SQLITE_CONSTRAINT | (8 << 8))
+#endif
 
 std::string escapeLike(const std::string &s) {
   std::string out;
@@ -19,85 +21,50 @@ std::string escapeLike(const std::string &s) {
 
 } // namespace
 
-BookmarkManager::BookmarkManager(const std::string &db_path_)
-    : db_(db_path_, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
-  path_set_ = false;
-  initSchema();
-}
+BookmarkManager::BookmarkManager(Storage &storage) : storage_(storage) {}
 
-void BookmarkManager::initSchema() {
-  db_.exec("PRAGMA foreign_keys = ON;");
-
-  db_.exec(R"(
-    CREATE TABLE IF NOT EXISTS documents (
-      id   INTEGER PRIMARY KEY,
-      path TEXT NOT NULL UNIQUE
-    );
-  )");
-
-  db_.exec(R"(
-    CREATE TABLE IF NOT EXISTS bookmarks (
-      id     INTEGER PRIMARY KEY AUTOINCREMENT,
-      doc_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-      page   INTEGER NOT NULL,
-      x      REAL    NOT NULL DEFAULT 0.0,
-      y      REAL    NOT NULL DEFAULT 0.0,
-      label  TEXT    NOT NULL COLLATE NOCASE,
-      UNIQUE (doc_id, label)
-    );
-  )");
-}
-
-Bookmark BookmarkManager::rowToBookmark(SQLite::Statement &q) const {
-  return Bookmark{
-      q.getColumn(0).getInt64(),
-      q.getColumn(1).getInt(),
-      static_cast<float>(q.getColumn(2).getDouble()),
-      static_cast<float>(q.getColumn(3).getDouble()),
-      q.getColumn(4).getString(),
-  };
-}
-
-BookmarkManager::AddResult
-BookmarkManager::addBookmark(int page_number, double x, double y, const std::string &label) {
+BookmarkManager::AddResult BookmarkManager::addBookmark(
+    int page_number, double x, double y, double zoom, int rotate, const std::string &label
+) {
   if (!path_set_)
-    return BookmarkManager::AddResult::NoDocument;
+    return AddResult::NoDocument;
 
   const std::string final_label = label.empty() ? "Page " + std::to_string(page_number) : label;
 
-  SQLite::Transaction tx(db_);
+  SQLite::Database &db = storage_.db();
+  SQLite::Transaction tx(db);
 
-  SQLite::Statement ensure_doc(db_, "INSERT OR IGNORE INTO documents (path) VALUES (?)");
-  ensure_doc.bind(1, curr_document_path_);
-  ensure_doc.exec();
+  const int64_t doc_id = storage_.ensureDocument(curr_document_path_);
 
-  SQLite::Statement insert(db_, R"(
-    INSERT INTO bookmarks (doc_id, page, x, y, label)
-    SELECT id, ?, ?, ?, ? FROM documents WHERE path = ?
+  SQLite::Statement insert(db, R"(
+    INSERT INTO bookmarks (doc_id, page, x, y, zoom, rotate, label)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   )");
-  insert.bind(1, page_number);
-  insert.bind(2, x);
-  insert.bind(3, y);
-  insert.bind(4, final_label);
-  insert.bind(5, curr_document_path_);
+  insert.bind(1, doc_id);
+  insert.bind(2, page_number);
+  insert.bind(3, x);
+  insert.bind(4, y);
+  insert.bind(5, zoom);
+  insert.bind(6, rotate);
+  insert.bind(7, final_label);
 
   try {
     insert.exec();
   } catch (const SQLite::Exception &e) {
     if (e.getExtendedErrorCode() == SQLITE_CONSTRAINT_UNIQUE)
-      return BookmarkManager::AddResult::DuplicateLabel;
+      return AddResult::DuplicateLabel;
     throw;
   }
 
   tx.commit();
-  return BookmarkManager::AddResult::Ok;
+  return AddResult::Ok;
 }
 
 bool BookmarkManager::removeBookmark(const std::string &label) {
   if (!path_set_)
     return false;
 
-  SQLite::Statement del(db_, R"(
+  SQLite::Statement del(storage_.db(), R"(
     DELETE FROM bookmarks
     WHERE label = ?
       AND doc_id = (SELECT id FROM documents WHERE path = ?)
@@ -109,9 +76,9 @@ bool BookmarkManager::removeBookmark(const std::string &label) {
 
 int BookmarkManager::removeAllBookmarks() {
   if (!path_set_)
-    return false;
+    return 0;
 
-  SQLite::Statement del(db_, R"(
+  SQLite::Statement del(storage_.db(), R"(
     DELETE FROM bookmarks
     WHERE doc_id = (SELECT id FROM documents WHERE path = ?)
   )");
@@ -123,8 +90,8 @@ std::vector<Bookmark> BookmarkManager::getBookmarks(const std::string &label_fil
   if (!path_set_)
     return {};
 
-  SQLite::Statement query(db_, R"(
-    SELECT b.id, b.page, b.x, b.y, b.label
+  SQLite::Statement query(storage_.db(), R"(
+    SELECT b.id, b.page, b.x, b.y, b.zoom, b.rotate, b.label
     FROM bookmarks b
     JOIN documents d ON d.id = b.doc_id
     WHERE d.path = ?
@@ -144,8 +111,8 @@ std::optional<Bookmark> BookmarkManager::getBookmarkByLabel(const std::string &l
   if (!path_set_)
     return std::nullopt;
 
-  SQLite::Statement query(db_, R"(
-    SELECT b.id, b.page, b.x, b.y, b.label
+  SQLite::Statement query(storage_.db(), R"(
+    SELECT b.id, b.page, b.x, b.y, b.zoom, b.rotate, b.label
     FROM bookmarks b
     JOIN documents d ON d.id = b.doc_id
     WHERE d.path = ?
@@ -166,6 +133,18 @@ void BookmarkManager::setDocumentPath(const std::string &doc_path) {
 
 void BookmarkManager::resetPath() {
   path_set_ = false;
+}
+
+Bookmark BookmarkManager::rowToBookmark(SQLite::Statement &q) const {
+  return Bookmark{
+      q.getColumn(0).getInt64(),
+      q.getColumn(1).getInt(),
+      static_cast<float>(q.getColumn(2).getDouble()),
+      static_cast<float>(q.getColumn(3).getDouble()),
+      static_cast<float>(q.getColumn(4).getDouble()),
+      q.getColumn(5).getInt(),
+      q.getColumn(6).getString(),
+  };
 }
 
 } // namespace core

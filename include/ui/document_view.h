@@ -5,6 +5,7 @@
 #include "core/bookmark_manager.h"
 #include "core/config_reader.h"
 #include "core/event_bus.h"
+#include "core/global_marks.h"
 #include "core/history_manager.h"
 #include "core/input_handler.h"
 #include "core/render_scheduler.h"
@@ -52,6 +53,7 @@ public:
       pdf::PDFDocument &document,
       core::HistoryManager &file_history,
       core::BookmarkManager &bookmark_manager,
+      core::GlobalMarks &global_marks,
       core::RenderScheduler &scheduler,
       core::EventBus &event_bus,
       const core::Config &config
@@ -60,8 +62,9 @@ public:
   void draw(sf::RenderTarget &window) const;
   void update();
   void handleEvent(const sf::Event &event);
-
   void onResize(const sf::Vector2f &size);
+
+  void onOpenDocument(const std::string &filepath);
 
 private:
   struct PageRange {
@@ -85,7 +88,6 @@ private:
   };
 
 private:
-  void onOpenDocument(const std::string &filepath);
   void onCloseDocument();
   void onSwitchPage(int page_idx);
   void onSearchPage(const std::u32string &text);
@@ -135,6 +137,7 @@ private:
   core::EventBus &event_bus_;
   core::HistoryManager &file_history_;
   core::BookmarkManager &bookmark_manager_;
+  core::GlobalMarks &global_marks_;
   core::RenderScheduler &scheduler_;
   core::InputHandler<DocumentAction> input_handler_;
 

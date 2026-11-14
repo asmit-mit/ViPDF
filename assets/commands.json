@@ -94,6 +94,39 @@
     ]
   },
   {
+    "name": "mark",
+    "alias": "m",
+    "description": "Work with global marks",
+    "children": [
+      {
+        "name": "add",
+        "args": 3,
+        "event": "mark.add",
+        "description": "Save current document and position as global mark"
+      },
+      {
+        "name": "del",
+        "args": 3,
+        "event": "mark.del",
+        "description": "Delete specified global mark",
+        "cmp_type": "mark"
+      },
+      {
+        "name": "jump",
+        "args": 3,
+        "event": "mark.jump",
+        "description": "Jump to specified global mark",
+        "cmp_type": "mark"
+      },
+      {
+        "name": "clear",
+        "args": 2,
+        "event": "mark.clear",
+        "description": "Delete all global marks"
+      }
+    ]
+  },
+  {
     "name": "print",
     "args": 1,
     "event": "dbus.print_file",

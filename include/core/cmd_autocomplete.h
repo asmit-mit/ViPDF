@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/bookmark_manager.h"
+#include "core/global_marks.h"
 #include "core/history_manager.h"
 #include "utils/trie.h"
 
@@ -22,7 +23,8 @@ public:
   explicit CmdAutocomplete(
       const CmdLoader &cmd_loader,
       const HistoryManager &file_history,
-      const BookmarkManager &bookmark_manager
+      const BookmarkManager &bookmark_manager,
+      const GlobalMarks &global_marks
   );
 
   std::vector<CmdAutocompleteItem> complete(const std::string &prefix);
@@ -49,11 +51,18 @@ private:
       std::vector<CmdAutocompleteItem> &results
   );
 
+  void getMarkCmp(
+      const std::string &scoped_key,
+      const std::string &typing,
+      std::vector<CmdAutocompleteItem> &results
+  );
+
 private:
   utils::Trie trie_;
   const CmdLoader &cmd_loader_;
   const HistoryManager &file_history_;
   const BookmarkManager &bookmark_manager_;
+  const GlobalMarks &global_marks_;
 };
 
 } // namespace core

@@ -1,5 +1,6 @@
 #include "core/cmd_autocomplete.h"
 
+#include <format>
 #include <stdexcept>
 #include <utf8.h>
 
@@ -8,12 +9,16 @@
 
 namespace core {
 
+namespace fs = std::filesystem;
+
 CmdAutocomplete::CmdAutocomplete(
     const CmdLoader &cmd_loader,
     const HistoryManager &file_history,
-    const BookmarkManager &bookmark_manager
+    const BookmarkManager &bookmark_manager,
+    const GlobalMarks &global_marks
 )
-    : cmd_loader_(cmd_loader), file_history_(file_history), bookmark_manager_(bookmark_manager) {
+    : cmd_loader_(cmd_loader), file_history_(file_history), bookmark_manager_(bookmark_manager),
+      global_marks_(global_marks) {
   for (const Cmd *cmd : cmd_loader_.getRootCmds())
     trie_.insert(cmd->name);
 }
@@ -73,6 +78,9 @@ std::vector<CmdAutocompleteItem> CmdAutocomplete::complete(const std::string &pr
     break;
   case CmdCmpType::Bookmark:
     getBookmarkCmp(scoped_key, typing, res);
+    break;
+  case CmdCmpType::Mark:
+    getMarkCmp(scoped_key, typing, res);
     break;
   default:
     throw std::runtime_error("Not valid completion type");
@@ -182,7 +190,7 @@ void CmdAutocomplete::getFileCmp(
 
   bool show_hidden = prefix.starts_with('.');
 
-  for (const auto &entry : std::filesystem::directory_iterator(dir)) {
+  for (const auto &entry : fs::directory_iterator(dir)) {
     std::string name = entry.path().filename().string();
     if (!show_hidden && name.starts_with('.'))
       continue;
@@ -209,7 +217,24 @@ void CmdAutocomplete::getBookmarkCmp(
   for (const auto &bmark : bookmarks) {
     std::string full = scoped_key + " \"" + bmark.label + "\"";
     std::replace(full.begin(), full.end(), '.', ' ');
-    results.push_back({bmark.label, full + " ", "Page " + std::to_string(bmark.page_number)});
+    results.push_back({bmark.label, full + " ", "Page " + std::to_string(bmark.page)});
+  }
+}
+
+void CmdAutocomplete::getMarkCmp(
+    const std::string &scoped_key,
+    const std::string &typing,
+    std::vector<CmdAutocompleteItem> &results
+) {
+
+  const auto marks = global_marks_.getMarks(typing);
+
+  for (const auto &mark : marks) {
+    std::string full = scoped_key + " \"" + mark.label + "\"";
+    std::replace(full.begin(), full.end(), '.', ' ');
+    std::string desc =
+        std::format("{}, Page {}", fs::path(mark.doc_path).filename().string(), mark.page);
+    results.push_back({mark.label, full + " ", desc});
   }
 }
 

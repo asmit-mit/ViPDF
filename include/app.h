@@ -9,6 +9,7 @@
 #include "core/cmd_processor.h"
 #include "core/config_reader.h"
 #include "core/event_bus.h"
+#include "core/global_marks.h"
 #include "core/history_manager.h"
 #include "core/render_scheduler.h"
 #include "dbus/file_printer.h"
@@ -65,7 +66,10 @@ private:
   core::HistoryManager cmd_history_;
   core::HistoryManager search_history_;
   core::HistoryManager file_history_;
+
+  core::Storage database_;
   core::BookmarkManager bookmark_manager_;
+  core::GlobalMarks global_marks_;
 
   core::CmdLoader cmd_loader_;
   core::CmdProcessor cmd_processor_;

@@ -1,5 +1,7 @@
 #include "app.h"
 
+#include "core/global_marks.h"
+#include "ui/document_view.h"
 #include "ui/external_link_dialog.h"
 #include "utils/utils.h"
 #include <clip.h>
@@ -27,10 +29,11 @@ App::App()
           utils::ensureParent(state_dir_ / utils::RECENT_FILES),
           config_reader_.getConfig().file_history_count
       ),
-      bookmark_manager_(utils::ensureParent(state_dir_ / utils::BOOKMARKS_DB)),
+      database_(utils::ensureParent(state_dir_ / utils::BOOKMARKS_DB)),
+      bookmark_manager_(database_), global_marks_(database_),
       cmd_loader_(utils::ensureParent(asset_dir_ / utils::DEFAULT_COMMANDS)),
       cmd_processor_(event_bus_, cmd_loader_, cmd_history_),
-      cmd_autocomplete_(cmd_loader_, file_history_, bookmark_manager_), document_(),
+      cmd_autocomplete_(cmd_loader_, file_history_, bookmark_manager_, global_marks_), document_(),
       renderer_(
           document_.cloneContext(),
           config_reader_.getConfig().recolor_dark,
@@ -61,6 +64,7 @@ App::App()
           document_,
           file_history_,
           bookmark_manager_,
+          global_marks_,
           render_scheduler_,
           event_bus_,
           config_reader_.getConfig()
@@ -108,7 +112,7 @@ void App::run() {
 
     if (pending_open_) {
       markActive();
-      event_bus_.emit("cmd.open_document", *pending_open_);
+      document_view_.onOpenDocument(*pending_open_);
       pending_open_.reset();
     }
 
@@ -146,7 +150,7 @@ void App::run() {
 }
 
 void App::openDocument(std::string path) {
-  pending_open_ = std::filesystem::absolute(path).string();
+  pending_open_ = path;
   markActive();
 }
 

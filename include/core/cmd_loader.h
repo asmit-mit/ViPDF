@@ -14,9 +14,10 @@ namespace core {
 using json = nlohmann::json;
 
 enum class CmdCmpType : int {
-  Subcommand = 0,
+  Subcommand,
   File,
   Bookmark,
+  Mark,
 };
 
 NLOHMANN_JSON_SERIALIZE_ENUM(
@@ -25,6 +26,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(
         {CmdCmpType::Subcommand, "subcommand"},
         {CmdCmpType::File, "file"},
         {CmdCmpType::Bookmark, "bookmark"},
+        {CmdCmpType::Mark, "mark"},
     }
 )
 
