@@ -19,6 +19,7 @@ enum FontType : int {
   Bold = 1,
   Italic = 2,
   Emoji = 3,
+  CJK = 4,
 };
 
 struct Font {
@@ -78,7 +79,7 @@ private:
   void destroy();
 
 private:
-  static constexpr int BUILTIN_SLOTS = 4;
+  static constexpr int BUILTIN_SLOTS = 5;
 
   FT_Library library_ = nullptr;
 

@@ -66,6 +66,9 @@ int FontLibrary::getFontTypeForCodepoint(uint32_t codepoint, int default_type) c
   if (hasGlyph(FontType::Emoji, codepoint))
     return FontType::Emoji;
 
+  if (hasGlyph(FontType::CJK, codepoint))
+    return FontType::CJK;
+
   for (int t = BUILTIN_SLOTS; t < static_cast<int>(ft_fonts_.size()); ++t) {
     if (hasGlyph(t, codepoint))
       return t;

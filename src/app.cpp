@@ -18,7 +18,8 @@ App::App()
           {(asset_dir_ / utils::FONT_REGULAR).c_str(),
            (asset_dir_ / utils::FONT_BOLD).c_str(),
            (asset_dir_ / utils::FONT_ITALIC).c_str(),
-           (asset_dir_ / utils::FONT_EMOJI).c_str()}
+           (asset_dir_ / utils::FONT_EMOJI).c_str(),
+           (asset_dir_ / utils::FONT_CJK).c_str()}
       ),
       config_reader_(utils::configPath()),
       cmd_history_(utils::ensureParent(state_dir_ / utils::CMD_HISTORY), config_reader_.getConfig().cmd_history_count),
