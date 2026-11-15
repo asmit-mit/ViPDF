@@ -136,6 +136,17 @@ Press `:` to open the command line. Press `Esc` to cancel the current action and
 
 While the completion list is open, `Tab`, `Enter` and `Esc` behave as described in [Completions](#completions) instead.
 
+### Completions
+
+Press `Tab` to open completions for the current command, if it has any. Completions are available for file paths (`:open`, `:write`) and bookmark names (`:bmark del`, `:bmark jump`).
+
+| Key                     | Action                            |
+| ----------------------- | --------------------------------- |
+| `Ctrl+j` or `Tab`       | Cycle down in the completion list |
+| `Ctrl+k` or `Shift+Tab` | Cycle up in the completion list   |
+| `Ctrl+y`                | Select the highlighted completion |
+| `Esc`                   | Close the completion list         |
+
 ### Search and Selection
 
 | Key             | Action                                            |
@@ -156,17 +167,6 @@ To copy an image, click on it to select it, then press `y` or `Ctrl+c`.
 | `a d`       | Remove annotation                      |
 
 To remove an annotation, click on it, then press `a d`.
-
-### Completions
-
-Press `Tab` to open completions for the current command, if it has any. Completions are available for file paths (`:open`, `:write`) and bookmark names (`:bmark del`, `:bmark jump`).
-
-| Key                     | Action                            |
-| ----------------------- | --------------------------------- |
-| `Ctrl+j` or `Tab`       | Cycle down in the completion list |
-| `Ctrl+k` or `Shift+Tab` | Cycle up in the completion list   |
-| `Enter`                 | Select the highlighted completion |
-| `Esc`                   | Close the completion list         |
 
 ### General
 

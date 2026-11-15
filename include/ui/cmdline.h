@@ -20,6 +20,7 @@ enum class CmdlineMode {
 enum class CmdlineAction {
   Cancel,
   Submit,
+  Accept,
   HistoryPrev,
   HistoryNext,
   CompleteNext,

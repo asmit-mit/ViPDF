@@ -122,6 +122,7 @@ void Cmdline::registerKeybindings() {
 
   for (auto *handler : {&cmd_input_, &search_input_}) {
     handler->bind({{Key::Escape}}, CmdlineAction::Cancel);
+    handler->bind({{Key::Y, true, false}}, CmdlineAction::Accept);
     handler->bind({{Key::Enter}}, CmdlineAction::Submit);
     handler->bind({{Key::P, true}}, CmdlineAction::HistoryPrev);
     handler->bind({{Key::N, true}}, CmdlineAction::HistoryNext);
@@ -156,12 +157,13 @@ bool Cmdline::executeCmd(CmdlineAction action) {
     cmd_history_.reset();
     return false;
 
-  case CmdlineAction::Submit:
+  case CmdlineAction::Accept:
     if (completions_.isVisible()) {
       textbox_.setText(completions_.getSelectedText());
       hideCompletions();
       return true;
     }
+  case CmdlineAction::Submit:
     cmd_history_.add(textbox_.getText());
     try {
       cmd_processor_.runCommand(textbox_.getText());
