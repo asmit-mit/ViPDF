@@ -7,8 +7,6 @@
 #include <unordered_map>
 #include FT_FREETYPE_H
 
-#include "graphics/font_library.h"
-
 namespace graphics {
 
 struct AtlasGlyph {
@@ -28,11 +26,7 @@ public:
   GlyphAtlas(unsigned int width = 1024, unsigned int height = 1024);
 
   const AtlasGlyph *getOrPack(
-      FontType font_type,
-      uint32_t glyph_idx,
-      uint32_t pixel_size,
-      FT_Face ft_face,
-      hb_font_t *hb_font
+      int font_type, uint32_t glyph_idx, uint32_t pixel_size, FT_Face ft_face, hb_font_t *hb_font
   );
 
   const sf::Texture &texture(std::size_t page) const;
@@ -43,7 +37,7 @@ public:
 
 private:
   struct Key {
-    FontType font_type;
+    int font_type;
     uint32_t glyph_idx;
     uint32_t pixel_size;
 

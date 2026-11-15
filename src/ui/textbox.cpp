@@ -1,5 +1,6 @@
 #include "ui/textbox.h"
 
+#include <hb.h>
 #include <utf8.h>
 
 #include "utils/constants.h"
@@ -9,12 +10,30 @@ namespace ui {
 namespace {
 
 bool isExtender(char32_t c) {
-  return c == 0x200D                        // zero-width joiner
-         || (c >= 0xFE00 && c <= 0xFE0F)    // variation selectors
-         || (c >= 0x1F3FB && c <= 0x1F3FF)  // skin tone modifiers
-         || (c >= 0x0300 && c <= 0x036F)    // combining marks
-         || (c >= 0x20D0 && c <= 0x20FF)    // combining marks for symbols
-         || (c >= 0xE0020 && c <= 0xE007F); // tag characters
+  if (c == 0x200D || c == 0x200C)
+    return true;
+  if (c >= 0x1F3FB && c <= 0x1F3FF)
+    return true;
+  if (c >= 0xE0020 && c <= 0xE007F)
+    return true;
+
+  switch (hb_unicode_general_category(hb_unicode_funcs_get_default(), c)) {
+  case HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK:
+  case HB_UNICODE_GENERAL_CATEGORY_SPACING_MARK:
+  case HB_UNICODE_GENERAL_CATEGORY_ENCLOSING_MARK:
+    return true;
+  default:
+    return false;
+  }
+}
+bool isVirama(char32_t c) {
+  return hb_unicode_combining_class(hb_unicode_funcs_get_default(), c) ==
+         HB_UNICODE_COMBINING_CLASS_VIRAMA;
+}
+
+bool isLetter(char32_t c) {
+  return hb_unicode_general_category(hb_unicode_funcs_get_default(), c) ==
+         HB_UNICODE_GENERAL_CATEGORY_OTHER_LETTER;
 }
 
 bool isRegionalIndicator(char32_t c) {
@@ -44,6 +63,8 @@ std::size_t clusterEnd(const std::u32string &s, std::size_t pos) {
 
   while (i < s.size() && isExtender(s[i])) {
     if (s[i] == 0x200D && i + 1 < s.size() && isEmojiLike(s[i + 1]))
+      i += 2;
+    else if (isVirama(s[i]) && i + 1 < s.size() && isLetter(s[i + 1]))
       i += 2;
     else
       ++i;
@@ -533,22 +554,22 @@ void Textbox::selectAll() {
 }
 
 std::size_t Textbox::getCharacterIndex(const sf::Vector2i &mouse) {
-  const auto &glyphs = display_text_.getShapedGlyphs();
-  if (glyphs.empty())
+  const std::size_t n = display_text_.getCaretCount();
+  if (n == 0)
     return 0;
 
   const float x = display_text_.getInverseTransform().transformPoint(sf::Vector2f(mouse)).x;
-  for (std::size_t i = 0; i < glyphs.size(); ++i) {
-    const float left = glyphs[i].position.x;
-    const float right = (i + 1 < glyphs.size()) ? glyphs[i + 1].position.x
-                                                : glyphs[i].position.x + glyphs[i].advance;
 
-    const float midpoint = (left + right) * 0.5f;
-    if (x < midpoint)
-      return i;
+  std::size_t best = 0;
+  float best_d = std::abs(x - display_text_.getCaretX(0));
+  for (std::size_t i = 1; i < n; ++i) {
+    float d = std::abs(x - display_text_.getCaretX(i));
+    if (d < best_d) {
+      best_d = d;
+      best = i;
+    }
   }
-
-  return glyphs.size();
+  return best;
 }
 
 void Textbox::setWidth(float width) {
@@ -610,14 +631,7 @@ std::u32string Textbox::getSelectedText() const {
 }
 
 float Textbox::getLocalX(std::size_t index) const {
-  const auto &glyphs = display_text_.getShapedGlyphs();
-  if (index == 0 || glyphs.empty())
-    return 0.f;
-
-  if (index < glyphs.size())
-    return glyphs[index].position.x;
-
-  return glyphs.back().position.x + glyphs.back().advance;
+  return display_text_.getCaretX(index);
 }
 
 bool Textbox::updateScroll() {

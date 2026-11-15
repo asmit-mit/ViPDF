@@ -5,11 +5,12 @@
 #include <hb.h>
 #include FT_FREETYPE_H
 
-#include <array>
 #include <cstdint>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace graphics {
 
@@ -18,7 +19,6 @@ enum FontType : int {
   Bold = 1,
   Italic = 2,
   Emoji = 3,
-  CJK = 4,
 };
 
 struct Font {
@@ -28,8 +28,7 @@ struct Font {
 
 class FontLibrary {
 public:
-  FontLibrary();
-  FontLibrary(const std::vector<std::pair<FontType, const char *>> &paths);
+  FontLibrary(const std::vector<const char *> &paths);
 
   FontLibrary(const FontLibrary &) = delete;
   FontLibrary &operator=(const FontLibrary &) = delete;
@@ -39,17 +38,15 @@ public:
 
   ~FontLibrary();
 
-  void tryLoadFont(FontType type, const char *path);
-  FontType
-  getFontTypeForCodepoint(uint32_t codepoint, FontType default_type = FontType::Regular) const;
-  Font *getFont(FontType type, uint32_t pixel_size) const;
+  int getFontTypeForCodepoint(uint32_t codepoint, int default_type = FontType::Regular) const;
+  Font *getFont(int type, uint32_t pixel_size) const;
 
   bool empty() const;
   std::size_t size() const;
 
 private:
   struct FontKey {
-    FontType type;
+    int type;
     uint32_t size;
 
     bool operator==(const FontKey &other) const {
@@ -73,15 +70,26 @@ private:
   };
 
 private:
+  void tryLoadFont(int type, const char *path);
+  bool hasGlyph(int type, uint32_t codepoint) const;
+  int findSystemFallback(uint32_t codepoint, int style) const;
+  int addFallbackFont(const std::string &path, int face_index) const;
+  bool queryFontconfig(uint32_t codepoint, int style, std::string &out_path, int &out_index) const;
   void destroy();
+
+private:
+  static constexpr int BUILTIN_SLOTS = 4;
 
   FT_Library library_ = nullptr;
 
-  std::array<FT_Face, 5> ft_fonts_{};
-  std::array<std::string, 5> fonts_paths_{};
+  mutable std::vector<FT_Face> ft_fonts_{};
+  mutable std::vector<std::string> fonts_paths_{};
+  mutable std::vector<int> fonts_indices_{};
 
+  mutable std::unordered_map<uint32_t, int> fallback_cache_;
   mutable std::unordered_map<FontKey, Font, FontKeyHash> cache_;
 
+  mutable std::mutex mutex_;
   bool is_empty_ = true;
 };
 

@@ -5,6 +5,7 @@
 #include <ft2build.h>
 #include <hb.h>
 #include <string>
+#include <vector>
 
 #include "graphics/font_library.h"
 #include "graphics/glyph_atlas.h"
@@ -31,7 +32,7 @@ public:
   RichText(RichText &&other) noexcept;
   RichText &operator=(RichText &&other) noexcept = delete;
 
-  ~RichText() = default;
+  ~RichText();
 
   void setString(const std::string &text);
   void setString(const std::u32string &text);
@@ -43,16 +44,24 @@ public:
   std::u32string getString() const;
   sf::Vector2f getSize() const;
   const std::vector<ShapedGlyph> &getShapedGlyphs() const;
+  float getCaretX(std::size_t index) const;
+  std::size_t getCaretCount() const;
 
 private:
   struct Run {
     std::u32string codepoints;
-    FontType font_type;
+    int font_type;
+    std::size_t offset;
+  };
+
+  struct ClusterX {
+    uint32_t cluster;
+    float x;
   };
 
 private:
   void loadFonts();
-  void createTextRuns(const std::u32string &text, std::vector<Run> &runs);
+  void createTextRuns(const std::u32string &text, std::vector<Run> &runs, std::size_t base);
   void processLine(const std::vector<Run> &runs, float &pen_x, float &pen_y);
   void shapeAndCache(const std::u32string &text);
 
@@ -64,6 +73,7 @@ private:
 
   std::vector<ShapedGlyph> shaped_glyphs_;
   std::vector<sf::VertexArray> vertex_arrays_;
+  std::vector<float> caret_x_;
 
   hb_buffer_t *hb_buffer_;
 

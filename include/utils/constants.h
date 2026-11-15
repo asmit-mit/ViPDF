@@ -13,9 +13,8 @@ constexpr std::size_t DISPLAY_LIST_CACHE_SIZE = 200;
 
 constexpr char FONT_REGULAR[] = "fonts/JetBrainsMonoNLNerdFont-Regular.ttf";
 constexpr char FONT_BOLD[] = "fonts/JetBrainsMonoNLNerdFont-Bold.ttf";
-constexpr char FONT_ITALITC[] = "fonts/JetBrainsMonoNLNerdFont-Italic.ttf";
+constexpr char FONT_ITALIC[] = "fonts/JetBrainsMonoNLNerdFont-Italic.ttf";
 constexpr char FONT_EMOJI[] = "fonts/NotoEmoji-Regular.ttf";
-constexpr char FONT_CJK[] = "fonts/NotoSansMonoCJK-VF.ttc";
 
 constexpr char DEFAULT_COMMANDS[] = "commands.json";
 constexpr char DEFAULT_CONFIG[] = "config.ini";

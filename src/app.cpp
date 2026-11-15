@@ -13,14 +13,13 @@ namespace fs = std::filesystem;
 App::App()
     : asset_dir_(utils::assetDir()), state_dir_(prepareState(asset_dir_)),
       font_regular_(asset_dir_ / utils::FONT_REGULAR), font_bold_(asset_dir_ / utils::FONT_BOLD),
-      font_italic_(asset_dir_ / utils::FONT_ITALITC),
-      font_library_({
-          {graphics::FontType::Regular, (asset_dir_ / utils::FONT_REGULAR).c_str()},
-          {graphics::FontType::Bold, (asset_dir_ / utils::FONT_BOLD).c_str()},
-          {graphics::FontType::Italic, (asset_dir_ / utils::FONT_ITALITC).c_str()},
-          {graphics::FontType::CJK, (asset_dir_ / utils::FONT_CJK).c_str()},
-          {graphics::FontType::Emoji, (asset_dir_ / utils::FONT_EMOJI).c_str()},
-      }),
+      font_italic_(asset_dir_ / utils::FONT_ITALIC),
+      font_library_(
+          {(asset_dir_ / utils::FONT_REGULAR).c_str(),
+           (asset_dir_ / utils::FONT_BOLD).c_str(),
+           (asset_dir_ / utils::FONT_ITALIC).c_str(),
+           (asset_dir_ / utils::FONT_EMOJI).c_str()}
+      ),
       config_reader_(utils::configPath()),
       cmd_history_(utils::ensureParent(state_dir_ / utils::CMD_HISTORY), config_reader_.getConfig().cmd_history_count),
       search_history_(

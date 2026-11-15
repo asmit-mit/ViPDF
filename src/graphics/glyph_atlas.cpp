@@ -15,7 +15,7 @@ GlyphAtlas::GlyphAtlas(unsigned int width, unsigned int height)
 }
 
 const AtlasGlyph *GlyphAtlas::getOrPack(
-    FontType font_type, uint32_t glyph_idx, uint32_t pixel_size, FT_Face ft_face, hb_font_t *hb_font
+    int font_type, uint32_t glyph_idx, uint32_t pixel_size, FT_Face ft_face, hb_font_t *hb_font
 ) {
   Key key{font_type, glyph_idx, pixel_size};
 
