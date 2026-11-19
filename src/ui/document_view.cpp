@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <clip.h>
 #include <cmath>
+#include <print>
 #include <stdexcept>
 #include <utf8.h>
 
@@ -472,24 +473,23 @@ void DocumentView::emitSearchState(std::size_t display_offset) {
 }
 
 void DocumentView::addAnnotation(enum pdf_annot_type type, int color_index) {
-  switch (color_index) {
-  case 0:
-    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_1)));
-    break;
-  case 1:
-    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_2)));
-    break;
-  case 2:
-    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_3)));
-    break;
-  case 3:
-    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_4)));
-    break;
-  case 4:
-    onAnnotate(document_.createAnnotations(type, utils::hexToRGB(config_.highlight_color_5)));
-    break;
-  default:
-    break;
+  const std::array colors = {
+      utils::hexToRGB(config_.highlight_color_1),
+      utils::hexToRGB(config_.highlight_color_2),
+      utils::hexToRGB(config_.highlight_color_3),
+      utils::hexToRGB(config_.highlight_color_4),
+      utils::hexToRGB(config_.highlight_color_5),
+  };
+
+  if (color_index < 0 || color_index >= static_cast<int>(colors.size()))
+    return;
+
+  if (selection_controller_.isSelectionEmpty()) {
+    const auto location = selection_controller_.getSelectionStart();
+    if (document_.replaceAnnotations(location.first, location.second, type, colors[color_index]))
+      onAnnotate({location.first});
+  } else {
+    onAnnotate(document_.createAnnotations(type, colors[color_index]));
   }
 }
 

@@ -63,6 +63,12 @@ public:
   void saveChanges(const std::filesystem::path &path = "");
 
   std::vector<std::size_t> createAnnotations(enum pdf_annot_type type, const sf::Color &color);
+  bool replaceAnnotations(
+      std::size_t page_idx,
+      const sf::Vector2f &page_loc,
+      enum pdf_annot_type type,
+      const sf::Color &color
+  );
   bool removeAnnotations(std::size_t page_idx, const sf::Vector2f &page_loc);
   void clearSelections();
 
@@ -78,12 +84,6 @@ private:
 
   void loadOutline();
   void loadPages();
-  bool addAnnotationInPage(
-      std::size_t page_idx,
-      const std::vector<fz_quad> &quads,
-      enum pdf_annot_type type,
-      const sf::Color &color
-  );
   std::optional<std::pair<fz_point, fz_point>> selectionPoints(
       std::size_t page_idx,
       PDFSelectionDirection direction,
@@ -91,7 +91,18 @@ private:
       const std::optional<sf::Vector2f> &mouse_pos2
   ) const;
 
-  bool removeAnnotationsInPage(std::size_t page_idx, const fz_point &p);
+  pdf_annot *findAnnotAt(pdf_page *page, const fz_point &pt) const;
+
+  bool addAnnotationInPage(
+      std::size_t page_idx,
+      const std::vector<fz_quad> &quads,
+      enum pdf_annot_type type,
+      const sf::Color &color
+  );
+  bool replaceAnnotationsInPage(
+      std::size_t page_idx, const fz_point &pt, enum pdf_annot_type type, const sf::Color &color
+  );
+  bool removeAnnotationsInPage(std::size_t page_idx, const fz_point &pt);
 
 private:
   std::array<std::mutex, FZ_LOCK_MAX> mutexes_;

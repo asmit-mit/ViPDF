@@ -237,17 +237,35 @@ PDFDocument::createAnnotations(enum pdf_annot_type type, const sf::Color &color)
   return changed;
 }
 
+bool PDFDocument::replaceAnnotations(
+    std::size_t page_idx,
+    const sf::Vector2f &page_loc,
+    enum pdf_annot_type type,
+    const sf::Color &color
+) {
+  if (!doc_ || page_idx >= pages_.size())
+    return false;
+
+  const fz_point pt = fz_make_point(page_loc.x, page_loc.y);
+  const bool ok = replaceAnnotationsInPage(page_idx, pt, type, color);
+
+  if (ok)
+    is_edited_ = true;
+
+  return ok;
+}
+
 bool PDFDocument::removeAnnotations(std::size_t page_idx, const sf::Vector2f &page_loc) {
   if (!doc_ || page_idx >= pages_.size())
     return false;
 
-  const fz_point p = fz_make_point(page_loc.x, page_loc.y);
-  const bool removed = removeAnnotationsInPage(page_idx, p);
+  const fz_point pt = fz_make_point(page_loc.x, page_loc.y);
+  const bool ok = removeAnnotationsInPage(page_idx, pt);
 
-  if (removed)
+  if (ok)
     is_edited_ = true;
 
-  return removed;
+  return ok;
 }
 
 void PDFDocument::clearSelections() {
@@ -358,6 +376,64 @@ void PDFDocument::loadOutline() {
   fz_drop_outline(ctx_, root);
 }
 
+std::optional<std::pair<fz_point, fz_point>> PDFDocument::selectionPoints(
+    std::size_t page_idx,
+    PDFSelectionDirection direction,
+    const std::optional<sf::Vector2f> &mouse_pos1,
+    const std::optional<sf::Vector2f> &mouse_pos2
+) const {
+  const fz_rect bounds = pages_[page_idx].getPageBounds();
+  fz_point a = fz_make_point(bounds.x0, bounds.y0);
+  fz_point b = fz_make_point(bounds.x1, bounds.y1);
+
+  switch (direction) {
+  case PDFSelectionDirection::ALL:
+    break;
+  case PDFSelectionDirection::UP:
+    if (!mouse_pos1)
+      return std::nullopt;
+    b = fz_make_point(mouse_pos1->x, mouse_pos1->y);
+    break;
+  case PDFSelectionDirection::DOWN:
+    if (!mouse_pos1)
+      return std::nullopt;
+    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
+    break;
+  case PDFSelectionDirection::INSIDE:
+    if (!mouse_pos1 || !mouse_pos2)
+      return std::nullopt;
+    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
+    b = fz_make_point(mouse_pos2->x, mouse_pos2->y);
+    if (b.y < a.y || (b.y == a.y && b.x < a.x))
+      std::swap(a, b);
+    break;
+  }
+  return std::make_pair(a, b);
+}
+
+pdf_annot *PDFDocument::findAnnotAt(pdf_page *page, const fz_point &pt) const {
+  pdf_annot *target = nullptr;
+  for (pdf_annot *a = pdf_first_annot(ctx_, page); a; a = pdf_next_annot(ctx_, a)) {
+    const enum pdf_annot_type t = pdf_annot_type(ctx_, a);
+    if (t == PDF_ANNOT_WIDGET || t == PDF_ANNOT_POPUP)
+      continue;
+
+    const fz_rect bounds = pdf_bound_annot(ctx_, a);
+    if (!fz_is_point_inside_rect(pt, fz_expand_rect(bounds, 1.0f)))
+      continue;
+
+    const int qn = pdf_annot_quad_point_count(ctx_, a);
+    for (int k = 0; k < qn; ++k) {
+      if (fz_is_point_inside_quad(pt, pdf_annot_quad_point(ctx_, a, k))) {
+        target = a;
+        break;
+      }
+    }
+  }
+
+  return target;
+}
+
 bool PDFDocument::addAnnotationInPage(
     std::size_t page_idx,
     const std::vector<fz_quad> &quads,
@@ -403,42 +479,56 @@ bool PDFDocument::addAnnotationInPage(
   return ok;
 }
 
-std::optional<std::pair<fz_point, fz_point>> PDFDocument::selectionPoints(
-    std::size_t page_idx,
-    PDFSelectionDirection direction,
-    const std::optional<sf::Vector2f> &mouse_pos1,
-    const std::optional<sf::Vector2f> &mouse_pos2
-) const {
-  const fz_rect bounds = pages_[page_idx].getPageBounds();
-  fz_point a = fz_make_point(bounds.x0, bounds.y0);
-  fz_point b = fz_make_point(bounds.x1, bounds.y1);
+bool PDFDocument::replaceAnnotationsInPage(
+    std::size_t page_idx, const fz_point &pt, enum pdf_annot_type type, const sf::Color &color
+) {
+  pdf_document *pdf = pdf_specifics(ctx_, doc_);
+  if (!pdf)
+    return false;
 
-  switch (direction) {
-  case PDFSelectionDirection::ALL:
-    break;
-  case PDFSelectionDirection::UP:
-    if (!mouse_pos1)
-      return std::nullopt;
-    b = fz_make_point(mouse_pos1->x, mouse_pos1->y);
-    break;
-  case PDFSelectionDirection::DOWN:
-    if (!mouse_pos1)
-      return std::nullopt;
-    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
-    break;
-  case PDFSelectionDirection::INSIDE:
-    if (!mouse_pos1 || !mouse_pos2)
-      return std::nullopt;
-    a = fz_make_point(mouse_pos1->x, mouse_pos1->y);
-    b = fz_make_point(mouse_pos2->x, mouse_pos2->y);
-    if (b.y < a.y || (b.y == a.y && b.x < a.x))
-      std::swap(a, b);
-    break;
+  const float rgb[3] = {color.r / 255.f, color.g / 255.f, color.b / 255.f};
+  const float opacity = color.a / 255.f;
+
+  std::vector<fz_quad> quads;
+  pdf_page *page = nullptr;
+  pdf_annot *fresh = nullptr;
+  bool ok = false;
+  fz_var(page);
+  fz_var(fresh);
+  fz_var(ok);
+
+  fz_try(ctx_) {
+    page = pdf_load_page(ctx_, pdf, static_cast<int>(page_idx));
+
+    pdf_annot *target = findAnnotAt(page, pt);
+    if (target) {
+      const int n = pdf_annot_quad_point_count(ctx_, target);
+      quads.reserve(n);
+      for (int i = 0; i < n; ++i)
+        quads.push_back(pdf_annot_quad_point(ctx_, target, i));
+
+      pdf_delete_annot(ctx_, page, target);
+
+      fresh = pdf_create_annot(ctx_, page, type);
+      pdf_set_annot_quad_points(ctx_, fresh, static_cast<int>(quads.size()), quads.data());
+      pdf_set_annot_color(ctx_, fresh, 3, rgb);
+      pdf_set_annot_opacity(ctx_, fresh, opacity);
+      pdf_update_annot(ctx_, fresh);
+      ok = true;
+    }
   }
-  return std::make_pair(a, b);
+  fz_always(ctx_) {
+    if (fresh)
+      pdf_drop_annot(ctx_, fresh);
+    if (page)
+      fz_drop_page(ctx_, &page->super);
+  }
+  fz_catch(ctx_) ok = false;
+
+  return ok;
 }
 
-bool PDFDocument::removeAnnotationsInPage(std::size_t page_idx, const fz_point &p) {
+bool PDFDocument::removeAnnotationsInPage(std::size_t page_idx, const fz_point &pt) {
   pdf_document *pdf = pdf_specifics(ctx_, doc_);
   if (!pdf)
     return false;
@@ -451,29 +541,7 @@ bool PDFDocument::removeAnnotationsInPage(std::size_t page_idx, const fz_point &
   fz_try(ctx_) {
     page = pdf_load_page(ctx_, pdf, static_cast<int>(page_idx));
 
-    pdf_annot *target = nullptr;
-
-    for (pdf_annot *a = pdf_first_annot(ctx_, page); a; a = pdf_next_annot(ctx_, a)) {
-      const enum pdf_annot_type type = pdf_annot_type(ctx_, a);
-      if (type == PDF_ANNOT_WIDGET || type == PDF_ANNOT_POPUP)
-        continue;
-
-      const fz_rect bounds = pdf_bound_annot(ctx_, a);
-      if (!fz_is_point_inside_rect(p, fz_expand_rect(bounds, 1.0f)))
-        continue;
-
-      const int qn = pdf_annot_quad_point_count(ctx_, a);
-      if (!qn)
-        continue;
-
-      bool hit = false;
-      for (int k = 0; k < qn && !hit; ++k)
-        hit = fz_is_point_inside_quad(p, pdf_annot_quad_point(ctx_, a, k));
-
-      if (hit)
-        target = a;
-    }
-
+    pdf_annot *target = findAnnotAt(page, pt);
     if (target) {
       pdf_delete_annot(ctx_, page, target);
       removed = true;
