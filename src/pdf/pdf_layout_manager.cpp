@@ -9,7 +9,13 @@ PDFLayoutManager::PDFLayoutManager(
     core::RenderScheduler &scheduler, std::vector<ui::PageView> &pages
 )
     : scheduler_(scheduler), pages_(pages) {
+  layout_mode_ = LayoutMode::Scrolling;
   reset();
+}
+
+void PDFLayoutManager::setLayoutMode(LayoutMode mode) {
+  layout_mode_ = mode;
+  page_positions_dirty_ = true;
 }
 
 void PDFLayoutManager::setAnchorPage(std::size_t idx) {
@@ -25,6 +31,10 @@ void PDFLayoutManager::setFrontPage(std::size_t idx) {
 
 void PDFLayoutManager::setBackPage(std::size_t idx) {
   back_page_ = idx;
+}
+
+LayoutMode PDFLayoutManager::getLayoutMode() const {
+  return layout_mode_;
 }
 
 std::size_t PDFLayoutManager::getAnchorPage() const {
@@ -112,6 +122,12 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
   clampPageVertically(visual_state);
   clampPageHorizontally(visual_state);
   discretizePosition(curr);
+
+  if (layout_mode_ == LayoutMode::SinglePage) {
+    page_positions_dirty_ = false;
+    return;
+  }
+
   updateNeighbourPositions(visual_state);
 
   const sf::Vector2f front_size = pageSize(front_page_, visual_state);
@@ -144,7 +160,7 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
 void PDFLayoutManager::updateAnchorPage() {
   anchor_page_changed_ = false;
 
-  if (need_initial_pos_)
+  if (need_initial_pos_ || layout_mode_ == LayoutMode::SinglePage)
     return;
 
   const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
@@ -181,8 +197,9 @@ bool PDFLayoutManager::anchorPageChanged() const {
 }
 
 void PDFLayoutManager::clampPageVertically(const ui::VisualInfo &visual_state) {
-  const bool is_first = anchor_page_ == 0;
-  const bool is_last = anchor_page_ + 1 >= pages_.size();
+  const bool single_page = layout_mode_ == LayoutMode::SinglePage;
+  const bool is_first = single_page || anchor_page_ == 0;
+  const bool is_last = single_page || anchor_page_ + 1 >= pages_.size();
 
   if (!is_first && !is_last)
     return;

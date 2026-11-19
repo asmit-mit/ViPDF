@@ -8,14 +8,21 @@
 
 namespace pdf {
 
+enum class LayoutMode {
+  Scrolling,
+  SinglePage,
+};
+
 class PDFLayoutManager {
 public:
   PDFLayoutManager(core::RenderScheduler &scheduler, std::vector<ui::PageView> &pages);
 
+  void setLayoutMode(LayoutMode mode);
   void setAnchorPage(std::size_t idx);
   void setFrontPage(std::size_t idx);
   void setBackPage(std::size_t idx);
 
+  LayoutMode getLayoutMode() const;
   std::size_t getAnchorPage() const;
   std::size_t getFrontPage() const;
   std::size_t getBackPage() const;
@@ -62,6 +69,8 @@ private:
   sf::Vector2f window_size_;
   sf::Vector2f old_window_size_;
   sf::Vector2f anchor_page_pos_before_scroll_;
+
+  LayoutMode layout_mode_;
 
   static constexpr float gap_ = 3.f;
   static constexpr float epsilon_ = 1e-5f;

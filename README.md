@@ -40,7 +40,6 @@ These must be installed with your package manager (development headers included)
 - [HarfBuzz](https://harfbuzz.github.io/)
 - libpng
 - libxcb
-- libsystemd (includes udev)
 - X11, Xrandr, Xcursor, Xi
 - OpenGL (Mesa or vendor driver)
 
@@ -67,7 +66,7 @@ Without a portal, ViPDF still works normally, but `:print` and link opening will
 ```sh
 sudo dnf install -y gcc-c++ meson ninja-build cmake git pkgconf-pkg-config \
   mupdf-devel freetype-devel harfbuzz-devel libpng-devel libxcb-devel \
-  systemd-devel libX11-devel libXrandr-devel libXcursor-devel libXi-devel \
+  libX11-devel libXrandr-devel libXcursor-devel libXi-devel \
   mesa-libGL-devel
 
 # optional: :print and link opening
@@ -180,17 +179,19 @@ To remove an annotation, click on it, then press `a d`.
 
 Press `:` to open the command line.
 
-| Command           | Alias | Description                                           |
-| ----------------- | ----- | ----------------------------------------------------- |
-| `:open <path>`    | `:o`  | Open a document                                       |
-| `:reload`         |       | Reload the current document                           |
-| `:close`          |       | Close the current document                            |
-| `:write [path]`   | `:w`  | Save changes. Use % as path to overwrite current file |
-| `:quit`           | `:q`  | Quit ViPDF                                            |
-| `:clear files`    |       | Clear recent files                                    |
-| `:clear search`   |       | Clear search history                                  |
-| `:clear commands` |       | Clear command history                                 |
-| `:print`          |       | Print the current document                            |
+| Command           | Alias | Description                                                 |
+| ----------------- | ----- | ----------------------------------------------------------- |
+| `:open <path>`    | `:o`  | Open a document                                             |
+| `:reload`         |       | Reload the current document                                 |
+| `:close`          |       | Close the current document                                  |
+| `:write [path]`   | `:w`  | Save changes. Use % or empty path to overwrite current file |
+| `:quit`           | `:q`  | Quit ViPDF                                                  |
+| `:clear files`    |       | Clear recent files                                          |
+| `:clear search`   |       | Clear search history                                        |
+| `:clear commands` |       | Clear command history                                       |
+| `:mode single`    |       | Set layout to single-page mode                              |
+| `:mode scroll`    |       | Set layout to continuous scrolling mode                     |
+| `:print`          |       | Print the current document                                  |
 
 Arguments that contain spaces must be wrapped in double quotes, for example:
 

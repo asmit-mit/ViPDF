@@ -1,10 +1,10 @@
 #pragma once
 
 #include <mupdf/fitz.h>
+#include <mupdf/pdf.h>
 
 #include <array>
 #include <memory>
-#include <mupdf/pdf.h>
 #include <mutex>
 #include <optional>
 #include <string>

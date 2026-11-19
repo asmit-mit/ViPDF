@@ -163,6 +163,7 @@ bool Cmdline::executeCmd(CmdlineAction action) {
       hideCompletions();
       return true;
     }
+    break;
   case CmdlineAction::Submit:
     cmd_history_.add(textbox_.getText());
     try {

@@ -35,8 +35,6 @@ hb_proj = subproject(
 harfbuzz_dep = hb_proj.get_variable('libharfbuzz_dep')
 harfbuzz_raster_dep = hb_proj.get_variable('libharfbuzz_raster_dep')
 
-systemd_dep = dependency('libsystemd', required: true)
-
 # dbus library
 sdbus_opts = cmake.subproject_options()
 sdbus_opts.add_cmake_defines(
@@ -51,6 +49,7 @@ sdbus_opts.add_cmake_defines(
 )
 sdbus_proj = cmake.subproject('sdbus-cpp', options: sdbus_opts)
 sdbus_dep = sdbus_proj.dependency('sdbus-c++')
+systemd_dep = dependency('libsystemd', required: true)
 
 # clipboard library
 clip_opts = cmake.subproject_options()

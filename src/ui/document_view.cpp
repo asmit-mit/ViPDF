@@ -51,6 +51,9 @@ void DocumentView::draw(sf::RenderTarget &window) const {
   if (!layout_manager_.needInitialPos())
     pages_[layout_manager_.getAnchorPage()].draw(window);
 
+  if (layout_manager_.getLayoutMode() == pdf::LayoutMode::SinglePage)
+    return;
+
   if (layout_manager_.isLayoutPending())
     return;
 
@@ -634,6 +637,13 @@ void DocumentView::registerEvents() {
 
   event_bus_.subscribe<bool>("cmd.hl", [this](bool) { search_controller_.showSearchResults(); });
   event_bus_.subscribe<bool>("cmd.nohl", [this](bool) { search_controller_.hideSearchResults(); });
+
+  event_bus_.subscribe<bool>("layout.single", [this](bool) {
+    layout_manager_.setLayoutMode(pdf::LayoutMode::SinglePage);
+  });
+  event_bus_.subscribe<bool>("layout.scroll", [this](bool) {
+    layout_manager_.setLayoutMode(pdf::LayoutMode::Scrolling);
+  });
 
   event_bus_.subscribe<std::string>("password.submit", [this](std::string password) {
     if (document_.authenticate(password))

@@ -127,6 +127,24 @@
     ]
   },
   {
+    "name": "mode",
+    "description": "Change page layout",
+    "children": [
+      {
+        "name": "single",
+        "args": 2,
+        "event": "layout.single",
+        "description": "Set layout to single page mode"
+      },
+      {
+        "name": "scroll",
+        "args": 2,
+        "event": "layout.scroll",
+        "description": "Set layout to continuous scrolling mode"
+      }
+    ]
+  },
+  {
     "name": "print",
     "args": 1,
     "event": "dbus.print_file",
