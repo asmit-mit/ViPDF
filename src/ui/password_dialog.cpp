@@ -34,7 +34,12 @@ PasswordDialog::PasswordDialog(
   textbox_.setHighlightTextColor(utils::hexToRGB(config.dialog_highlight_text_color));
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
+    const bool was_visible = visible_;
     visible_ = focus == ui::UIElements::PasswordDialog;
+
+    if (visible_ != was_visible)
+      draw_flag_ = true;
+
     if (visible_) {
       textbox_.reset();
       textbox_.startEditing();
@@ -69,6 +74,7 @@ void PasswordDialog::handleEvent(const sf::Event &event) {
       textbox_.reset();
       textbox_.stopEditing();
       textbox_.hide();
+      draw_flag_ = true;
       event_bus_.emit("cmd.close_document", true);
       event_bus_.emit("ui.focus", ui::UIElements::PDFView);
       return;
@@ -79,12 +85,20 @@ void PasswordDialog::handleEvent(const sf::Event &event) {
       textbox_.reset();
       textbox_.stopEditing();
       textbox_.hide();
+      draw_flag_ = true;
       event_bus_.emit("password.submit", password);
       return;
     }
   }
 
   textbox_.handleEvent(event);
+}
+
+bool PasswordDialog::getAndConsumeDrawFlag() {
+  const bool textbox = textbox_.getAndConsumeDrawFlag();
+  const bool flag = draw_flag_ || (visible_ && textbox);
+  draw_flag_ = false;
+  return flag;
 }
 
 void PasswordDialog::onResize(const sf::Vector2f &size) {
@@ -102,6 +116,7 @@ void PasswordDialog::onResize(const sf::Vector2f &size) {
 
   textbox_.setWidth(password_bg_.getSize().x - 2.f * utils::PADDING);
   textbox_.setPosition({input_x + utils::PADDING, input_y + 5.f});
+  draw_flag_ = true;
 }
 
 } // namespace ui

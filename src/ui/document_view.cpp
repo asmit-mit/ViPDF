@@ -64,7 +64,12 @@ void DocumentView::draw(sf::RenderTarget &window) const {
 }
 
 void DocumentView::update() {
-  if (!canWorkWithDocument())
+  const bool can_work = canWorkWithDocument();
+  if (can_work != last_can_work_) {
+    last_can_work_ = can_work;
+    draw_flag_ = true;
+  }
+  if (!can_work)
     return;
 
   // pending updates
@@ -179,6 +184,19 @@ void DocumentView::update() {
   for (std::size_t i = front_page; i <= back_page; i++)
     pages_[i].update();
 
+  const DrawState now{
+      layout_manager_.getAnchorPage(),
+      layout_manager_.getFrontPage(),
+      layout_manager_.getBackPage(),
+      layout_manager_.getLayoutMode(),
+      layout_manager_.needInitialPos(),
+      layout_manager_.isLayoutPending(),
+  };
+  if (!(now == last_draw_state_)) {
+    last_draw_state_ = now;
+    draw_flag_ = true;
+  }
+
   if (focus_update_ && !should_take_input_) {
     input_handler_.reset();
     event_bus_.emit("statusbar.pending_keys", std::string(""));
@@ -280,6 +298,22 @@ void DocumentView::handleEvent(const sf::Event &event) {
     if (mouse->button == sf::Mouse::Button::Left)
       selecting_ = false;
   }
+}
+
+bool DocumentView::getAndConsumeDrawFlag() {
+  bool flag = draw_flag_;
+  draw_flag_ = false;
+
+  if (pages_.empty())
+    return flag;
+
+  const std::size_t front = layout_manager_.getFrontPage();
+  const std::size_t back = std::min(layout_manager_.getBackPage(), pages_.size() - 1);
+
+  for (std::size_t i = front; i <= back; ++i)
+    flag |= pages_[i].getAndConsumeDrawFlag();
+
+  return flag;
 }
 
 void DocumentView::handleScroll(const sf::Event::MouseWheelScrolled &scroll) {
@@ -509,6 +543,7 @@ void DocumentView::onResize(const sf::Vector2f &size) {
   window_size_ = size;
   view_controller_.setWindowSize(size);
   layout_manager_.setWindowSize(size);
+  draw_flag_ = true;
 }
 
 void DocumentView::onOpenDocument(const std::string &filepath) {
@@ -545,6 +580,7 @@ void DocumentView::onCloseDocument() {
   resetView();
   document_.closeDocument();
   bookmark_manager_.resetPath();
+  draw_flag_ = true;
   event_bus_.emit("statusbar.pdf_path", std::string("[No document open]"));
   event_bus_
       .emit("statusbar.page_state", std::make_pair(static_cast<std::size_t>(0), static_cast<std::size_t>(0)));
@@ -1002,13 +1038,13 @@ void DocumentView::resetView() {
   pages_.shrink_to_fit();
 
   layout_manager_.reset();
+  layout_manager_.setPageWithMaxWidth(document_.pageWithMaxWidth());
   view_controller_.reset();
   search_controller_.reset();
   selection_controller_.reset();
-
-  layout_manager_.setPageWithMaxWidth(document_.pageWithMaxWidth());
-
   emitSearchState(0);
+
+  draw_flag_ = true;
   event_bus_.emit("statusbar.pending_keys", std::string(""));
 }
 

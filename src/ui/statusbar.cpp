@@ -59,7 +59,10 @@ Statusbar::Statusbar(
 
 void Statusbar::subscribeToEvents() {
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
-    move_up_ = focus == ui::UIElements::Cmdline;
+    const bool move_up = focus == ui::UIElements::Cmdline;
+    if (move_up != move_up_)
+      draw_flag_ = true;
+    move_up_ = move_up;
   });
 
   event_bus_.subscribe<std::string>("statusbar.pdf_path", [this](const std::string &filepath) {
@@ -71,6 +74,7 @@ void Statusbar::subscribeToEvents() {
     search_num_ = state.first;
     total_search_results_ = state.second;
     search_details_changed_ = true;
+    draw_flag_ = true;
   });
 
   event_bus_.subscribe<
@@ -78,18 +82,22 @@ void Statusbar::subscribeToEvents() {
     page_num_ = state.first;
     total_pages_ = state.second;
     page_details_changed_ = true;
+    draw_flag_ = true;
   });
 
   event_bus_.subscribe<float>("statusbar.page_zoom", [this](float zoom) {
     display_zoom_.setString("[" + std::to_string(static_cast<int>(zoom * 100)) + "%]");
+    draw_flag_ = true;
   });
 
   event_bus_.subscribe<std::string>("statusbar.pending_keys", [this](std::string pending_keys) {
     display_pending_keys_.setString(pending_keys);
+    draw_flag_ = true;
   });
 
   event_bus_.subscribe<bool>("statusbar.document_edited", [this](bool edited) {
     document_edited_ = edited;
+    draw_flag_ = true;
   });
 }
 
@@ -197,6 +205,7 @@ void Statusbar::setFilepath(std::u32string filepath) {
   last_truncated_ = filepath_;
   last_available_width_ = -1.f;
   display_filepath_.setString(filepath_);
+  draw_flag_ = true;
 }
 
 void Statusbar::fitFilepath(float max_width) {
@@ -228,6 +237,7 @@ void Statusbar::onResize(const sf::Vector2f &size) {
   curr_x_ = 0;
   curr_y_ = size.y - utils::CMDLINE_HEIGHT;
   display_area_.setSize({size.x, utils::CMDLINE_HEIGHT});
+  draw_flag_ = true;
 }
 
 } // namespace ui

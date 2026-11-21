@@ -47,7 +47,7 @@ enum class DocumentAction {
   Cancel
 };
 
-class DocumentView {
+class DocumentView : public Widget {
 public:
   explicit DocumentView(
       pdf::PDFDocument &document,
@@ -59,11 +59,12 @@ public:
       const core::Config &config
   );
 
-  void draw(sf::RenderTarget &window) const;
-  void update();
-  void handleEvent(const sf::Event &event);
-  void onResize(const sf::Vector2f &size);
+  void draw(sf::RenderTarget &window) const override;
+  void update() override;
+  void handleEvent(const sf::Event &event) override;
+  bool getAndConsumeDrawFlag() override;
 
+  void onResize(const sf::Vector2f &size);
   void onOpenDocument(const std::string &filepath);
 
 private:
@@ -78,6 +79,13 @@ private:
     int size() const {
       return back - front + 1;
     }
+  };
+
+  struct DrawState {
+    std::size_t anchor = 0, front = 0, back = 0;
+    pdf::LayoutMode mode{};
+    bool need_initial_pos = false, layout_pending = false;
+    bool operator==(const DrawState &) const = default;
   };
 
   enum class ScrollTo {
@@ -143,6 +151,9 @@ private:
   core::InputHandler<DocumentAction> input_handler_;
 
   sf::Texture dummy_;
+
+  DrawState last_draw_state_;
+  bool last_can_work_ = false;
 
   bool focus_update_;
   bool should_take_input_;

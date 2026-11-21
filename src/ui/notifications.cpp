@@ -51,12 +51,15 @@ void Notifications::update() {
   if (display_timer_.getElapsedTime().asSeconds() >= timeout_) {
     visible_ = false;
     hovered_ = false;
+    draw_flag_ = true;
+    return;
   }
 
-  if (hovered_)
-    display_area_.setFillColor(hover_color_);
-  else
-    display_area_.setFillColor(idle_color_);
+  const sf::Color &want = hovered_ ? hover_color_ : idle_color_;
+  if (display_area_.getFillColor() != want) {
+    display_area_.setFillColor(want);
+    draw_flag_ = true;
+  }
 }
 
 void Notifications::draw(sf::RenderTarget &window) const {
@@ -80,6 +83,7 @@ void Notifications::handleEvent(const sf::Event &event) {
         display_area_.getGlobalBounds().contains(sf::Vector2f(mouse->position))) {
       hovered_ = false;
       visible_ = false;
+      draw_flag_ = true;
     }
   }
 }
@@ -189,6 +193,7 @@ void Notifications::show(const std::string &msg) {
     pending_msg_ = msg;
     blinking_ = true;
     blink_timer_.restart();
+    draw_flag_ = true;
     return;
   }
 
@@ -204,6 +209,7 @@ void Notifications::applyMessage(const std::string &msg) {
 
   visible_ = true;
   layout();
+  draw_flag_ = true;
 }
 
 void Notifications::layout() {
@@ -228,6 +234,8 @@ void Notifications::layout() {
 
   display_header_.setPosition({box_x + padding_, box_y + padding_});
   display_msg_.setPosition({box_x + padding_, box_y + padding_ + header_h + padding_ * 1.5f});
+
+  draw_flag_ = true;
 }
 
 } // namespace ui

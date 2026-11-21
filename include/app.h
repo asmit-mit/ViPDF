@@ -3,6 +3,8 @@
 #include <SFML/Graphics.hpp>
 
 #include <filesystem>
+#include <optional>
+#include <string>
 
 #include "core/bookmark_manager.h"
 #include "core/cmd_autocomplete.h"
@@ -24,7 +26,6 @@
 #include "ui/password_dialog.h"
 #include "ui/statusbar.h"
 #include "ui/ui_elements.h"
-#include "utils/profiler.h"
 
 namespace fs = std::filesystem;
 
@@ -102,13 +103,13 @@ private:
   sf::Cursor text_cursor_;
 
   std::optional<std::string> pending_open_;
-  // utils::FrameProfiler profiler_;
 
+  bool force_redraw_ = true;
   sf::Clock activity_clock_;
-  sf::Clock idle_redraw_clock_;
-  static constexpr int active_grace_ms_ = 1500;
-  static constexpr int idle_wait_ms_ = 50;
-  static constexpr int idle_redraw_ms_ = 500;
+
+  static constexpr int active_grace_ms_ = 300;
+  static constexpr int idle_wait_ms_ = 30;
+  static constexpr int busy_sleep_ms_ = 4;
 
   const unsigned int res_x_ = 640;
   const unsigned int res_y_ = 480;

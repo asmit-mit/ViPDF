@@ -64,7 +64,12 @@ ExternalLinkDialog::ExternalLinkDialog(
   });
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
+    const bool was_visible = visible_;
     visible_ = focus == ui::UIElements::ExternalLinkDialog;
+
+    if (visible_ != was_visible)
+      draw_flag_ = true;
+
     if (visible_) {
       textbox_.reset();
       textbox_.startEditing();
@@ -95,6 +100,7 @@ void ExternalLinkDialog::setUrl(const std::string &url) {
     shown.erase(shown.size() >= extra_trim ? shown.size() - extra_trim : 0);
     message_label_.setString(prefix + shown + "..." + suffix);
   }
+  draw_flag_ = true;
 }
 
 void ExternalLinkDialog::close() {
@@ -102,6 +108,7 @@ void ExternalLinkDialog::close() {
   textbox_.stopEditing();
   textbox_.hide();
   url_.clear();
+  draw_flag_ = true;
   event_bus_.emit("ui.focus", ui::UIElements::PDFView);
 }
 
@@ -153,6 +160,13 @@ void ExternalLinkDialog::handleEvent(const sf::Event &event) {
   textbox_.handleEvent(event);
 }
 
+bool ExternalLinkDialog::getAndConsumeDrawFlag() {
+  const bool textbox = textbox_.getAndConsumeDrawFlag();
+  const bool flag = draw_flag_ || (visible_ && textbox);
+  draw_flag_ = false;
+  return flag;
+}
+
 void ExternalLinkDialog::onResize(const sf::Vector2f &size) {
   window_size_ = size;
 
@@ -169,6 +183,8 @@ void ExternalLinkDialog::onResize(const sf::Vector2f &size) {
 
   textbox_.setWidth(input_bg_.getSize().x - 2.f * utils::PADDING);
   textbox_.setPosition({input_x + utils::PADDING, input_y + 5.f});
+
+  draw_flag_ = true;
 }
 
 } // namespace ui

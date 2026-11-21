@@ -18,6 +18,7 @@ public:
   void draw(sf::RenderTarget &window) const override;
   void update() override;
   void handleEvent(const sf::Event &event) override;
+  bool getAndConsumeDrawFlag() override;
 
   void setCursorSize(const sf::Vector2f &cursor_size);
   void setPosition(const sf::Vector2f &pos);

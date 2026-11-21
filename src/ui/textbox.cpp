@@ -159,11 +159,13 @@ void Textbox::update() {
     display_text_.setString(displayString(u32_text_));
     text_ = utf8::utf32to8(u32_text_);
     text_dirty_ = false;
+    draw_flag_ = true;
   }
 
   if (cursor_dirty_ && updateScroll()) {
     selection_dirty_ = true;
     cursor_dirty_ = true;
+    draw_flag_ = true;
   }
 
   display_text_.setPosition({pos_.x - scroll_x_, pos_.y});
@@ -172,6 +174,7 @@ void Textbox::update() {
     rebuildDisplayTexts();
     createSelectionBox();
     selection_dirty_ = false;
+    draw_flag_ = true;
   }
 
   cursor_.update();
@@ -179,6 +182,7 @@ void Textbox::update() {
   if (cursor_dirty_) {
     cursor_.setPosition({getCursorX(selection_.caret), pos_.y});
     cursor_dirty_ = false;
+    draw_flag_ = true;
   }
 }
 
@@ -322,8 +326,17 @@ void Textbox::handleEvent(const sf::Event &event) {
   }
 }
 
+bool Textbox::getAndConsumeDrawFlag() {
+  bool cursor = cursor_.getAndConsumeDrawFlag();
+  bool flag = draw_flag_ || (visible_ && cursor);
+  draw_flag_ = false;
+  return flag;
+}
+
 void Textbox::setCursorSize(const sf::Vector2f &cursor_size) {
   cursor_size_ = cursor_size;
+  cursor_dirty_ = true;
+  draw_flag_ = true;
 }
 
 void Textbox::setPosition(const sf::Vector2f &pos) {
@@ -340,12 +353,14 @@ void Textbox::show() {
   if (visible_)
     return;
   visible_ = true;
+  draw_flag_ = true;
 }
 
 void Textbox::hide() {
   if (!visible_)
     return;
   visible_ = false;
+  draw_flag_ = true;
 }
 
 void Textbox::startEditing() {
@@ -353,6 +368,7 @@ void Textbox::startEditing() {
     return;
   editing_ = true;
   cursor_.start();
+  draw_flag_ = true;
 }
 
 void Textbox::stopEditing() {
@@ -360,6 +376,7 @@ void Textbox::stopEditing() {
     return;
   editing_ = false;
   cursor_.stop();
+  draw_flag_ = true;
 }
 
 std::size_t Textbox::size() {
@@ -412,14 +429,17 @@ bool Textbox::isMasked() const {
 void Textbox::setTextColor(const sf::Color &color) {
   display_text_.setFillColor(color);
   cursor_.setColor(color);
+  draw_flag_ = true;
 }
 
 void Textbox::setHighlightColor(const sf::Color &color) {
   selection_box_.setFillColor(color);
+  draw_flag_ = true;
 }
 
 void Textbox::setHighlightTextColor(const sf::Color &color) {
   display_text_selected_.setFillColor(color);
+  draw_flag_ = true;
 }
 
 std::u32string Textbox::displayString(const std::u32string &s) const {

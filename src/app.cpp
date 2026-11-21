@@ -97,17 +97,13 @@ void App::markActive() {
 }
 
 bool App::needsContinuousFrames() const {
-  if (activity_clock_.getElapsedTime() < sf::milliseconds(active_grace_ms_))
-    return true;
-  return false;
+  return activity_clock_.getElapsedTime() < sf::milliseconds(active_grace_ms_);
 }
 
 void App::run() {
-  bool first_frame = true;
-
   while (window_.isOpen()) {
     const bool busy = needsContinuousFrames();
-    const bool had_input = processEvents(busy ? sf::Time::Zero : sf::milliseconds(idle_wait_ms_));
+    processEvents(busy ? sf::Time::Zero : sf::milliseconds(idle_wait_ms_));
 
     if (!window_.isOpen())
       break;
@@ -129,13 +125,20 @@ void App::run() {
     password_dialog_.update();
     external_link_dialog_.update();
 
-    const bool heartbeat = idle_redraw_clock_.getElapsedTime() >= sf::milliseconds(idle_redraw_ms_);
+    bool dirty = force_redraw_;
+    force_redraw_ = false;
+    dirty |= document_view_.getAndConsumeDrawFlag();
+    dirty |= cmdline_.getAndConsumeDrawFlag();
+    dirty |= statusbar_.getAndConsumeDrawFlag();
+    dirty |= notifications_.getAndConsumeDrawFlag();
+    dirty |= password_dialog_.getAndConsumeDrawFlag();
+    dirty |= external_link_dialog_.getAndConsumeDrawFlag();
 
-    if (!(first_frame || had_input || busy || heartbeat))
+    if (!dirty) {
+      if (busy)
+        sf::sleep(sf::milliseconds(busy_sleep_ms_));
       continue;
-
-    first_frame = false;
-    idle_redraw_clock_.restart();
+    }
 
     window_.clear(app_bg_color_);
     window_.setView(view_);
@@ -267,15 +270,15 @@ void App::initUI() {
 
 bool App::processEvents(sf::Time wait) {
   bool any = false;
-  auto event = wait > sf::Time::Zero ? window_.waitEvent(wait) : window_.pollEvent();
-  while (event) {
+  while (const auto event = window_.pollEvent()) {
     any = true;
     handleEvent(*event);
-    event = window_.pollEvent();
   }
 
   if (any)
     markActive();
+  else if (wait > sf::Time::Zero)
+    sf::sleep(wait);
 
   return any;
 }
@@ -284,7 +287,11 @@ void App::handleEvent(const sf::Event &event) {
   if (event.is<sf::Event::Closed>())
     window_.close();
 
+  if (event.is<sf::Event::FocusGained>())
+    force_redraw_ = true;
+
   if (event.is<sf::Event::Resized>()) {
+    force_redraw_ = true;
     auto window_size = window_.getSize();
     view_.setSize({(float)window_size.x, (float)window_size.y});
     auto view_size = view_.getSize();

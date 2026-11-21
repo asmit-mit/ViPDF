@@ -52,6 +52,8 @@ void PageView::update() {
     }
 
     update_search_boxes_ = false;
+    if (show_search_results_)
+      draw_flag_ = true;
   }
 }
 
@@ -72,10 +74,14 @@ sf::Vector2f PageView::transformPos(const sf::Vector2f &pos) const {
 
 void PageView::move(const sf::Vector2f &delta) {
   sprite_.move(delta);
+  draw_flag_ = true;
 }
 
 void PageView::setPosition(const sf::Vector2f &position) {
+  if (sprite_.getPosition() == position)
+    return;
   sprite_.setPosition(position);
+  draw_flag_ = true;
 }
 
 sf::Vector2f PageView::getPosition() const {
@@ -87,11 +93,20 @@ sf::FloatRect PageView::getGlobalBounds() const {
 }
 
 void PageView::setRotation(int rot) {
-  sprite_.setRotation(sf::degrees(rot * 90.f));
+  const sf::Angle want = sf::degrees((((rot % 4) + 4) % 4) * 90.f);
+  if (sprite_.getRotation() == want)
+    return;
+
+  sprite_.setRotation(want);
+  draw_flag_ = true;
 }
 
 void PageView::setScale(const sf::Vector2f &scale) {
+  if (sprite_.getScale() == scale)
+    return;
+
   sprite_.setScale(scale);
+  draw_flag_ = true;
 }
 
 sf::Vector2u PageView::getTextureSize() const {
@@ -112,9 +127,12 @@ void PageView::setTexture(std::shared_ptr<sf::Texture> texture) {
   const auto bounds = sprite_.getLocalBounds();
   sprite_.setOrigin({bounds.size.x * 0.5f, bounds.size.y * 0.5f});
   active_ = true;
+  draw_flag_ = true;
 }
 
 void PageView::reset(bool deep_reset) {
+  if (deep_reset && texture_)
+    draw_flag_ = true;
   if (deep_reset)
     texture_.reset();
   active_ = false;
@@ -147,11 +165,17 @@ void PageView::clearSearchResults() {
 }
 
 void PageView::showSearchResults() {
+  if (show_search_results_)
+    return;
   show_search_results_ = true;
+  draw_flag_ = true;
 }
 
 void PageView::hideSearchResults() {
+  if (!show_search_results_)
+    return;
   show_search_results_ = false;
+  draw_flag_ = true;
 }
 
 void PageView::setSelections(const std::vector<fz_quad> *quads) {
@@ -171,6 +195,8 @@ void PageView::setSelections(const std::vector<fz_quad> *quads) {
     selection_boxes_.append({br, selection_color_});
     selection_boxes_.append({bl, selection_color_});
   }
+
+  draw_flag_ = true;
 }
 
 void PageView::clearSelections() {
@@ -178,6 +204,9 @@ void PageView::clearSelections() {
 }
 
 void PageView::setPageShapeSize(sf::Vector2f size) {
+  if (original_shape_.getSize() == size)
+    return;
+
   original_shape_.setSize(size);
   original_shape_.setOrigin({size.x * 0.5f, size.y * 0.5f});
   original_shape_.setFillColor(sf::Color::Black);

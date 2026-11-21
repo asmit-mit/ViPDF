@@ -103,29 +103,37 @@ void Completions::handleEvent(const sf::Event &event) {}
 
 void Completions::onResize(const sf::Vector2f &size) {
   window_size_ = size;
+  draw_flag_ = true;
 }
 
 void Completions::setBackgroundColor(const sf::Color &color) {
   display_area_.setFillColor(color);
+  draw_flag_ = true;
 }
 
 void Completions::setLeftTextColor(const sf::Color &color) {
   cmd_fg_color_ = color;
+  draw_flag_ = true;
 }
 
 void Completions::setRightTextColor(const sf::Color &color) {
   desc_fg_color_ = color;
+  draw_flag_ = true;
 }
 
 void Completions::setLeftHighlightColor(const sf::Color &color) {
   selected_cmd_area_.setFillColor(color);
+  draw_flag_ = true;
 }
+
 void Completions::setRightHighlightColor(const sf::Color &color) {
   selected_desc_area_.setFillColor(color);
+  draw_flag_ = true;
 }
 
 void Completions::setPosition(const sf::Vector2f &pos) {
   display_area_.setPosition(pos);
+  draw_flag_ = true;
 }
 
 void Completions::setCompletionList(std::vector<core::CmdAutocompleteItem> list) {
@@ -136,18 +144,21 @@ void Completions::setCompletionList(std::vector<core::CmdAutocompleteItem> list)
   display_area_.setSize({window_size_.x, height});
 
   list_dirty_ = true;
+  draw_flag_ = true;
 }
 
 void Completions::clear() {
   first_visible_ = 0;
   selected_ = 0;
   completions_.clear();
+  draw_flag_ = true;
 }
 
 void Completions::moveUp() {
   if (completions_.empty())
     return;
 
+  draw_flag_ = true;
   if (selected_ == 0) {
     selected_ = completions_.size() - 1;
     if (completions_.size() > max_list_items_)
@@ -170,6 +181,7 @@ void Completions::moveDown() {
   if (completions_.empty())
     return;
 
+  draw_flag_ = true;
   if (selected_ + 1 >= completions_.size()) {
     first_visible_ = 0;
     selected_ = 0;
@@ -189,11 +201,17 @@ bool Completions::isVisible() {
 }
 
 void Completions::show() {
+  if (visible_)
+    return;
   visible_ = true;
+  draw_flag_ = true;
 }
 
 void Completions::hide() {
+  if (!visible_)
+    return;
   visible_ = false;
+  draw_flag_ = true;
 }
 
 std::string &Completions::getSelectedText() {

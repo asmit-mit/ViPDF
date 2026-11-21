@@ -42,7 +42,12 @@ Cmdline::Cmdline(
   completions_.setRightHighlightColor(utils::hexToRGB(config.completions_highlight_color));
 
   event_bus_.subscribe<ui::UIElements>("ui.focus", [this](ui::UIElements focus) {
+    const bool was_visible = visible_;
     visible_ = focus == ui::UIElements::Cmdline;
+
+    if (visible_ != was_visible)
+      draw_flag_ = true;
+
     if (visible_) {
       textbox_.reset();
       textbox_.startEditing();
@@ -93,12 +98,21 @@ void Cmdline::handleEvent(const sf::Event &event) {
   textbox_.handleEvent(event);
 }
 
+bool Cmdline::getAndConsumeDrawFlag() {
+  const bool completions = completions_.getAndConsumeDrawFlag();
+  const bool textbox = textbox_.getAndConsumeDrawFlag();
+  const bool flag = draw_flag_ || (visible_ && (completions || textbox));
+  draw_flag_ = false;
+  return flag;
+}
+
 void Cmdline::setMode(CmdlineMode mode) {
   mode_ = mode;
   if (mode_ == CmdlineMode::Cmd)
     label_.setString(":");
   else if (mode_ == CmdlineMode::Search)
     label_.setString("/");
+  draw_flag_ = true;
 }
 
 void Cmdline::onResize(const sf::Vector2f &size) {
@@ -263,6 +277,7 @@ void Cmdline::reset() {
   textbox_.hide();
   completions_.clear();
   completions_.hide();
+  draw_flag_ = true;
 }
 
 } // namespace ui
