@@ -65,9 +65,6 @@ void PDFLayoutManager::setPagePosDirty() {
 }
 
 void PDFLayoutManager::panCurrentPage(sf::Vector2f delta) {
-  if (!pages_[anchor_page_].hasTexture())
-    return;
-
   if (std::abs(delta.x) < epsilon_) {
     anchor_page_pos_before_scroll_ = pages_[anchor_page_].getPosition();
     scrolled_ = true;
@@ -157,31 +154,60 @@ void PDFLayoutManager::updatePagePositions(const ui::VisualInfo &visual_state) {
   page_positions_dirty_ = false;
 }
 
-void PDFLayoutManager::updateAnchorPage() {
+void PDFLayoutManager::updateAnchorPage(const ui::VisualInfo &visual_state) {
   anchor_page_changed_ = false;
 
-  if (need_initial_pos_ || layout_mode_ == LayoutMode::SinglePage)
+  if (need_initial_pos_ || layout_mode_ == LayoutMode::SinglePage || pages_.empty())
     return;
 
-  const sf::Vector2f window_center = {window_size_.x * 0.5f, window_size_.y * 0.5f};
+  if (!scrolled_)
+    return;
+  scrolled_ = false;
 
-  std::size_t closest = anchor_page_;
-  float closest_dist = std::numeric_limits<float>::max();
+  const float center_y = window_size_.y * 0.5f;
 
-  for (std::size_t i = front_page_; i <= back_page_; i++) {
-    const float page_center_y = pages_[i].getPosition().y;
-    const float dist = std::abs(page_center_y - window_center.y);
-    if (dist < closest_dist) {
-      closest_dist = dist;
-      closest = i;
+  std::size_t idx = anchor_page_;
+  float y = pages_[anchor_page_].getPosition().y;
+  float dist = std::abs(y - center_y);
+  float h = pageSize(idx, visual_state).y;
+
+  if (y < center_y) {
+    while (idx + 1 < pages_.size()) {
+      const float next_h = pageSize(idx + 1, visual_state).y;
+      const float next_y = y + h * 0.5f + gap_ + next_h * 0.5f;
+      const float next_dist = std::abs(next_y - center_y);
+      if (next_dist >= dist)
+        break;
+
+      ++idx;
+      y = next_y;
+      h = next_h;
+      dist = next_dist;
+    }
+  } else {
+    while (idx > 0) {
+      const float prev_h = pageSize(idx - 1, visual_state).y;
+      const float prev_y = y - h * 0.5f - gap_ - prev_h * 0.5f;
+      const float prev_dist = std::abs(prev_y - center_y);
+      if (prev_dist >= dist)
+        break;
+
+      --idx;
+      y = prev_y;
+      h = prev_h;
+      dist = prev_dist;
     }
   }
 
-  if (closest != anchor_page_ && scrolled_) {
-    anchor_page_ = closest;
-    anchor_page_changed_ = true;
-  }
-  scrolled_ = false;
+  if (idx == anchor_page_)
+    return;
+
+  const float x = pages_[anchor_page_].getPosition().x;
+  pages_[idx].setPosition({x, y});
+
+  anchor_page_ = idx;
+  anchor_page_changed_ = true;
+  page_positions_dirty_ = true;
 }
 
 bool PDFLayoutManager::needInitialPos() const {

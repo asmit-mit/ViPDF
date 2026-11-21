@@ -85,6 +85,7 @@ private:
     SEARCH,
     BOOKMARK,
     RELOAD,
+    PAN,
   };
 
 private:

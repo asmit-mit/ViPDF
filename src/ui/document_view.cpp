@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <clip.h>
 #include <cmath>
-#include <print>
 #include <stdexcept>
 #include <utf8.h>
 
@@ -146,6 +145,9 @@ void DocumentView::update() {
           window_size_ * 0.5f - pages_[anchor_page].transformPos(*pending_page_scroll_)
       );
       break;
+    case ScrollTo::PAN:
+      layout_manager_.panCurrentPage(*pending_page_scroll_);
+      break;
     default:
       break;
     }
@@ -158,7 +160,7 @@ void DocumentView::update() {
 
   // update anchor page and request for
   // new pages if anchor page is changed due to scrolling
-  layout_manager_.updateAnchorPage();
+  layout_manager_.updateAnchorPage(view_state);
   anchor_page = layout_manager_.getAnchorPage();
   if (layout_manager_.anchorPageChanged()) {
     requestVisiblePages(anchor_page, view_state.zoom, view_state.rotate, recolor_);
@@ -392,7 +394,8 @@ void DocumentView::execute(const core::InputCmd<DocumentAction> &cmd) {
 }
 
 void DocumentView::panBy(sf::Vector2f delta) {
-  layout_manager_.panCurrentPage(delta);
+  pending_page_scroll_ = delta;
+  scroll_to_ = ScrollTo::PAN;
 }
 
 void DocumentView::zoomBy(float delta) {

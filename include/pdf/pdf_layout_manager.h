@@ -34,7 +34,7 @@ public:
   void panCurrentPage(sf::Vector2f delta);
   void setInitialPagePos(const ui::VisualInfo &visual_state);
   void updatePagePositions(const ui::VisualInfo &visual_state);
-  void updateAnchorPage();
+  void updateAnchorPage(const ui::VisualInfo &visual_state);
 
   bool needInitialPos() const;
   bool isLayoutPending() const;
