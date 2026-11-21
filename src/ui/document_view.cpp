@@ -48,13 +48,9 @@ void DocumentView::draw(sf::RenderTarget &window) const {
   if (!canWorkWithDocument())
     return;
 
-  if (!layout_manager_.needInitialPos())
-    pages_[layout_manager_.getAnchorPage()].draw(window);
+  pages_[layout_manager_.getAnchorPage()].draw(window);
 
   if (layout_manager_.getLayoutMode() == pdf::LayoutMode::SinglePage)
-    return;
-
-  if (layout_manager_.isLayoutPending())
     return;
 
   for (std::size_t i = layout_manager_.getFrontPage(); i <= layout_manager_.getBackPage(); i++) {
@@ -172,14 +168,14 @@ void DocumentView::update() {
     event_bus_.emit("statusbar.page_state", std::make_pair(anchor_page + 1, document_.pageCount()));
   }
 
+  front_page = layout_manager_.getFrontPage();
+  back_page = layout_manager_.getBackPage();
+
   // update shape and position of anchor page sprits's reference shape
   for (std::size_t i = front_page; i <= back_page; i++) {
     pages_[i].syncPageShapePos();
     pages_[i].syncPageShape();
   }
-
-  front_page = layout_manager_.getFrontPage();
-  back_page = layout_manager_.getBackPage();
 
   for (std::size_t i = front_page; i <= back_page; i++)
     pages_[i].update();
