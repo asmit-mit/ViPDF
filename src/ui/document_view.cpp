@@ -417,7 +417,7 @@ void DocumentView::execute(const core::InputCmd<DocumentAction> &cmd) {
   case DocumentAction::Cancel:
     selection_controller_.reset();
     search_controller_.hideSearchResults();
-    emitSearchState(0);
+    emitSearchState(false);
     event_bus_.emit("statusbar.pending_keys", std::string(""));
     break;
   }
@@ -474,7 +474,7 @@ void DocumentView::stepSearch(bool forward) {
                             : search_controller_.goPrev(anchor_page);
   if (page)
     pending_page_swtich_ = page;
-  emitSearchState(1);
+  emitSearchState(true);
 }
 
 void DocumentView::copySelection() {
@@ -499,10 +499,10 @@ void DocumentView::copySelection() {
   selection_controller_.reset();
 }
 
-void DocumentView::emitSearchState(std::size_t display_offset) {
+void DocumentView::emitSearchState(bool show) {
   const std::size_t curr = search_controller_.getCurrSearchResult();
   const std::size_t total = search_controller_.getTotalSearchResult();
-  event_bus_.emit("statusbar.search_state", std::make_pair(curr + display_offset, total));
+  event_bus_.emit("statusbar.search_state", std::make_pair(curr, show ? total : 0));
 }
 
 void DocumentView::addAnnotation(enum pdf_annot_type type, int color_index) {
@@ -1038,7 +1038,7 @@ void DocumentView::resetView() {
   view_controller_.reset();
   search_controller_.reset();
   selection_controller_.reset();
-  emitSearchState(0);
+  emitSearchState(false);
 
   draw_flag_ = true;
   event_bus_.emit("statusbar.pending_keys", std::string(""));

@@ -130,7 +130,7 @@ private:
   void copySelection();
   void addAnnotation(enum pdf_annot_type type, int color_index);
   void removeAnnotation();
-  void emitSearchState(std::size_t display_offset);
+  void emitSearchState(bool show);
 
   bool isPageSwitchAction(DocumentAction action);
 

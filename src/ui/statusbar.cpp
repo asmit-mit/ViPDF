@@ -147,7 +147,7 @@ bool Statusbar::shouldShowPageInfo() const {
 }
 
 bool Statusbar::shouldShowSearch() const {
-  return total_search_results_ != 0;
+  return search_num_ != 0 && total_search_results_ != 0;
 }
 
 bool Statusbar::shouldShowPendingKeys() const {
