@@ -201,6 +201,7 @@ void PageView::setSelections(const std::vector<fz_quad> *quads) {
 
 void PageView::clearSelections() {
   selection_boxes_.clear();
+  draw_flag_ = true;
 }
 
 void PageView::setPageShapeSize(sf::Vector2f size) {
