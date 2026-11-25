@@ -619,7 +619,7 @@ void DocumentView::onSearchPage(const std::u32string &text) {
   if (closest_page != static_cast<int>(layout_manager_.getAnchorPage()))
     pending_page_swtich_ = (*closest_page);
 
-  event_bus_.emit("statusbar.search_state", std::make_pair(curr + 1, total));
+  event_bus_.emit("statusbar.search_state", std::make_pair(curr, total));
 }
 
 void DocumentView::onAnnotate(std::vector<std::size_t> pages) {

@@ -123,7 +123,7 @@ void PDFSearchController::clearSearchPosDirty() {
 }
 
 void PDFSearchController::reset() {
-  if (selected_page_ >= 0)
+  if (selected_page_ >= 0 && (size_t)selected_page_ < pages_.size())
     pages_[selected_page_].setSelectedSearchResult(-1);
   selected_page_ = -1;
 

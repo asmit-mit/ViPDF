@@ -71,7 +71,7 @@ void Statusbar::subscribeToEvents() {
 
   event_bus_.subscribe<
       std::pair<size_t, size_t>>("statusbar.search_state", [this](std::pair<size_t, size_t> state) {
-    search_num_ = state.first;
+    search_num_ = state.first + 1;
     total_search_results_ = state.second;
     search_details_changed_ = true;
     draw_flag_ = true;
@@ -147,7 +147,7 @@ bool Statusbar::shouldShowPageInfo() const {
 }
 
 bool Statusbar::shouldShowSearch() const {
-  return search_num_ != 0 && total_search_results_ != 0;
+  return total_search_results_ != 0;
 }
 
 bool Statusbar::shouldShowPendingKeys() const {
