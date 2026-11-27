@@ -1,0 +1,47 @@
+app-id: io.github.asmit_mit.ViPDF
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+command: vipdf
+
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --device=dri
+  - --filesystem=home:ro
+  - --filesystem=xdg-config/vipdf:ro
+
+modules:
+  - name: mupdf
+    buildsystem: simple
+    build-commands:
+      - make -j$FLATPAK_BUILDER_N_JOBS prefix=/app USE_SYSTEM_LIBS=no USE_SYSTEM_HARFBUZZ=yes USE_SYSTEM_FREETYPE=yes HAVE_X11=no HAVE_GLUT=no build=release install
+      - |
+        mkdir -p /app/lib/pkgconfig
+        if [ ! -f /app/lib/pkgconfig/mupdf.pc ]; then
+          cat > /app/lib/pkgconfig/mupdf.pc <<'EOF'
+        prefix=/app
+        libdir=${prefix}/lib
+        includedir=${prefix}/include
+
+        Name: mupdf
+        Description: MuPDF library
+        Version: 1.28.6
+        Libs: -L${libdir} -lmupdf -lmupdf-third -lm
+        Cflags: -I${includedir}
+        EOF
+        fi
+    sources:
+      - type: archive
+        url: https://mupdf.com/downloads/archive/mupdf-1.28.6-source.tar.gz
+        sha256: dc85000640a45d90ca9b77b061f6ca67cce0c4d4fbecf8819647baf573eef101
+
+  - name: vipdf
+    buildsystem: meson
+    build-options:
+      build-args:
+        - --share=network
+    sources:
+      - type: git
+        url: https://github.com/asmit-mit/vipdf.git
+        branch: master
