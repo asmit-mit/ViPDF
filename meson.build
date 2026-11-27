@@ -10,6 +10,7 @@ project(
   ],
 )
 project_name = meson.project_name()
+app_id = 'io.github.asmit_mit.ViPDF'
 
 cmake = import('cmake')
 
@@ -177,7 +178,15 @@ executable(
 install_subdir('assets/fonts', install_dir: asset_install_dir)
 install_data('assets/commands.json', install_dir: asset_install_dir)
 
-install_data('assets/vipdf.desktop', install_dir: datadir / 'applications')
-install_data('assets/vipdf.png', install_dir: datadir / 'icons/hicolor/scalable/apps')
+install_data(
+  'assets/vipdf.desktop',
+  install_dir: datadir / 'applications',
+  rename: app_id + '.desktop',
+)
+install_data(
+  'assets/vipdf.svg',
+  install_dir: datadir / 'icons/hicolor/scalable/apps',
+  rename: app_id + '.svg',
+)
 
 meson.add_devenv(environment({'VIPDF_ASSETS': meson.project_source_root() / 'assets'}))
